@@ -1,0 +1,91 @@
+# d02的配置文件
+lidar: 
+  lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
+  use_livox_msg: false # 是否使用livox的消息格式 custom.msg, 否则发出来的是sensor::PointCloud2消息
+  lidar_topic: "/livox/lidar"
+  point_filter_num: 5 # 点云滤波次数
+  lidar_min_range: 0.10 # 雷达最小范围
+  lidar_max_range: 100.0 # 雷达最大范围
+  lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
+  lidar_orientation_noise_std: 0.01 # 雷达方向噪声标准差
+  
+imu:
+  imu_topic: "/livox/imu"
+  acc_noise_std: 0.014715 # 加速度噪声标准差
+  gyro_noise_std: 0.00244 # 陀螺仪噪声标准差
+  acc_bias_noise_std: 0.0559 # 加速度 bias 噪声标准差
+  gyro_bias_noise_std: 0.00656 # 陀螺仪 bias 噪声标准差
+
+encoder:
+  encoder_topic: "/odom"
+  encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
+  encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
+
+gnss:
+  gnss_topic: "/gnss"
+  gnss_position_noise_std: 1e-3 #  GNSS 位置噪声标准差
+  gnss_orientation_noise_std: 1e-3 #  GNSS 方向噪声标准差
+
+# robot_link和encoder是重合的
+# lidar->robot的外参，雷达绕y轴旋转了25°
+T_lidar2robot: [0.9082976,  0.0000000,  0.4183246, 0.1895, 
+                0.0000000,  1.0000000,  0.0000000, 0.0000, 
+                -0.4183246, 0.0000000,  0.9082976, 0.3681,
+                0.0000000,  0.0000000,  0.0000000, 1.0000]
+# lidar->imu的外参
+T_lidar2imu: [1.000000,  0.0000000, 0.0000000, -0.01100000,
+              0.0000000, 1.0000000, 0.0000000, -0.02329000,
+              0.0000000, 0.0000000, 1.0000000, 0.044120000, 
+              0.0000000, 0.0000000, 0.0000000, 1.0000000]
+# imu->encoder的外参
+T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
+                0.0000000,  1.0000000,  0.0000000, 0.0000,
+                -0.4183246, 0.0000000,  0.9082976, 0.3681,
+                0.0000000,  0.0000000,  0.0000000, 1.0000]
+
+gravity: 9.81 # 重力加速度
+
+use_p2plane: true
+use_voxel: false
+use_ndt: false
+
+front_end:
+  # 里程计前端的通用参数
+  has_encoder: false
+  has_gnss: false
+  has_camera: false
+  calib_lidar2imu: false # 是否标定外参
+  keep_angle_ranges: [-180, 180] # 保留的角度范围
+  remove_range: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
+  max_iteration: 10 # 最大迭代次数
+
+  use_p2plane: 
+    keyframe_size: 15
+    keyframe_distance: 0.5 # 关键帧距离
+    keyframe_angle_distance: 0.2 # 关键帧角度 rads
+    use_angle_keyframe: false  # 是否使用角度关键帧
+    downsample: 0.2 # 降采样
+
+  use_voxel_map: 
+    voxle_size: 1.0
+    max_layer: 0 #  # 4 layer, 0, 1, 2, 3
+    layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
+    plannar_threshold: 0.01 # 平面阈值
+    max_points_size: 1000 # 每个voxel最大的点云数量
+    max_cov_points_size: 1000 # 每个voxel最大的协方差点云数量
+    max_capacity: 10000 # 整体的voxel个数
+    update_omp: true # 更新voxel地图时使用omp加速
+
+    pub_voxel_map: true # 发布voxel地图
+    pub_max_voxel_layer: 1 # 发布层数
+    pub_point_cloud: true # 发布点云
+    dense_map_enable: false # 是否发布稠密地图
+    pub_point_cloud_skip: 5             # publish one points per five points
+    ranging_cov: 0.03 #点云范围噪声
+    angle_cov: 0.01 #点云角度噪声
+
+
+  use_ndt: 
+    voxle_size: 1.0
+
+
