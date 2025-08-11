@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 # debug模式
 if("${ENABLE_DEBUG}")
     message(STATUS " ***  build with debug mode !!!  ****  ")
@@ -63,6 +63,10 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 add_definitions(-DMP_EN)
 add_definitions(-DMP_PROC_NUM=4)
+
+include_directories(
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)
 
 #include 
 include_directories(
