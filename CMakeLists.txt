@@ -98,6 +98,7 @@ add_executable(slam_node
     src/system.cc
     src/system_config.cc
     src/lidar_process.cc
+    src/ros/ros1_manager.cc
 )
 target_link_libraries(slam_node 
 ${thirdparty_libs}

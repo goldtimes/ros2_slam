@@ -1,7 +1,7 @@
 # d02的配置文件
 lidar: 
   lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
-  use_livox_driver: 2 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
+  use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
   lidar_topic: "/livox/lidar"
   point_filter_num: 5 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
