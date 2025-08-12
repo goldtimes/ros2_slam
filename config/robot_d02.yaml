@@ -1,13 +1,14 @@
 # d02的配置文件
 lidar: 
   lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
-  use_livox_driver: 2 # 使用的livox2驱动的版本, 1 使用livox1驱动, 0使用标准的ros消息
+  use_livox_driver: 2 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
   lidar_topic: "/livox/lidar"
   point_filter_num: 5 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
   lidar_max_range: 100.0 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
+  is_tms_head: true # 雷达的时间戳是否为帧首
   
 imu:
   imu_topic: "/livox/imu"
@@ -46,8 +47,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
-use_voxel: false
+use_p2plane: false
+use_voxel: true
 use_ndt: false
 
 has_encoder: false
@@ -58,7 +59,7 @@ front_end:
   # 里程计前端的通用参数
   calib_lidar2imu: false # 是否标定外参
   keep_angle_ranges: [-180, 180] # 保留的角度范围
-  remove_range: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
+  remove_ranges: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
   max_iteration: 10 # 最大迭代次数
 
   use_p2plane: 

@@ -45,10 +45,10 @@ using MatX18d = Eigen::Matrix<double, -1, 18>;
 using Quatd = Eigen::Quaterniond;
 using Quatf = Eigen::Quaternionf;
 
-const M3D Eye3d = M3D::Identity();
-const Mat3f Eye3f = Mat3f::Identity();
-const V3D Zero3d(0, 0, 0);
-const Vec3f Zero3f(0, 0, 0);
+// const M3D Eye3d = M3D::Identity();
+// const Mat3f Eye3f = Mat3f::Identity();
+// const V3D Zero3d(0, 0, 0);
+// const Vec3f Zero3f(0, 0, 0);
 
 // pose represented as sophus structs
 using SE2 = Sophus::SE2d;

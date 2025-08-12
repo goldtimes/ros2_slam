@@ -93,7 +93,12 @@ list(APPEND thirdparty_libs
     spdlog::spdlog
 )
 
-add_executable(map_node app/map_node.cc)
-target_link_libraries(map_node 
+add_executable(slam_node 
+    app/map_node.cc
+    src/system.cc
+    src/system_config.cc
+    src/lidar_process.cc
+)
+target_link_libraries(slam_node 
 ${thirdparty_libs}
 )

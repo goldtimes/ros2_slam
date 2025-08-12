@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 #include "eigen_type.hh"
-
 /**
     传感器数据
 */
