@@ -1,13 +1,13 @@
 # d02的配置文件
 lidar: 
   lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
-  use_livox_msg: false # 是否使用livox的消息格式 custom.msg, 否则发出来的是sensor::PointCloud2消息
+  use_livox_driver: 2 # 使用的livox2驱动的版本, 1 使用livox1驱动, 0使用标准的ros消息
   lidar_topic: "/livox/lidar"
   point_filter_num: 5 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
   lidar_max_range: 100.0 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
-  lidar_orientation_noise_std: 0.01 # 雷达方向噪声标准差
+  lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
   
 imu:
   imu_topic: "/livox/imu"
@@ -24,7 +24,8 @@ encoder:
 gnss:
   gnss_topic: "/gnss"
   gnss_position_noise_std: 1e-3 #  GNSS 位置噪声标准差
-  gnss_orientation_noise_std: 1e-3 #  GNSS 方向噪声标准差
+  gnss_rotation_noise_std: 1e-3 #  GNSS 方向噪声标准差
+  has_orientation: false
 
 # robot_link和encoder是重合的
 # lidar->robot的外参，雷达绕y轴旋转了25°
@@ -49,11 +50,12 @@ use_p2plane: true
 use_voxel: false
 use_ndt: false
 
+has_encoder: false
+has_gnss: false
+has_camera: false
+
 front_end:
   # 里程计前端的通用参数
-  has_encoder: false
-  has_gnss: false
-  has_camera: false
   calib_lidar2imu: false # 是否标定外参
   keep_angle_ranges: [-180, 180] # 保留的角度范围
   remove_range: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
@@ -61,6 +63,7 @@ front_end:
 
   use_p2plane: 
     keyframe_size: 15
+    p2plane_thresh: 0.01 # 平面阈值
     keyframe_distance: 0.5 # 关键帧距离
     keyframe_angle_distance: 0.2 # 关键帧角度 rads
     use_angle_keyframe: false  # 是否使用角度关键帧
