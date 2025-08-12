@@ -51,7 +51,7 @@ use_p2plane: false
 use_voxel: true
 use_ndt: false
 
-has_encoder: false
+has_encoder: true
 has_gnss: false
 has_camera: false
 

@@ -16,6 +16,14 @@ void System::InitConfigParams() {
     LOG_INFO("System init done!");
 }
 
+void System::AddIMU(const IMU& imu) {
+}
+void System::AddEncoder(const Encoder& encoder) {
+}
+// void AddLidar(const Lidar& lidar);
+void System::AddGNSS(const GNSS& gnss) {
+}
+
 System::~System() {
 }
 }  // namespace slam

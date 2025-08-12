@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include "commons.hh"
 #include "logger.hh"
 #include "sensors.hh"
@@ -16,11 +17,16 @@ class System {
     explicit System(const std::string& config_path);
     ~System();
 
-    void run();
+    void Run();
 
     const std::shared_ptr<SystemConfig> GetSystemConfig() const {
         return system_config_ptr_;
     }
+
+    void AddIMU(const IMU& imu);
+    void AddEncoder(const Encoder& encoder);
+    // void AddLidar(const Lidar& lidar);
+    void AddGNSS(const GNSS& gnss);
 
    private:
     void InitConfigParams();
@@ -28,5 +34,11 @@ class System {
    private:
     std::string config_path_;
     std::shared_ptr<SystemConfig> system_config_ptr_;
+
+    std::deque<IMU> imu_queue_;
+    std::deque<Encoder> encoder_queue_;
+    // std::deque<Lidar> lidar_queue_;
+    std::deque<GNSS> gnss_queue_;
+
 };
 }  // namespace slam

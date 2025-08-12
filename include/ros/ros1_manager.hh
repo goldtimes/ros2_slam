@@ -10,10 +10,11 @@
 namespace slam {
 
 class SystemConfig;
+class System;
 
 class ROS1Manager {
    public:
-    ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<SystemConfig> system_config_ptr);
+    ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr);
     ~ROS1Manager();
 
     void InitPub();
@@ -39,6 +40,20 @@ class ROS1Manager {
     ros::Subscriber gnss_sub_;
     ros::Subscriber lidar_sub_;
     ros::Subscriber encoder_sub_;
-    std::shared_ptr<SystemConfig> system_config_ptr_;
+    std::shared_ptr<System> system_ptr_;
+
+    // fps的统计
+    double last_imu_time_ = -1;
+    int imu_frame_count_ = 0;
+    int imu_fps_ = 0;
+    double last_encoder_time_ = -1;
+    int encoder_frame_count_ = 0;
+    int encoder_fps_ = 0;
+    double last_lidar_time_ = -1;
+    int lidar_frame_count_ = 0;
+    int lidar_fps_ = 0;
+    double last_gnss_time_ = -1;
+    int gnss_frame_count_ = 0;
+    int gnss_fps_ = 0;
 };
 }  // namespace slam
