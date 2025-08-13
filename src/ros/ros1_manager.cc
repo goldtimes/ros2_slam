@@ -1,6 +1,7 @@
 #include "ros/ros1_manager.hh"
 #include "system.hh"
 #include "system_config.hh"
+#include "utils.hh"
 namespace slam {
 
 ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr)
@@ -65,7 +66,12 @@ void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr&
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
+    PointCloudPtr cloud_ptr(new PointCloudType);
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
+    // push to system
+    system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
+
 void ROS1Manager::Livox2CloudCallback(const livox_ros_driver2::CustomMsg::ConstPtr& cloud_livox) {
     static double last_record_lidar_time = cloud_livox->header.stamp.toSec();
     double curr_lidar_time = cloud_livox->header.stamp.toSec();
@@ -81,6 +87,11 @@ void ROS1Manager::Livox2CloudCallback(const livox_ros_driver2::CustomMsg::ConstP
     }
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
+    // 需要在这里处理lidar数据
+    PointCloudPtr cloud_ptr(new PointCloudType);
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
+    // push to system
+    system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
 void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr& cloud_livox) {
     static double last_record_lidar_time = cloud_livox->header.stamp.toSec();
@@ -97,6 +108,11 @@ void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr
     }
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
+    // 需要在这里处理lidar数据
+    PointCloudPtr cloud_ptr(new PointCloudType);
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
+    // push to system
+    system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
 void ROS1Manager::ImuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
     static double last_record_imu_time = imu_msg->header.stamp.toSec();
@@ -118,6 +134,7 @@ void ROS1Manager::ImuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
     gyro << imu_msg->angular_velocity.x, imu_msg->angular_velocity.y, imu_msg->angular_velocity.z;
     IMU imu(curr_imu_time, acc, gyro);
     // push to system
+    system_ptr_->AddIMU(imu);
 }
 void ROS1Manager::EncoderCallback(const nav_msgs::Odometry::ConstPtr& encoder_msg) {
     static double last_record_encoder_time = encoder_msg->header.stamp.toSec();
@@ -141,7 +158,9 @@ void ROS1Manager::EncoderCallback(const nav_msgs::Odometry::ConstPtr& encoder_ms
         encoder_msg->twist.twist.angular.z;
     Encoder encoder(curr_encoder_time, linear_vel, angular_vel);
     // push to system
+    system_ptr_->AddEncoder(encoder);
 }
+// void AddLidar(const Lidar& lidar);
 void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg) {
     static double last_record_gnss_time = gnss_msg->header.stamp.toSec();
     double curr_gnss_time = gnss_msg->header.stamp.toSec();
@@ -157,5 +176,10 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
     }
     last_gnss_time_ = curr_gnss_time;
     gnss_frame_count_++;
+    V3D lla;
+    lla << gnss_msg->latitude, gnss_msg->longitude, gnss_msg->altitude;
+    GNSS gnss(curr_gnss_time, lla);
+    // push to system
+    system_ptr_->AddGNSS(gnss);
 }
 }  // namespace slam

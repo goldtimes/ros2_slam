@@ -27,4 +27,18 @@ inline void print_matrix(const T& mat, std::string name) {
     // clang-format on
 }
 
+template <typename FuncT>
+inline void evaluate_and_call(FuncT&& func, const std::string& func_name = "", bool print = false) {
+    double total_time = 0;
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    func();
+    auto t2 = std::chrono::high_resolution_clock::now();
+    // second
+    total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    if (print) {
+        LOG_INFO("方法{},调用时间:{} ", func_name, total_time);
+    }
+}
+
 }  // namespace slam
