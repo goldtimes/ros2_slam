@@ -53,4 +53,40 @@ inline void evaluate_and_call(FuncT&& func, const std::string& func_name = "", b
     }
 }
 
+template <typename C, typename D, typename Getter>
+void ComputeMeanAndCovDiag(const C& collects, D& mean, D& cov_diag, Getter&& getter) {
+    size_t len = collects.size();
+    // 计算均值
+    mean = std::accumulate(collects.begin(), collects.end(), D::Zero().eval(),
+                           [&getter](const D& sum, const auto& data) -> D { return sum + getter(data); }) /
+           len;
+    // 计算协方差对角线
+    cov_diag = std::accumulate(collects.begin(), collects.end(), D::Zero().eval(),
+                               [&getter, &mean](const D& sum, const auto& data) {
+                                   return sum + (getter(data) - mean).cwiseAbs2().eval();
+                               }) /
+               (len - 1);
+}
+
+template <typename C, int dim, typename Getter>
+void ComputeMeanAndCov(const C& collects, Eigen::Matrix<double, dim, 1>& mean, Eigen::Matrix<double, dim, dim>& cov,
+                       Getter&& getter) {
+    using D = Eigen::Matrix<double, dim, 1>;
+    using E = Eigen::Matrix<double, dim, dim>;
+    size_t len = collects.size();
+    // 计算均值
+    // clang-format off
+
+    mean = std::accumulate(collects.begin(), collects.end(), D::Zero().eval(),
+                           [&getter](const D& sum, const auto& data) -> D { return sum + getter(data); }) / len;
+    // 计算协方差对角线
+    cov = std::accumulate(collects.begin(), collects.end(), E::Zero().eval(),
+                               [&getter, &mean](const E& sum, const auto& data) -> E{
+                                auto value = getter(data).eval();
+                                D v = value - mean;
+                                return sum + v * v.transpose();
+                               }) / (len - 1);
+    // clang-format on
+}
+
 }  // namespace slam
