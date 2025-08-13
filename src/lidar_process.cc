@@ -154,7 +154,8 @@ bool LidarProcess::mid360_process(const sensor_msgs::PointCloud2::ConstPtr& clou
                 pt.y = livox_point.y;
                 pt.z = livox_point.z;
                 pt.intensity = livox_point.intensity;
-                pt.time = livox_point.timestamp;
+                // ns -> s
+                pt.time = livox_point.timestamp / 1e9;
                 pt.ring = livox_point.line;
                 filtered_cloud->push_back(pt);
             }

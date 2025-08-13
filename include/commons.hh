@@ -1,5 +1,8 @@
 #pragma once
+#include <deque>
 #include "logger.hh"
+#include "pointcloud_utils.hh"
+#include "sensors.hh"
 
 namespace slam {
 enum class SLAM_MODE {
@@ -8,6 +11,15 @@ enum class SLAM_MODE {
     RELOCALIZATION,  // 重定位模式
     NONE,            // 无模式
     TRACKING,        // 里程计跟踪模式
+};
+
+struct MeasureGroup {
+    PointCloudPtr curent_cloud;
+    double lidar_beg_time;
+    double lidar_end_time;
+    std::deque<IMU> imus;
+    std::deque<Encoder> encoders;
+    std::deque<GNSS> gnsss;
 };
 
 template <typename T>

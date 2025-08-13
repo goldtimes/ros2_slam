@@ -1,4 +1,5 @@
 #include "system.hh"
+#include "front_end.hh"
 #include "system_config.hh"
 
 namespace slam {
@@ -9,6 +10,9 @@ System::System(const std::string& config_path) : config_path_(config_path) {
         system_config_ptr_->lidar_config_.lidar_min_range, system_config_ptr_->lidar_config_.lidar_max_range,
         system_config_ptr_->lidar_config_.point_filter_num, system_config_ptr_->frontend_config_.keep_angle_ranges,
         system_config_ptr_->frontend_config_.remove_ranges);
+    front_end_ptr_ = new FrontEnd(this);
+    // 开启前端的线程
+    front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
 }
 
 void System::InitConfigParams() {
@@ -24,19 +28,65 @@ void System::InitConfigParams() {
 void System::AddIMU(const IMU& imu) {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);
     imu_queue_.push_back(imu);
+    // 保持3s内的imu数据
+    while (!imu_queue_.empty()) {
+        if (imu_queue_.back().timestamp_ - imu_queue_.front().timestamp_ > 1.0) {
+            imu_queue_.pop_front();
+        } else {
+            break;
+        }
+    }
+    // LOG_INFO("imu size: {}", imu_queue_.size());
+    m_buff_cv_.notify_one();
 }
 void System::AddEncoder(const Encoder& encoder) {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);
     encoder_queue_.push_back(encoder);
+    // 保持1s内的encoder数据
+    while (!encoder_queue_.empty()) {
+        if (encoder_queue_.back().timestamp_ - encoder_queue_.front().timestamp_ > 1.0) {
+            encoder_queue_.pop_front();
+        } else {
+            break;
+        }
+    }
 }
 void System::AddLidar(const PointCloudPtr& cloud, const double cloud_time) {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);
     lidar_queue_.push_back(cloud);
     lidar_time_queue_.push_back(cloud_time);
+    // 保持1s内的lidar数据
+    while (!lidar_time_queue_.empty()) {
+        if (lidar_time_queue_.back() - lidar_time_queue_.front() > 1.0) {
+            lidar_queue_.pop_front();
+            lidar_time_queue_.pop_front();
+        } else {
+            break;
+        }
+    }
+    // m_buff_cv_.notify_one();
 }
 void System::AddGNSS(const GNSS& gnss) {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);
     gnss_queue_.push_back(gnss);
+    // 保持1s内的gnss数据
+    while (!gnss_queue_.empty()) {
+        if (gnss_queue_.back().timestamp_ - gnss_queue_.front().timestamp_ > 1.0) {
+            gnss_queue_.pop_front();
+        } else {
+            break;
+        }
+    }
+}
+
+// 重置系统
+void System::reset() {
+    std::lock_guard<std::mutex> lock(m_buf_mutex_);
+    imu_queue_.clear();
+    encoder_queue_.clear();
+    lidar_queue_.clear();
+    lidar_time_queue_.clear();
+    gnss_queue_.clear();
 }
 
 System::~System() {

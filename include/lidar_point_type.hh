@@ -72,7 +72,7 @@ struct PointXYZIRT {
 
     PCL_ADD_INTENSITY;
     std::uint8_t ring;
-    float time;  // offset time relative to the first point. unit: s
+    double time;  // offset time relative to the first point. unit: s
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
@@ -104,4 +104,4 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(slam::LivoxPointXYZITLT,
 POINT_CLOUD_REGISTER_POINT_STRUCT(slam::PointXYZIRT,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity,
                                                                           intensity)(std::uint8_t, ring,
-                                                                                     ring)(float, time, time));
+                                                                                     ring)(double, time, time));
