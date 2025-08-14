@@ -17,17 +17,17 @@ void IESKF::Predict(const Input& input, double dt, const M12D& Q) {
     // 计算m_F矩阵
     m_F_.setIdentity();
     // delta_theta / delta_theta
-    m_F_.block<3, 3>(R, R) = Sophus::SO3d::exp(-(input.gyro - state_.bg) * dt).matrix();
-    m_F_.block<3, 3>(R, BG) = -Jr((input.gyro - state_.bg) * dt) * dt;
-    m_F_.block<3, 3>(T, V) = M3D::Identity() * dt;
-    m_F_.block<3, 3>(V, R) = -state_.r_wi * Sophus::SO3d::hat(input.acc - state_.ba) * dt;
-    m_F_.block<3, 3>(V, BA) = -state_.r_wi * dt;
+    m_F_.block<3, 3>(0, 0) = Sophus::SO3d::exp(-(input.gyro - state_.bg) * dt).matrix();
+    m_F_.block<3, 3>(0, 15) = -Jr((input.gyro - state_.bg) * dt) * dt;
+    m_F_.block<3, 3>(3, 12) = M3D::Identity() * dt;
+    m_F_.block<3, 3>(12, 0) = -state_.r_wi * Sophus::SO3d::hat(input.acc - state_.ba) * dt;
+    m_F_.block<3, 3>(12, 18) = -state_.r_wi * dt;
     // 计算m_G矩阵
     m_G_.setZero();
-    m_G_.block<3, 3>(R, R) = -Jr((input.gyro - state_.bg) * dt) * dt;
-    m_G_.block<3, 3>(V, T) = -state_.r_wi * dt;
-    m_G_.block<3, 3>(BG, E_R) = M3D::Identity() * dt;
-    m_G_.block<3, 3>(BA, E_T) = M3D::Identity() * dt;
+    m_G_.block<3, 3>(0, 0) = -Jr((input.gyro - state_.bg) * dt) * dt;
+    m_G_.block<3, 3>(12, 3) = -state_.r_wi * dt;
+    m_G_.block<3, 3>(15, 6) = M3D::Identity() * dt;
+    m_G_.block<3, 3>(18, 9) = M3D::Identity() * dt;
     // 状态更新
     state_ += delta;
     // 协方差更新
@@ -55,8 +55,8 @@ void IESKF::Update() {
         delta = state_ - predict_x;
         M21D J = M21D::Identity();
         // 投影P矩阵
-        J.block<3, 3>(R, R) = JrInv(delta.segment<3>(0));
-        J.block<3, 3>(E_R, E_R) = JrInv(delta.segment<3>(E_R));
+        J.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
+        J.block<3, 3>(6, 6) = JrInv(delta.segment<3>(6));
         H += J.transpose() * cov_.inverse() * J;
         b += J.transpose() * cov_.inverse() * delta;
         H.block<12, 12>(0, 0) += shared_state.H_;

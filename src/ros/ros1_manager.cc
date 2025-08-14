@@ -130,7 +130,9 @@ void ROS1Manager::ImuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
     last_imu_time_ = curr_imu_time;
     imu_frame_count_++;
     V3D acc, gyro;
-    acc << imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y, imu_msg->linear_acceleration.z;
+    acc << imu_msg->linear_acceleration.x * system_ptr_->GetSystemConfig()->imu_config_.imu_scale,
+        imu_msg->linear_acceleration.y * system_ptr_->GetSystemConfig()->imu_config_.imu_scale,
+        imu_msg->linear_acceleration.z * system_ptr_->GetSystemConfig()->imu_config_.imu_scale;
     gyro << imu_msg->angular_velocity.x, imu_msg->angular_velocity.y, imu_msg->angular_velocity.z;
     IMU imu(curr_imu_time, acc, gyro);
     // push to system

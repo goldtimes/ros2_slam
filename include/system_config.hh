@@ -32,6 +32,7 @@ struct LidarConfig {
 };
 struct IMUConfig {
     std::string imu_topic;
+    double imu_scale;
     double acc_noise_std;
     double acc_bias_noise_std;
     double gyro_noise_std;
@@ -40,6 +41,7 @@ struct IMUConfig {
     void print() const {
         LOG_INFO("IMUConfig:");
         LOG_INFO("  imu_topic: {}", imu_topic);
+        LOG_INFO("  imu_scale: {:03.3f}", imu_scale);
         LOG_INFO("  acc_noise_std: {:03.3f}", acc_noise_std);
         LOG_INFO("  acc_bias_noise_std: {:03.3f}", acc_bias_noise_std);
         LOG_INFO("  gyro_noise_std: {:03.3f}", gyro_noise_std);

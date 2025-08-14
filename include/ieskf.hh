@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include "commons.hh"
+#include "logger.hh"
 #include "state.hh"
 
 namespace slam {
@@ -11,7 +12,9 @@ using stop_func = std::function<bool(const V21D& dx)>;
 // 迭代卡尔曼滤波器
 class IESKF {
    public:
-    IESKF() = default;
+    IESKF() {
+        LOG_INFO("IESKF init");
+    }
     ~IESKF() = default;
 
     M3D Jr(const V3D& inp);
@@ -33,11 +36,19 @@ class IESKF {
 
     void Update();
 
-    NavState& GetState() {
+    const NavState& GetState() const {
         return state_;
     }
 
-    M21D& GetCov() {
+    const M21D& GetCov() const {
+        return cov_;
+    }
+
+    NavState& State() {
+        return state_;
+    }
+
+    M21D& Cov() {
         return cov_;
     }
 

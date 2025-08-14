@@ -5,14 +5,6 @@
 namespace slam {
 // 整个系统维护的状态量
 
-#define R 0
-#define T 3
-#define E_R 6
-#define E_T 9
-#define V 12
-#define BG 15
-#define BA 18
-
 struct NavState {
     // 重力常量
     static double gravity;

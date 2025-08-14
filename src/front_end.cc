@@ -1,5 +1,6 @@
 #include "front_end.hh"
-#include "static_imu_init.hh"
+#include "ieskf.hh"
+#include "propogator.hh"
 #include "system.hh"
 #include "system_config.hh"
 
@@ -10,12 +11,10 @@ FrontEnd::FrontEnd(System* system) {
     LOG_INFO("FrontEnd init done!");
     use_encoder_ = system_->GetSystemConfig()->has_encoder_;
     use_gnss_ = system_->GetSystemConfig()->has_gnss_;
-    // propogator
-
-    // 静态初始化
-    static_imu_init_ptr_ = std::make_shared<StaticImuInit>();
     // ieskf
-
+    kf_ptr_ = std::make_shared<IESKF>();
+    // propogator
+    propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
     // voxel_map_odom
 }
 
@@ -38,25 +37,20 @@ void FrontEnd::Run() {
                 LOG_INFO("GetMeasureGroup success!");
                 if (front_end_status_ == FrontEndStatus::IMU_INIT) {
                     // 静态初始化
-                    static_imu_init_ptr_->AddMeasurements(meas.imus);
-                    if (!static_imu_init_ptr_->GetInitSuccess()) {
-                        static_imu_init_ptr_->TryInit();
-                    } else {
-                        front_end_status_ = FrontEndStatus::MAP_INIT;
-                        LOG_INFO("IMU_INIT!");
-                        auto mean_acc = static_imu_init_ptr_->GetMeanAcc();
-                        auto mean_gyro = static_imu_init_ptr_->GetMeanGyro();
-                        Eigen::Matrix3d R = Eigen::Quaterniond::FromTwoVectors((-mean_acc).normalized(),
-                                                                               Eigen::Vector3d(0.0, 0.0, -1.0))
-                                                .toRotationMatrix();
-                        Eigen::Quaterniond q_inG(R);
-                        LOG_INFO("q_inG: {}", q_inG.coeffs().transpose());
+                    if (!propogator_ptr_->GetInitSuccess()) {
+                        if (propogator_ptr_->Initialize(meas)) {
+                            front_end_status_ = FrontEndStatus::MAP_INIT;
+                            LOG_INFO("IMU_INIT!");
+                        }
                     }
+                    continue;
                 }
-
-            } else {
-                continue;
+                // 状态递推以及对雷达去畸变
+                
             }
+
+        } else {
+            continue;
         }
     }
 }

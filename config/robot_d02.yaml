@@ -12,6 +12,7 @@ lidar:
   
 imu:
   imu_topic: "/livox/imu"
+  imu_scale: 10 # livoximu的输出需要缩放
   acc_noise_std: 0.014715 # 加速度噪声标准差
   gyro_noise_std: 0.00244 # 陀螺仪噪声标准差
   acc_bias_noise_std: 0.0559 # 加速度 bias 噪声标准差

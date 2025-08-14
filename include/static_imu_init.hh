@@ -15,12 +15,22 @@ class StaticImuInit {
         // 静止的时间
         double init_time_seconds = 1.0;
         // 队列长度
-        int init_buffer_size = 150;
+        int init_buffer_size = 1000;
         double max_static_gyro_var = 0.5;
         double max_static_acc_var = 0.05;
         double gravity_norm_ = 9.81;
+        void print() {
+            LOG_INFO("init_time_seconds:{}", init_time_seconds);
+            LOG_INFO("init_buffer_size:{}", init_buffer_size);
+            LOG_INFO("max_static_gyro_var:{}", max_static_gyro_var);
+            LOG_INFO("max_static_acc_var:{}", max_static_acc_var);
+            LOG_INFO("gravity_norm_:{}", gravity_norm_);
+        }
     };
     explicit StaticImuInit(Options options = Options()) {
+        LOG_INFO("StaticImuInit init");
+        options_ = options;
+        options_.print();
     }
     ~StaticImuInit() = default;
 

@@ -3,8 +3,10 @@
 #include "commons.hh"
 
 namespace slam {
+
 class System;
-class StaticImuInit;
+class Propogator;
+class IESKF;
 
 enum class FrontEndStatus {
     IMU_INIT,  // 静态初始化
@@ -39,6 +41,7 @@ class FrontEnd {
     bool use_encoder_ = false;
     bool use_gnss_ = false;
 
-    std::shared_ptr<StaticImuInit> static_imu_init_ptr_;
+    std::shared_ptr<Propogator> propogator_ptr_;
+    std::shared_ptr<IESKF> kf_ptr_;
 };
 }  // namespace slam

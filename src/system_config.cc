@@ -18,6 +18,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         lidar_config_.print();
         // 加载IMU相关的配置
         imu_config_.imu_topic = config["imu"]["imu_topic"].as<std::string>();
+        imu_config_.imu_scale = config["imu"]["imu_scale"].as<double>();
         imu_config_.acc_noise_std = config["imu"]["acc_noise_std"].as<double>();
         imu_config_.gyro_noise_std = config["imu"]["gyro_noise_std"].as<double>();
         imu_config_.acc_bias_noise_std = config["imu"]["acc_bias_noise_std"].as<double>();

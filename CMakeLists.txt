@@ -103,7 +103,9 @@ add_executable(slam_node
     src/static_imu_init.cc
     src/state.cc
     src/ieskf.cc
+    src/propogator.cc
 )
+
 target_link_libraries(slam_node 
 ${thirdparty_libs}
 )
