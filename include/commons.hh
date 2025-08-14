@@ -115,4 +115,70 @@ void ComputeMeanAndCov(const C& collects, Eigen::Matrix<double, dim, 1>& mean, E
     // clang-format on
 }
 
+/**
+ * pose插值算法
+ * @tparam T  数据类型 NavState
+ * @tparam C 容器类型 std::deque<NavState>
+ * @tparam FT 获取时间函数
+ * @tparam FP 获取pose函数
+ * @param query_time 查询时间
+ * @param data 容器数据
+ * @param take_time_func 获取时间函数
+ * @param take_pose_func 获取pose函数
+ * @param result 插值后的pose
+ * @param best_match 最佳匹配
+ * @param time_th 时间阈值
+ */
+template <typename T, typename C, typename FT, typename FP>
+inline bool InterpolatePose(double query_time, C&& data, FT&& take_time_func, FP&& take_pose_func, SE3& result,
+                            T& best_match, float time_th = 0.5) {
+    if (data.empty()) {
+        LOG_ERROR("can't interpolate pose, data is empty");
+        return false;
+    }
+    // 容器中最后一个数据
+    double last_time = take_time_func(*data.rbegin());
+    // 查询时间 > imus的pose
+    if (query_time > last_time) {
+        if (query_time < (last_time + time_th)) {
+            // 可接受的位姿
+            result = take_pose_func(*data.rbegin());
+            best_match = *data.rbegin();  // NormalState
+            return true;
+        }
+        return false;
+    }
+
+    auto match_iter = data.begin();
+    // --imu_pose_1--query_time---imu_pose_2---
+    for (auto iter = data.begin(); iter != data.end; ++iter) {
+        auto next_it = iter;
+        next_it++;
+        if (take_time_func(*iter) < query_time && take_time_func(*next_it) >= query_time) {
+            match_iter = iter;
+            break;
+        }
+    }
+    // 接下来要做插值
+    auto match_iter_next = match_iter;
+    match_iter_next++;
+
+    double dt = take_time_func(*match_iter_next) - take_time_func(*match_iter);
+    // 插值的系数
+    double s = (query_time - take_time_func(*match_iter)) / dt;
+    if (std::fabs(dt) < 1e-6) {
+        best_match = *match_iter;
+        result = take_pose_func(*match_iter);
+        return true;
+    }
+
+    SE3 pose_first = take_pose_func(*match_iter);
+    SE3 pose_second = take_pose_func(*match_iter_next);
+
+    result = SE3(pose_first.unit_quaternion().slerp(s, pose_second.unit_quaternion()),
+                 pose_first.translation() * (1 - s) + pose_second.translation() * s);
+    best_match = s < 0.5 ? *match_iter : *match_iter_next;
+    return true;
+}
+
 }  // namespace slam

@@ -48,6 +48,7 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         kf_->Cov().block<3, 3>(18, 18) = M3D::Identity() * 0.0001;
         // get last imu data
         last_imu_ = imu_init_ptr_->last_imu_;
+        current_imu_time_ = last_imu_.timestamp_;
         Eigen::Quaterniond q_inG = Eigen::Quaterniond(kf_->GetState().r_wi);
         Eigen::Quaterniond q_il = Eigen::Quaterniond(kf_->GetState().r_il);
         LOG_INFO(REDPURPLE "System init success time:{}" RESET, last_imu_.timestamp_);
@@ -62,6 +63,69 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         return true;
     }
     return false;
+}
+
+NominalState Propogator::GetNominalState() const {
+    return NominalState(current_imu_time_, kf_->GetState().r_wi, kf_->GetState().t_wi, kf_->GetState().v,
+                        kf_->GetState().bg, kf_->GetState().ba);
+}
+
+void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cloud) {
+    // 准备好imu数据
+    imu_caches_.clear();
+    imu_caches_.push_back(last_imu_);
+    imu_caches_.insert(imu_caches_.end(), meas.imus.begin(), meas.imus.end());
+    const double imu_end_time = imu_caches_.back().timestamp_;
+    const double cloud_begin_time = meas.lidar_beg_time;
+    const double propogate_end_time = meas.lidar_end_time;
+    // 准备好去畸变的数据
+    imu_states_.clear();
+    NominalState state = GetNominalState();
+    imu_states_.push_back(state);
+
+    V3D mid_acc, mid_gyro;
+    double dt = 0.0;
+    Input input;
+    input.acc = imu_caches_.back().acc;
+    input.gyro = imu_caches_.back().gyro;
+    // 到尾部的前一个数据
+    for (auto imu_it = imu_caches_.begin(); imu_it < (imu_caches_.end() - 1); imu_it++) {
+        IMU& head = *imu_it;
+        IMU& tail = *(imu_it + 1);
+        // 确保imu的时间大于上一次传播结束的时间
+        if (tail.timestamp_ < last_propagate_time_) {
+            continue;
+        }
+        mid_gyro = 0.5 * (head.gyro + tail.gyro);
+        mid_acc = 0.5 * (head.acc + tail.acc);
+        if (head.timestamp_ < last_propagate_time_) {
+            dt = head.timestamp_ - last_propagate_time_;
+        } else {
+            dt = tail.timestamp_ - head.timestamp_;
+        }
+        // LOG_INFO("DT:{}", dt);
+        input.acc = mid_acc;
+        input.gyro = mid_gyro;
+        kf_->Predict(input, dt, Q_);
+        // kf_->GetState().Print();
+        current_imu_time_ = head.timestamp_;
+        imu_states_.push_back(GetNominalState());
+    }
+    dt = propogate_end_time - imu_end_time;
+    kf_->Predict(input, dt, Q_);
+    last_imu_ = imu_caches_.back();
+    last_propagate_time_ = propogate_end_time;
+    // 去畸变
+    UndistortLidar(meas.curent_cloud, out_cloud);
+}
+
+void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
+    NominalState imu_state_end = GetNominalState();
+    // 末尾时刻的位姿
+    SE3 T_end = SE3(imu_state_end.R_, imu_state_end.p_);
+    // save pcd
+    pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
+    // 去畸变
 }
 
 }  // namespace slam

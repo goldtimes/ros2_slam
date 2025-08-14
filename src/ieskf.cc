@@ -11,9 +11,9 @@ M3D IESKF::JrInv(const V3D& inp) {
 void IESKF::Predict(const Input& input, double dt, const M12D& Q) {
     // 预测状态
     V21D delta = V21D::Zero();
-    delta.segment<3>(0) = (input.gyro - state_.bg) * dt;                            // 旋转量
-    delta.segment<3>(3) = state_.v * dt;                                            // 位移
-    delta.segment<3>(3) = (state_.r_wi * (input.acc - state_.ba) + state_.g) * dt;  // 速度,g 为-9.81
+    delta.segment<3>(0) = (input.gyro - state_.bg) * dt;                             // 旋转量
+    delta.segment<3>(3) = state_.v * dt;                                             // 位移
+    delta.segment<3>(12) = (state_.r_wi * (input.acc - state_.ba) + state_.g) * dt;  // 速度,g 为-9.81
     // 计算m_F矩阵
     m_F_.setIdentity();
     // delta_theta / delta_theta

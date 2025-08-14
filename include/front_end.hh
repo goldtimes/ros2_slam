@@ -28,7 +28,7 @@ class FrontEnd {
 
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
-
+    void AllocateMemory();
    private:
     System* system_ = nullptr;
     MeasureGroup measure_group_;
@@ -43,5 +43,7 @@ class FrontEnd {
 
     std::shared_ptr<Propogator> propogator_ptr_;
     std::shared_ptr<IESKF> kf_ptr_;
+
+    PointCloudPtr undistort_cloud_lidar_;
 };
 }  // namespace slam

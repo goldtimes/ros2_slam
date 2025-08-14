@@ -18,6 +18,10 @@ FrontEnd::FrontEnd(System* system) {
     // voxel_map_odom
 }
 
+void FrontEnd::AllocateMemory() {
+    undistort_cloud_lidar_.reset(new PointCloudType);
+}
+
 FrontEnd::~FrontEnd() {
 }
 
@@ -46,7 +50,13 @@ void FrontEnd::Run() {
                     continue;
                 }
                 // 状态递推以及对雷达去畸变
-                
+                evaluate_and_call([&]() { propogator_ptr_->PropogateAndUndistort(meas, undistort_cloud_lidar_); },
+                                  "propogate_and_undistort", true);
+
+                if (front_end_status_ == FrontEndStatus::MAP_INIT) {
+                    // 地图初始化
+                    front_end_status_ = FrontEndStatus::MAPPING;
+                }
             }
 
         } else {
@@ -72,6 +82,9 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
     if (!lidar_pushed_) {
         measures.curent_cloud = system_->lidar_queue_.front();
         measures.lidar_beg_time = system_->lidar_time_queue_.front();
+        // sort cloud
+        std::sort(measures.curent_cloud->points.begin(), measures.curent_cloud->points.end(),
+                  [](const PointType& a, const PointType& b) { return a.time < b.time; });
         if (measures.curent_cloud->size() < 1) {
             measures.lidar_end_time = measures.lidar_beg_time + lidar_mean_scantime_;
             LOG_ERROR("lidar cloud size is 0, begin time is {}, end time is {}", measures.lidar_beg_time,
@@ -97,8 +110,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         system_->imu_queue_.pop_front();
         imu_time = system_->imu_queue_.front().timestamp_;
     }
-    LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
-             measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
+    // LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
+    //  measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
     // 处理encoder数据
     double encoder_time = system_->encoder_queue_.front().timestamp_;
     if (use_encoder_) {
@@ -107,8 +120,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             system_->encoder_queue_.pop_front();
             encoder_time = system_->encoder_queue_.front().timestamp_;
         }
-        LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
-                 measures.encoders.front().timestamp_, measures.encoders.end()->timestamp_);
+        // LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
+        //          measures.encoders.front().timestamp_, measures.encoders.end()->timestamp_);
     }
     // 处理gnss数据
     double gnss_time = system_->gnss_queue_.front().timestamp_;

@@ -52,6 +52,8 @@ class IESKF {
         return cov_;
     }
 
+    
+
    private:
     // 状态量
     NavState state_;
@@ -67,5 +69,6 @@ class IESKF {
     M21D m_F_ = M21D::Zero();
     // 输入矩阵
     Eigen::Matrix<double, 21, 12> m_G_ = Eigen::Matrix<double, 21, 12>::Zero();
+    double current_time_;
 };
 }  // namespace slam
