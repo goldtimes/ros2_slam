@@ -10,9 +10,13 @@ FrontEnd::FrontEnd(System* system) {
     LOG_INFO("FrontEnd init done!");
     use_encoder_ = system_->GetSystemConfig()->has_encoder_;
     use_gnss_ = system_->GetSystemConfig()->has_gnss_;
+    // propogator
+
     // 静态初始化
     static_imu_init_ptr_ = std::make_shared<StaticImuInit>();
     // ieskf
+
+    // voxel_map_odom
 }
 
 FrontEnd::~FrontEnd() {

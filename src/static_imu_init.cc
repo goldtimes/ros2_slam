@@ -33,16 +33,17 @@ bool StaticImuInit::TryInit() {
     Eigen::Vector3d mean_gyro, mean_acce;
     ComputeMeanAndCovDiag(init_imu_buffer_, mean_gyro, cov_gyro_, [](const IMU& data) { return data.gyro; });
     ComputeMeanAndCovDiag(init_imu_buffer_, mean_acce, cov_acc_, [](const IMU& data) { return data.acc; });
-    LOG_INFO("mean acc:{},{},{}", mean_acce[0], mean_acce[1], mean_acce[2]);
-    LOG_INFO("mean gyro:{},{},{}", mean_gyro[0], mean_gyro[1], mean_gyro[2]);
+
+    LOG_INFO("mean acc:{}", mean_acce.transpose());
+    LOG_INFO("mean gyro:{}", mean_gyro.transpose());
     mean_acc_ = mean_acce;
     mean_gyro_ = mean_gyro;
     // 估计重力后重新计算加速度的均值和方差
     gravity_ = -mean_acce / mean_acce.norm() * options_.gravity_norm_;
-    LOG_INFO("gravity:{},{},{}", gravity_[0], gravity_[1], gravity_[2]);
+    LOG_INFO("gravity:{}", gravity_.transpose());
     ComputeMeanAndCovDiag(init_imu_buffer_, mean_acce, cov_acc_,
                           [this](const IMU& data) { return data.acc + gravity_; });
-    LOG_INFO("after add gravity mean acc:{},{},{}", mean_acce[0], mean_acce[1], mean_acce[2]);
+    LOG_INFO("after add gravity mean acc:{}", mean_acce);
     // 检查IMU噪声
     if (cov_gyro_.norm() > options_.max_static_gyro_var) {
         LOG_ERROR("陀螺仪测量噪声太大:{}, max_static_gyro_var:{}", cov_gyro_.norm(), options_.max_static_gyro_var);

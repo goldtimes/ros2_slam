@@ -1,5 +1,6 @@
 #pragma once
 #include <deque>
+#include "eigen_type.hh"
 #include "logger.hh"
 #include "pointcloud_utils.hh"
 #include "sensors.hh"
@@ -20,6 +21,31 @@ struct MeasureGroup {
     std::deque<IMU> imus;
     std::deque<Encoder> encoders;
     std::deque<GNSS> gnsss;
+};
+
+// 滤波器的输入
+struct Input {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Input() = default;
+    Input(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyro, double dt) : acc(acc), gyro(gyro), dt(dt) {
+    }
+    // 中值积分
+    Eigen::Vector3d acc;
+    Eigen::Vector3d gyro;
+    double dt;
+};
+
+// 迭代是否合理的
+struct ESKFShareState {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    M12D H_;
+    V12D b_;
+    double res;
+    bool valid = false;
+    size_t iter_num = 0;
+    void print() {
+        LOG_INFO("iter_num: {}, res: {}", iter_num, res);
+    }
 };
 
 template <typename T>

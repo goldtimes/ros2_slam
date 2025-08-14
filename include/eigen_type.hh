@@ -18,8 +18,10 @@ using Vec5f = Eigen::Matrix<float, 5, 1>;
 using Vec6d = Eigen::Matrix<double, 6, 1>;
 using Vec6f = Eigen::Matrix<float, 6, 1>;
 using Vec9d = Eigen::Matrix<double, 9, 1>;
+using V12D = Eigen::Matrix<double, 12, 1>;
 using Vec15d = Eigen::Matrix<double, 15, 1>;
 using Vec18d = Eigen::Matrix<double, 18, 1>;
+using V21D = Eigen::Matrix<double, 21, 1>;
 
 using Mat1d = Eigen::Matrix<double, 1, 1>;
 using Mat2d = Eigen::Matrix<double, 2, 2>;
@@ -35,8 +37,10 @@ using Mat6d = Eigen::Matrix<double, 6, 6>;
 using Mat6f = Eigen::Matrix<float, 6, 6>;
 using Mat9d = Eigen::Matrix<double, 9, 9>;
 using Mat96d = Eigen::Matrix<double, 9, 6>;
+using M12D = Eigen::Matrix<double, 12, 12>;
 using Mat15d = Eigen::Matrix<double, 15, 15>;
 using Mat18d = Eigen::Matrix<double, 18, 18>;
+using M21D = Eigen::Matrix<double, 21, 21>;
 
 using VecXd = Eigen::Matrix<double, -1, 1>;
 using MatXd = Eigen::Matrix<double, -1, -1>;
