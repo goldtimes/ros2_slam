@@ -32,6 +32,7 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         // 设置外参信息
         kf_->State().r_il = system_config_ptr_->lidar2imu_.so3().matrix();
         kf_->State().t_il = system_config_ptr_->lidar2imu_.translation();
+        T_IL_ = SE3(kf_->State().r_il, kf_->State().t_il);
         // 设置bg,ba
         kf_->State().bg = imu_init_ptr_->GetMeanGyro();
         kf_->State().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
@@ -124,8 +125,23 @@ void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cl
     // 末尾时刻的位姿
     SE3 T_end = SE3(imu_state_end.R_, imu_state_end.p_);
     // save pcd
-    pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
+    // pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
     // 去畸变
+    for (auto& point : cloud_in->points) {
+        SE3 Ti = T_end;
+        NominalState best_mathc;
+        InterpolatePose<NominalState>(
+            point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
+            [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
+        V3D pt_eigen = point.getVector3fMap().cast<double>();
+        V3D pt_compensate = T_IL_.inverse() * T_end.inverse() * Ti * T_IL_ * pt_eigen;
+        point.x = pt_compensate(0);
+        point.y = pt_compensate(1);
+        point.z = pt_compensate(2);
+    }
+
+    cloud_out = cloud_in;
+    // pcl::io::savePCDFileBinary("/home/kilox/undistort.pcd", *cloud_out);
 }
 
 }  // namespace slam

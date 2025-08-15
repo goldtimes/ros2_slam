@@ -151,7 +151,7 @@ inline bool InterpolatePose(double query_time, C&& data, FT&& take_time_func, FP
 
     auto match_iter = data.begin();
     // --imu_pose_1--query_time---imu_pose_2---
-    for (auto iter = data.begin(); iter != data.end; ++iter) {
+    for (auto iter = data.begin(); iter != data.end(); ++iter) {
         auto next_it = iter;
         next_it++;
         if (take_time_func(*iter) < query_time && take_time_func(*next_it) >= query_time) {
