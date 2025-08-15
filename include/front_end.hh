@@ -26,9 +26,14 @@ class FrontEnd {
         return front_end_status_;
     }
 
+    const double GetCurentTime() const {
+        return measure_group_.lidar_beg_time;
+    }
+
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
     void AllocateMemory();
+
    private:
     System* system_ = nullptr;
     MeasureGroup measure_group_;

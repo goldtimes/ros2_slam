@@ -14,8 +14,11 @@ endif()
 
 set(
     ROS_PACKAGE 
-    roscpp rosbag 
-    tf2_ros 
+    roscpp 
+    rosbag 
+    tf2
+    tf2_ros
+    tf2_geometry_msgs
     std_msgs 
     sensor_msgs 
     geometry_msgs 

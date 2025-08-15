@@ -15,6 +15,7 @@ FrontEnd::FrontEnd(System* system) {
     kf_ptr_ = std::make_shared<IESKF>();
     // propogator
     propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
+    AllocateMemory();
     // voxel_map_odom
 }
 
@@ -39,26 +40,29 @@ void FrontEnd::Run() {
             MeasureGroup meas;
             if (GetMeasureGroup(meas)) {
                 LOG_INFO("GetMeasureGroup success!");
+                measure_group_ = std::move(meas);
                 if (front_end_status_ == FrontEndStatus::IMU_INIT) {
                     // 静态初始化
                     if (!propogator_ptr_->GetInitSuccess()) {
-                        if (propogator_ptr_->Initialize(meas)) {
+                        if (propogator_ptr_->Initialize(measure_group_)) {
                             front_end_status_ = FrontEndStatus::MAP_INIT;
+                            system_->SetSystemInit(true);
                             LOG_INFO("IMU_INIT!");
                         }
                     }
                     continue;
                 }
                 // 状态递推以及对雷达去畸变
-                evaluate_and_call([&]() { propogator_ptr_->PropogateAndUndistort(meas, undistort_cloud_lidar_); },
-                                  "propogate_and_undistort", true);
+                undistort_cloud_lidar_->clear();
+                evaluate_and_call(
+                    [&]() { propogator_ptr_->PropogateAndUndistort(measure_group_, undistort_cloud_lidar_); },
+                    "propogate_and_undistort", true);
 
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
                     // 地图初始化
                     front_end_status_ = FrontEndStatus::MAPPING;
                 }
             }
-
         } else {
             continue;
         }
@@ -110,8 +114,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         system_->imu_queue_.pop_front();
         imu_time = system_->imu_queue_.front().timestamp_;
     }
-    // LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
-    //  measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
+    LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
+             measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
     // 处理encoder数据
     double encoder_time = system_->encoder_queue_.front().timestamp_;
     if (use_encoder_) {

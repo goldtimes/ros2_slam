@@ -11,8 +11,11 @@ System::System(const std::string& config_path) : config_path_(config_path) {
         system_config_ptr_->lidar_config_.point_filter_num, system_config_ptr_->frontend_config_.keep_angle_ranges,
         system_config_ptr_->frontend_config_.remove_ranges);
     front_end_ptr_ = new FrontEnd(this);
+    T_IL = system_config_ptr_->lidar2imu_;
+    T_LB = system_config_ptr_->lidar2robot_;
     // 开启前端的线程
     front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
+    system_init_.store(false);
 }
 
 void System::InitConfigParams() {
@@ -77,6 +80,18 @@ void System::AddGNSS(const GNSS& gnss) {
             break;
         }
     }
+}
+
+const double System::GetSystemTime() const {
+    return front_end_ptr_->GetCurentTime();
+}
+
+const SE3 System::GetTLidarToImu() const {
+    return T_IL;
+}
+
+const SE3 System::GetLidarToBaselink() const {
+    return T_LB;
 }
 
 // 重置系统

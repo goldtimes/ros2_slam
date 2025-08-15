@@ -186,4 +186,58 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
     // push to system
     system_ptr_->AddGNSS(gnss);
 }
+
+void ROS1Manager::Visualize() {
+    // 系统以及初始化完成后，但是还在处理雷达消息，可视化的线程要比里程计的线程快
+    if (last_visualize_time_ == system_ptr_->GetSystemTime() && system_ptr_->IsSystemInit()) {
+        return;
+    }
+    // 系统为初始化，则不发布可视化信息
+    if (!system_ptr_->IsSystemInit()) {
+        return;
+    }
+    last_visualize_time_ = system_ptr_->GetSystemTime();
+
+    PublishTF(last_visualize_time_);
+    PublishState(last_visualize_time_);
+}
+
+void ROS1Manager::PublishTF(const double& sensor_time) {
+    // 发布robot_link在odom的tf信息
+    geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time);
+    tran_OB.header.frame_id = "odom";
+    tran_OB.child_frame_id = "robot_link";
+    tf_broadcaster_->sendTransform(tran_OB);
+    // 发布lidar到imu的tf信息
+    geometry_msgs::TransformStamped tran_LI = GetTransformStamped(sensor_time, system_ptr_->GetTLidarToImu(), true);
+    tran_LI.header.frame_id = "lidar_link";
+    tran_LI.child_frame_id = "imu_link";
+    tf_broadcaster_->sendTransform(tran_LI);
+    // 发布lidar到robot_link的tf信息
+    geometry_msgs::TransformStamped tran_BL = GetTransformStamped(sensor_time, system_ptr_->GetLidarToBaselink());
+    tran_BL.header.frame_id = "robot_link";
+    tran_BL.child_frame_id = "lidar_link";
+    tf_broadcaster_->sendTransform(tran_BL);
+}
+
+void ROS1Manager::PublishState(const double& sensor_time) {
+}
+
+geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const SE3& transform,
+                                                                 bool flip_trans) {
+    SE3 T = transform;
+    if (flip_trans) {
+        T = transform.inverse();
+    }
+    geometry_msgs::TransformStamped trans;
+    trans.header.stamp = ros::Time(timestamp);
+    trans.transform.rotation.x = T.so3().unit_quaternion().x();
+    trans.transform.rotation.y = T.so3().unit_quaternion().y();
+    trans.transform.rotation.z = T.so3().unit_quaternion().z();
+    trans.transform.rotation.w = T.so3().unit_quaternion().w();
+    trans.transform.translation.x = T.translation().x();
+    trans.transform.translation.y = T.translation().y();
+    trans.transform.translation.z = T.translation().z();
+    return trans;
+}
 }  // namespace slam

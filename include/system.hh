@@ -41,6 +41,20 @@ class System {
     // 重置系统
     void reset();
 
+    bool IsSystemInit() const {
+        return system_init_.load();
+    }
+
+    void SetSystemInit(bool init) {
+        system_init_.store(init);
+    }
+
+    const double GetSystemTime() const;
+
+    const SE3 GetTLidarToImu() const;
+
+    const SE3 GetLidarToBaselink() const;
+
    public:
     std::condition_variable m_buff_cv_;
     std::mutex m_buf_mutex_;
@@ -61,5 +75,11 @@ class System {
     // 前端类和前端线程
     FrontEnd* front_end_ptr_ = nullptr;
     std::thread* front_end_thread_ptr_ = nullptr;
+
+    std::atomic<bool> system_init_;
+
+    // 坐标信息
+    SE3 T_IL;
+    SE3 T_LB;
 };
 }  // namespace slam

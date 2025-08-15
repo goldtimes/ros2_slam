@@ -1,3 +1,4 @@
+#include <geometry_msgs/TransformStamped.h>
 #include <livox_ros_driver/CustomMsg.h>
 #include <livox_ros_driver2/CustomMsg.h>
 #include <nav_msgs/Odometry.h>
@@ -5,6 +6,10 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include "commons.hh"
 #include "logger.hh"
 
 namespace slam {
@@ -33,6 +38,16 @@ class ROS1Manager {
     // gnss回调
     void GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg);
 
+    void Visualize();
+
+    void PublishTF(const double& sensor_time);
+
+    void PublishState(const double& sensor_time);
+
+   private:
+    geometry_msgs::TransformStamped GetTransformStamped(const double timestamp, const SE3& transform = SE3(),
+                                                        bool flip_trans = false);
+
    private:
     ros::NodeHandle nh_;
 
@@ -41,6 +56,9 @@ class ROS1Manager {
     ros::Subscriber lidar_sub_;
     ros::Subscriber encoder_sub_;
     std::shared_ptr<System> system_ptr_;
+
+    // tf2
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     // fps的统计
     double last_imu_time_ = -1;
@@ -55,5 +73,7 @@ class ROS1Manager {
     double last_gnss_time_ = -1;
     int gnss_frame_count_ = 0;
     int gnss_fps_ = 0;
+
+    double last_visualize_time_ = -1;
 };
 }  // namespace slam
