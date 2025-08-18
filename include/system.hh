@@ -58,6 +58,14 @@ class System {
     const SE3 GetLidarToBaselink() const;
 
     const SE3 GetImuToBaselink() const;
+    // lidar坐标系原始数据
+    const PointCloudPtr GetCloudInLidarLink() const;
+
+    // robot_link坐标系点云
+    const PointCloudPtr GetCloudInRobotLink() const;
+
+    // odom坐标系点云
+    const PointCloudPtr GetCloudInOdomLink() const;
 
    public:
     std::condition_variable m_buff_cv_;

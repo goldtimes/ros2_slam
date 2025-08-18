@@ -103,6 +103,21 @@ const NavState System::GetCurentNavState() const {
     return front_end_ptr_->GetCurentNavState();
 }
 
+// lidar坐标系原始数据
+const PointCloudPtr System::GetCloudInLidarLink() const {
+    return front_end_ptr_->GetCloudInLidarLink();
+}
+
+// robot_link坐标系点云
+const PointCloudPtr System::GetCloudInRobotLink() const {
+    return front_end_ptr_->GetCloudInRobotLink();
+}
+
+// odom坐标系点云
+const PointCloudPtr System::GetCloudInOdomLink() const {
+    return front_end_ptr_->GetCloudInOdomLink();
+}
+
 // 重置系统
 void System::reset() {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);

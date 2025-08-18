@@ -1,5 +1,6 @@
 #include "front_end.hh"
 #include "ieskf.hh"
+#include "lidar_register/voxelmap_register.hh"
 #include "propogator.hh"
 #include "system.hh"
 #include "system_config.hh"
@@ -11,16 +12,30 @@ FrontEnd::FrontEnd(System* system) {
     LOG_INFO("FrontEnd init done!");
     use_encoder_ = system_->GetSystemConfig()->has_encoder_;
     use_gnss_ = system_->GetSystemConfig()->has_gnss_;
+
+    // 坐标信息
+    T_IL = system_->GetSystemConfig()->lidar2imu_;
+    T_BL = system_->GetSystemConfig()->lidar2robot_;
+    T_BI = (T_BL.inverse() * T_IL).inverse();
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
     // propogator
     propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
     AllocateMemory();
     // voxel_map_odom
+    if (system_->GetSystemConfig()->use_voxel_) {
+        // 初始化voxel_map
+        lidar_register_ptr_ = std::make_shared<VoxelMapRegister>(system_->GetSystemConfig());
+        // 设置voxel map的残差模型
+    } else if (system_->GetSystemConfig()->use_p2plane_) {
+    } else if (system_->GetSystemConfig()->use_ndt_) {
+    }
 }
 
 void FrontEnd::AllocateMemory() {
     undistort_cloud_lidar_.reset(new PointCloudType);
+    undistort_cloud_robot_.reset(new PointCloudType);
+    undistort_cloud_robot_.reset(new PointCloudType);
 }
 
 FrontEnd::~FrontEnd() {
@@ -58,10 +73,13 @@ void FrontEnd::Run() {
                 evaluate_and_call(
                     [&]() { propogator_ptr_->PropogateAndUndistort(measure_group_, undistort_cloud_lidar_); },
                     "propogate_and_undistort", true);
-
+                // transform to robot_link
+                undistort_cloud_robot_->clear();
+                undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL);
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
-                    // 地图初始化
+                    // voxel map 初始化
                     front_end_status_ = FrontEndStatus::MAPPING;
+                    continue;
                 }
             }
         } else {
@@ -150,6 +168,21 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
 
 NavState FrontEnd::GetCurentNavState() {
     return kf_ptr_->GetState();
+}
+
+// lidar坐标系原始数据
+const PointCloudPtr FrontEnd::GetCloudInLidarLink() const {
+    return undistort_cloud_lidar_;
+}
+
+// robot_link坐标系点云
+const PointCloudPtr FrontEnd::GetCloudInRobotLink() const {
+    return undistort_cloud_robot_;
+}
+
+// odom坐标系点云
+const PointCloudPtr FrontEnd::GetCloudInOdomLink() const {
+    return undistort_cloud_odom_;
 }
 
 }  // namespace slam

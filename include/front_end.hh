@@ -8,6 +8,7 @@ namespace slam {
 class System;
 class Propogator;
 class IESKF;
+class LidarRegister;
 
 enum class FrontEndStatus {
     IMU_INIT,  // 静态初始化
@@ -33,6 +34,15 @@ class FrontEnd {
 
     NavState GetCurentNavState();
 
+    // lidar坐标系原始数据
+    const PointCloudPtr GetCloudInLidarLink() const;
+
+    // robot_link坐标系点云
+    const PointCloudPtr GetCloudInRobotLink() const;
+
+    // odom坐标系点云
+    const PointCloudPtr GetCloudInOdomLink() const;
+
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
     void AllocateMemory();
@@ -53,6 +63,14 @@ class FrontEnd {
     std::shared_ptr<IESKF> kf_ptr_;
     NavState nav_state_;
 
+    // 坐标信息
+    SE3 T_IL;
+    SE3 T_BL;
+    SE3 T_BI;
+
+    std::shared_ptr<LidarRegister> lidar_register_ptr_;
     PointCloudPtr undistort_cloud_lidar_;
+    PointCloudPtr undistort_cloud_robot_;
+    PointCloudPtr undistort_cloud_odom_;
 };
 }  // namespace slam

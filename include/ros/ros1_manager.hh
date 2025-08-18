@@ -45,6 +45,8 @@ class ROS1Manager {
 
     void PublishState(const double& sensor_time);
 
+    void PublishLidar(const double& sensor_time);
+
    private:
     geometry_msgs::TransformStamped GetTransformStamped(const double timestamp, const SE3& transform = SE3(),
                                                         bool flip_trans = false);
@@ -57,6 +59,10 @@ class ROS1Manager {
     ros::Subscriber lidar_sub_;
     ros::Subscriber encoder_sub_;
     std::shared_ptr<System> system_ptr_;
+
+    ros::Publisher cloud_lidar_pub_;
+    ros::Publisher cloud_robot_pub_;
+    ros::Publisher cloud_odom_pub_;
 
     // tf2
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;

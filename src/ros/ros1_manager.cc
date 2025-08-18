@@ -21,6 +21,10 @@ ROS1Manager::~ROS1Manager() {
 
 void ROS1Manager::InitPub() {
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>();
+
+    cloud_lidar_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/lidar", 10);
+    cloud_robot_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/robot_lidar", 10);
+    cloud_odom_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/world_lidar", 10);
 }
 void ROS1Manager::InitSub() {
     imu_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->imu_config_.imu_topic, 100, &ROS1Manager::ImuCallback,
@@ -235,6 +239,9 @@ void ROS1Manager::PublishTF(const double& sensor_time) {
 }
 
 void ROS1Manager::PublishState(const double& sensor_time) {
+}
+
+void ROS1Manager::PublishLidar(const double& sensor_time) {
 }
 
 geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const SE3& transform,
