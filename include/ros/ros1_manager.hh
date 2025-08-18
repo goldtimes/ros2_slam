@@ -9,6 +9,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <thread>
 #include "commons.hh"
 #include "logger.hh"
 
@@ -75,5 +76,6 @@ class ROS1Manager {
     int gnss_fps_ = 0;
 
     double last_visualize_time_ = -1;
+    std::thread visualize_thread_;
 };
 }  // namespace slam

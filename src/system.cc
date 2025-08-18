@@ -12,7 +12,8 @@ System::System(const std::string& config_path) : config_path_(config_path) {
         system_config_ptr_->frontend_config_.remove_ranges);
     front_end_ptr_ = new FrontEnd(this);
     T_IL = system_config_ptr_->lidar2imu_;
-    T_LB = system_config_ptr_->lidar2robot_;
+    T_BL = system_config_ptr_->lidar2robot_;
+    T_BI = (T_BL.inverse() * T_IL).inverse();
     // 开启前端的线程
     front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
     system_init_.store(false);
@@ -91,7 +92,15 @@ const SE3 System::GetTLidarToImu() const {
 }
 
 const SE3 System::GetLidarToBaselink() const {
-    return T_LB;
+    return T_BL;
+}
+
+const SE3 System::GetImuToBaselink() const {
+    return T_BI;
+}
+
+const NavState System::GetCurentNavState() const {
+    return front_end_ptr_->GetCurentNavState();
 }
 
 // 重置系统

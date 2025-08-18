@@ -8,6 +8,7 @@
 #include "lidar_process.hh"
 #include "logger.hh"
 #include "sensors.hh"
+#include "state.hh"
 
 namespace slam {
 
@@ -16,7 +17,6 @@ class SystemConfig;
 
 // lidar process
 class LidarProcess;
-
 class FrontEnd;
 
 class System {
@@ -49,11 +49,15 @@ class System {
         system_init_.store(init);
     }
 
+    const NavState GetCurentNavState() const;
+
     const double GetSystemTime() const;
 
     const SE3 GetTLidarToImu() const;
 
     const SE3 GetLidarToBaselink() const;
+
+    const SE3 GetImuToBaselink() const;
 
    public:
     std::condition_variable m_buff_cv_;
@@ -80,6 +84,7 @@ class System {
 
     // 坐标信息
     SE3 T_IL;
-    SE3 T_LB;
+    SE3 T_BL;
+    SE3 T_BI;
 };
 }  // namespace slam

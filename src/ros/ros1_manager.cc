@@ -10,11 +10,17 @@ ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> syst
     InitPub();
     InitSub();
     InitService();
+
+    visualize_thread_ = std::thread(&ROS1Manager::Visualize, this);
 }
 ROS1Manager::~ROS1Manager() {
+    if (visualize_thread_.joinable()) {
+        visualize_thread_.join();
+    }
 }
 
 void ROS1Manager::InitPub() {
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>();
 }
 void ROS1Manager::InitSub() {
     imu_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->imu_config_.imu_topic, 100, &ROS1Manager::ImuCallback,
@@ -188,23 +194,31 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
 }
 
 void ROS1Manager::Visualize() {
-    // 系统以及初始化完成后，但是还在处理雷达消息，可视化的线程要比里程计的线程快
-    if (last_visualize_time_ == system_ptr_->GetSystemTime() && system_ptr_->IsSystemInit()) {
-        return;
-    }
-    // 系统为初始化，则不发布可视化信息
-    if (!system_ptr_->IsSystemInit()) {
-        return;
-    }
-    last_visualize_time_ = system_ptr_->GetSystemTime();
+    ros::Rate rate(50);
+    while (ros::ok()) {
+        rate.sleep();
 
-    PublishTF(last_visualize_time_);
-    PublishState(last_visualize_time_);
+        // 系统以及初始化完成后，但是还在处理雷达消息，可视化的线程要比里程计的线程快
+        if (last_visualize_time_ == system_ptr_->GetSystemTime() && system_ptr_->IsSystemInit()) {
+            continue;
+        }
+        // 系统为初始化，则不发布可视化信息
+        if (!system_ptr_->IsSystemInit()) {
+            continue;
+        }
+        last_visualize_time_ = system_ptr_->GetSystemTime();
+
+        PublishTF(last_visualize_time_);
+        // PublishState(last_visualize_time_);
+    }
 }
 
 void ROS1Manager::PublishTF(const double& sensor_time) {
     // 发布robot_link在odom的tf信息
-    geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time);
+    auto current_state = system_ptr_->GetCurentNavState();
+    SE3 T_iInG(current_state.r_wi, current_state.t_wi);
+    SE3 T_bInG = system_ptr_->GetImuToBaselink().inverse() * T_iInG;
+    geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time, T_bInG);
     tran_OB.header.frame_id = "odom";
     tran_OB.child_frame_id = "robot_link";
     tf_broadcaster_->sendTransform(tran_OB);

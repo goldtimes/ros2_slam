@@ -52,6 +52,7 @@ void FrontEnd::Run() {
                     }
                     continue;
                 }
+                // 轮速计和gnss更新
                 // 状态递推以及对雷达去畸变
                 undistort_cloud_lidar_->clear();
                 evaluate_and_call(
@@ -104,8 +105,9 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
                 (measures.lidar_end_time - measures.lidar_beg_time - lidar_mean_scantime_) / scan_count_;
         }
         lidar_pushed_ = true;
-        LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
-                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
+        // LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
+        //         measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
+        //         lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -114,8 +116,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         system_->imu_queue_.pop_front();
         imu_time = system_->imu_queue_.front().timestamp_;
     }
-    LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
-             measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
+    // LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
+    //          measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
     // 处理encoder数据
     double encoder_time = system_->encoder_queue_.front().timestamp_;
     if (use_encoder_) {
@@ -144,6 +146,10 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
     system_->lidar_time_queue_.pop_front();
     lidar_pushed_ = false;
     return true;
+}
+
+NavState FrontEnd::GetCurentNavState() {
+    return kf_ptr_->GetState();
 }
 
 }  // namespace slam

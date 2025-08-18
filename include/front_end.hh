@@ -1,6 +1,7 @@
 #pragma once
 
 #include "commons.hh"
+#include "state.hh"
 
 namespace slam {
 
@@ -30,6 +31,8 @@ class FrontEnd {
         return measure_group_.lidar_beg_time;
     }
 
+    NavState GetCurentNavState();
+
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
     void AllocateMemory();
@@ -48,6 +51,7 @@ class FrontEnd {
 
     std::shared_ptr<Propogator> propogator_ptr_;
     std::shared_ptr<IESKF> kf_ptr_;
+    NavState nav_state_;
 
     PointCloudPtr undistort_cloud_lidar_;
 };
