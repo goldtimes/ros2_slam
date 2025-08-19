@@ -51,6 +51,9 @@ class ROS1Manager {
     geometry_msgs::TransformStamped GetTransformStamped(const double timestamp, const SE3& transform = SE3(),
                                                         bool flip_trans = false);
 
+    sensor_msgs::PointCloud2 ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,
+                                           double timestamp = -1);
+
    private:
     ros::NodeHandle nh_;
 

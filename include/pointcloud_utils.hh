@@ -4,6 +4,7 @@
 #include <pcl/point_cloud.h>
 #include "eigen_type.hh"
 #include "lidar_point_type.hh"
+#include "logger.hh"
 
 namespace slam {
 using PointType = PointXYZIRT;

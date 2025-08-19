@@ -107,6 +107,7 @@ add_executable(slam_node
     src/state.cc
     src/ieskf.cc
     src/propogator.cc
+    src/pointcloud_utils.cc
     src/lidar_register/voxelmap_register.cc
     src/lidar_register/voxel_map.cc
 )

@@ -214,6 +214,7 @@ void ROS1Manager::Visualize() {
 
         PublishTF(last_visualize_time_);
         // PublishState(last_visualize_time_);
+        PublishLidar(last_visualize_time_);
     }
 }
 
@@ -242,6 +243,10 @@ void ROS1Manager::PublishState(const double& sensor_time) {
 }
 
 void ROS1Manager::PublishLidar(const double& sensor_time) {
+    auto cloud_lidar = ToPointCloud2(system_ptr_->GetCloudInLidarLink(), "lidar_link", sensor_time);
+    cloud_lidar_pub_.publish(cloud_lidar);
+    auto cloud_robot = ToPointCloud2(system_ptr_->GetCloudInRobotLink(), "robot_link", sensor_time);
+    cloud_robot_pub_.publish(cloud_robot);
 }
 
 geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const SE3& transform,
@@ -260,5 +265,20 @@ geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double ti
     trans.transform.translation.y = T.translation().y();
     trans.transform.translation.z = T.translation().z();
     return trans;
+}
+
+sensor_msgs::PointCloud2 ROS1Manager::ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,
+                                                    double timestamp) {
+    sensor_msgs::PointCloud2 cloud_msg;
+    if (!cloud->empty()) {
+        pcl::toROSMsg(*cloud, cloud_msg);
+    }
+    cloud_msg.header.frame_id = frame_id;
+    if (timestamp <= 0) {
+        cloud_msg.header.stamp = ros::Time::now();
+    } else {
+        cloud_msg.header.stamp = ros::Time(timestamp);
+    }
+    return cloud_msg;
 }
 }  // namespace slam
