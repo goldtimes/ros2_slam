@@ -19,14 +19,14 @@ FrontEnd::FrontEnd(System* system) {
     T_BI = (T_BL.inverse() * T_IL).inverse();
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
+    // kf_ptr_->SetStopFunc([&](const V21D& delta) { return delta.norm() < 1e-6; });
     // propogator
     propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
     AllocateMemory();
     // voxel_map_odom
     if (system_->GetSystemConfig()->use_voxel_) {
         // 初始化voxel_map
-        lidar_register_ptr_ = std::make_shared<VoxelMapRegister>(system_->GetSystemConfig());
-        // 设置voxel map的残差模型
+        lidar_register_ptr_ = std::make_shared<VoxelMapRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_p2plane_) {
     } else if (system_->GetSystemConfig()->use_ndt_) {
     }
@@ -35,7 +35,7 @@ FrontEnd::FrontEnd(System* system) {
 void FrontEnd::AllocateMemory() {
     undistort_cloud_lidar_.reset(new PointCloudType);
     undistort_cloud_robot_.reset(new PointCloudType);
-    undistort_cloud_robot_.reset(new PointCloudType);
+    undistort_cloud_odom_.reset(new PointCloudType);
 }
 
 FrontEnd::~FrontEnd() {
@@ -72,13 +72,32 @@ void FrontEnd::Run() {
                 undistort_cloud_lidar_->clear();
                 evaluate_and_call(
                     [&]() { propogator_ptr_->PropogateAndUndistort(measure_group_, undistort_cloud_lidar_); },
-                    "propogate_and_undistort", true);
+                    "propogate_and_undistort", false);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
                 undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL);
+                // transform to world
+                undistort_cloud_odom_->clear();
+                auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_il);
+                auto T_WL = current_pose * T_IL;
+                undistort_cloud_odom_ = TransformLidarOMP(undistort_cloud_lidar_, T_WL);
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
                     // voxel map 初始化
-                    front_end_status_ = FrontEndStatus::MAPPING;
+                    if (lidar_register_ptr_->InitMap(undistort_cloud_lidar_, kf_ptr_)) {
+                        front_end_status_ = FrontEndStatus::MAPPING;
+                    }
+                    continue;
+                }
+                if (front_end_status_ == FrontEndStatus::MAPPING) {
+                    if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
+                        LOG_INFO("Align Success");
+                    } else {
+                        front_end_status_ = FrontEndStatus::LOST;
+                    }
+                }
+                if (front_end_status_ == FrontEndStatus::LOST) {
+                    // 丢失后，需要重新初始化
+                    LOG_INFO("Lost, reinit");
                     continue;
                 }
             }

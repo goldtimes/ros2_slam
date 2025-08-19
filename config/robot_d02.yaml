@@ -72,7 +72,7 @@ front_end:
     downsample: 0.2 # 降采样
 
   use_voxel_map: 
-    voxle_size: 1.0
+    voxle_size: 0.35
     max_layer: 0 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值

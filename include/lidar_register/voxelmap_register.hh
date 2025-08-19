@@ -1,13 +1,42 @@
 #pragma
 #include "lidar_register.hh"
+#include "voxel_map.hh"
 
 namespace slam {
 class VoxelMapRegister : public LidarRegister {
    public:
-    VoxelMapRegister(const std::shared_ptr<SystemConfig>& system_config);
+    VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_config, std::shared_ptr<IESKF> kf_ptr);
 
     ~VoxelMapRegister();
 
-    virtual bool InitMap(PointCloudPtr& cloud_world) override;
+    virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual void UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) override;
+
+   private:
+    M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
+                                 const SE3 &T_IL, const Eigen::Matrix3d &cov_lidar);
+
+   private:
+    M3D il_t_var;
+    M3D il_r_var;
+
+    double voxel_size_;
+    int max_layer_;
+    std::vector<int> layer_point_size_;
+    int max_points_size_;
+    int max_cov_points_size_;
+    float planer_threshold_;
+    bool updatemap_omp_;
+    int sigma_num_;
+
+    double range_cov;
+    double angle_cov;
+
+    std::shared_ptr<IESKF> kf_ptr_;
+
+    std::unordered_map<VOXEL_LOC, OctoTree *> voxel_map_;
+    std::list<std::pair<VOXEL_LOC, OctoTree *>> data_;
+    std::unordered_map<VOXEL_LOC, std::list<std::pair<VOXEL_LOC, OctoTree *>>::iterator> grids_;
 };
 }  // namespace slam

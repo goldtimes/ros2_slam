@@ -79,7 +79,7 @@ void buildVoxelMap(const std::vector<pointWithCov> &input_points, const float vo
             grids.insert({position, data.begin()});
         }
     }
-    std::cout << "build data size: " << data.size() << std::endl;
+    // std::cout << "build data size: " << data.size() << std::endl;
     for (auto iter = feat_map.begin(); iter != feat_map.end(); ++iter) {
         iter->second->init_octo_tree();
     }

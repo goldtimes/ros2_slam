@@ -247,6 +247,8 @@ void ROS1Manager::PublishLidar(const double& sensor_time) {
     cloud_lidar_pub_.publish(cloud_lidar);
     auto cloud_robot = ToPointCloud2(system_ptr_->GetCloudInRobotLink(), "robot_link", sensor_time);
     cloud_robot_pub_.publish(cloud_robot);
+    auto cloud_odom = ToPointCloud2(system_ptr_->GetCloudInOdomLink(), "odom", sensor_time);
+    cloud_odom_pub_.publish(cloud_odom);
 }
 
 geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const SE3& transform,
