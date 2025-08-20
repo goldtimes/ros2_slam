@@ -1,5 +1,4 @@
 #pragma once
-#include <functional>
 #include "commons.hh"
 #include "logger.hh"
 #include "state.hh"
@@ -24,12 +23,12 @@ class IESKF {
         max_iter_num_ = max_iter_num;
     }
 
-    void SetLidarLossFunc(lidar_loss_func lidar_loss_func) {
-        lidar_loss_func_ = lidar_loss_func;
+    void SetLidarLossFunc(lidar_loss_func loss_func) {
+        lidar_loss_func_ = loss_func;
     }
 
-    void SetStopFunc(stop_func stop_func) {
-        stop_func_ = stop_func;
+    void SetStopFunc(stop_func func) {
+        stop_func_ = func;
     }
 
     void Predict(const Input& input, double dt, const M12D& Q);
@@ -51,8 +50,6 @@ class IESKF {
     M21D& Cov() {
         return cov_;
     }
-
-    
 
    private:
     // 状态量

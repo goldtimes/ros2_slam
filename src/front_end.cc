@@ -19,7 +19,6 @@ FrontEnd::FrontEnd(System* system) {
     T_BI = (T_BL.inverse() * T_IL).inverse();
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
-    // kf_ptr_->SetStopFunc([&](const V21D& delta) { return delta.norm() < 1e-6; });
     // propogator
     propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
     AllocateMemory();
@@ -91,6 +90,7 @@ void FrontEnd::Run() {
                 if (front_end_status_ == FrontEndStatus::MAPPING) {
                     if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
                         LOG_INFO("Align Success");
+                        lidar_register_ptr_->UpdateMap();
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }

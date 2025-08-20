@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 #include "commons.hh"
 #include "ieskf.hh"
@@ -26,13 +25,13 @@ class LidarRegister {
 
     virtual void UpdateLidarFunc(NavState& nav_state, ESKFShareState& shared_data) = 0;
 
+    virtual void UpdateMap() = 0;
+
    protected:
-    bool first_frame_;
+    bool first_frame_ = true;
     std::shared_ptr<IESKF> kf_ptr_;
     std::shared_ptr<SystemConfig> system_config_;
     PointCloudPtr current_lidar_;  // 原始的雷达点云
-    // 先计算lidar的cov
-    std::vector<M3D> lidar_covs_;
 };
 
 }  // namespace slam

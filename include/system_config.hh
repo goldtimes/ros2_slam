@@ -100,7 +100,6 @@ struct VoxelConfig {
     double plannar_threshold;
     int max_points_size;
     int max_cov_points_size;
-    int max_capacity;
     bool update_omp;
     bool pub_voxel_map;
     int pub_max_voxel_layer;
@@ -109,6 +108,7 @@ struct VoxelConfig {
     int pub_point_cloud_skip;
     double ranging_cov;
     double angle_cov;
+    int max_capacity;
     int sigma_num;
     bool updatemap_omp;
     // 重载print函数

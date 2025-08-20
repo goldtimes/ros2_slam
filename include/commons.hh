@@ -38,8 +38,8 @@ struct Input {
 // 迭代是否合理的
 struct ESKFShareState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    M12D H_;
-    V12D b_;
+    M12D H_;  // Hessian矩阵，这里可以保持和state的维度是一致，不过是构造了很多0矩阵
+    V12D b_;  // b矩阵
     double res;
     bool valid = false;
     size_t iter_num = 0;

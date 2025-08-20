@@ -12,6 +12,7 @@ class VoxelMapRegister : public LidarRegister {
     virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) override;
+    virtual void UpdateMap() override;
 
    private:
     M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
@@ -29,14 +30,16 @@ class VoxelMapRegister : public LidarRegister {
     float planer_threshold_;
     bool updatemap_omp_;
     int sigma_num_;
+    int max_capacity_;
 
     double range_cov;
     double angle_cov;
 
-    std::shared_ptr<IESKF> kf_ptr_;
-
     std::unordered_map<VOXEL_LOC, OctoTree *> voxel_map_;
     std::list<std::pair<VOXEL_LOC, OctoTree *>> data_;
     std::unordered_map<VOXEL_LOC, std::list<std::pair<VOXEL_LOC, OctoTree *>>::iterator> grids_;
+
+    // 先计算lidar的cov
+    std::vector<M3D> lidar_covs_;
 };
 }  // namespace slam
