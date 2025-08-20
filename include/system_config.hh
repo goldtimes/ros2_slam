@@ -109,6 +109,8 @@ struct VoxelConfig {
     int pub_point_cloud_skip;
     double ranging_cov;
     double angle_cov;
+    int sigma_num;
+    bool updatemap_omp;
     // 重载print函数
     void print() const {
         LOG_INFO("VoxelConfig:");
@@ -126,6 +128,10 @@ struct VoxelConfig {
         LOG_INFO("  pub_point_cloud: {}", pub_point_cloud);
         LOG_INFO("  dense_map_enable: {}", dense_map_enable);
         LOG_INFO("  pub_point_cloud_skip: {}", pub_point_cloud_skip);
+        LOG_INFO("  ranging_cov: {:03.3f}", ranging_cov);
+        LOG_INFO("  angle_cov: {:03.3f}", angle_cov);
+        LOG_INFO("  sigma_num: {}", sigma_num);
+        LOG_INFO("  updatemap_omp: {}", updatemap_omp);
     }
 };
 struct NDTConfig {

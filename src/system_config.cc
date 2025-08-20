@@ -119,6 +119,9 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             frontend_config_.voxel_config.ranging_cov =
                 config["front_end"]["use_voxel_map"]["ranging_cov"].as<double>();
             frontend_config_.voxel_config.angle_cov = config["front_end"]["use_voxel_map"]["angle_cov"].as<double>();
+            frontend_config_.voxel_config.sigma_num = config["front_end"]["use_voxel_map"]["sigma_num"].as<int>();
+            frontend_config_.voxel_config.updatemap_omp =
+                config["front_end"]["use_voxel_map"]["updatemap_omp"].as<bool>();
             frontend_config_.voxel_config.print();
         }
         if (use_ndt_) {

@@ -55,6 +55,7 @@ use_ndt: false
 has_encoder: true
 has_gnss: false
 has_camera: false
+calib_lidar2imu: false
 
 front_end:
   # 里程计前端的通用参数
@@ -80,6 +81,7 @@ front_end:
     max_cov_points_size: 1000 # 每个voxel最大的协方差点云数量
     max_capacity: 10000 # 整体的voxel个数
     update_omp: true # 更新voxel地图时使用omp加速
+    sigma_num: 3
 
     pub_voxel_map: true # 发布voxel地图
     pub_max_voxel_layer: 1 # 发布层数
