@@ -48,8 +48,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false
-use_voxel: true
+use_p2plane: true
+use_voxel: false
 use_ndt: false
 
 has_encoder: true
@@ -70,6 +70,10 @@ front_end:
     keyframe_angle_distance: 0.2 # 关键帧角度 rads
     use_angle_keyframe: false  # 是否使用角度关键帧
     downsample: 0.2 # 降采样
+    map_resolution: 0.3 # 地图分辨率
+    cube_len: 300 # 立方体长度
+    det_range: 60 # 检测范围
+    move_thresh: 1.5 # 移动阈值
 
   use_voxel_map: 
     voxle_size: 0.35

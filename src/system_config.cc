@@ -91,6 +91,12 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             frontend_config_.p2plane_config.use_angle_keyframe =
                 config["front_end"]["use_p2plane"]["use_angle_keyframe"].as<bool>();
             frontend_config_.p2plane_config.downsample = config["front_end"]["use_p2plane"]["downsample"].as<double>();
+            frontend_config_.p2plane_config.map_resolution =
+                config["front_end"]["use_p2plane"]["map_resolution"].as<double>();
+            frontend_config_.p2plane_config.cube_len = config["front_end"]["use_p2plane"]["cube_len"].as<int>();
+            frontend_config_.p2plane_config.det_range = config["front_end"]["use_p2plane"]["det_range"].as<int>();
+            frontend_config_.p2plane_config.move_thresh =
+                config["front_end"]["use_p2plane"]["move_thresh"].as<double>();
             frontend_config_.p2plane_config.print();
         }
         if (use_voxel_) {

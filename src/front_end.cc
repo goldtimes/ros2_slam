@@ -1,5 +1,6 @@
 #include "front_end.hh"
 #include "ieskf.hh"
+#include "lidar_register/p2plane_register.hh"
 #include "lidar_register/voxelmap_register.hh"
 #include "propogator.hh"
 #include "system.hh"
@@ -27,6 +28,7 @@ FrontEnd::FrontEnd(System* system) {
         // 初始化voxel_map
         lidar_register_ptr_ = std::make_shared<VoxelMapRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_p2plane_) {
+        lidar_register_ptr_ = std::make_shared<P2PlaneRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_ndt_) {
     }
 }
@@ -74,12 +76,14 @@ void FrontEnd::Run() {
                     "propogate_and_undistort", false);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
-                undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL);
+                undistort_cloud_robot_ =
+                    TransformLidarOMP(undistort_cloud_lidar_, T_BL.so3().matrix(), T_BL.translation());
                 // transform to world
                 undistort_cloud_odom_->clear();
                 auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_il);
                 auto T_WL = current_pose * T_IL;
-                undistort_cloud_odom_ = TransformLidarOMP(undistort_cloud_lidar_, T_WL);
+                undistort_cloud_odom_ =
+                    TransformLidarOMP(undistort_cloud_lidar_, T_WL.so3().matrix(), T_WL.translation());
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
                     // voxel map 初始化
                     if (lidar_register_ptr_->InitMap(undistort_cloud_lidar_, kf_ptr_)) {

@@ -82,6 +82,10 @@ struct P2PlaneConfig {
     double keyframe_angle_distance;
     bool use_angle_keyframe;
     double downsample;
+    double map_resolution;
+    int cube_len;
+    int det_range;
+    double move_thresh;
     // 重载print函数
     void print() const {
         LOG_INFO("P2PlaneConfig:");
@@ -91,6 +95,10 @@ struct P2PlaneConfig {
         LOG_INFO("  keyframe_angle_distance: {:03.3f}", keyframe_angle_distance);
         LOG_INFO("  use_angle_keyframe: {}", use_angle_keyframe);
         LOG_INFO("  downsample: {:03.3f}", downsample);
+        LOG_INFO("  map_resolution: {:03.3f}", map_resolution);
+        LOG_INFO("  cube_len: {}", cube_len);
+        LOG_INFO("  det_range: {}", det_range);
+        LOG_INFO("  move_thresh: {:03.3f}", move_thresh);
     }
 };
 struct VoxelConfig {

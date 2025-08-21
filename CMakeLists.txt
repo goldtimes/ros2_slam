@@ -110,6 +110,8 @@ add_executable(slam_node
     src/pointcloud_utils.cc
     src/lidar_register/voxelmap_register.cc
     src/lidar_register/voxel_map.cc
+    src/ikd_tree.cc
+    src/lidar_register/p2plane_register.cc
 )
 
 target_link_libraries(slam_node 

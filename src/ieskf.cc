@@ -42,7 +42,7 @@ void IESKF::Update() {
     shared_state.res = 1e10;
     V21D delta = V21D::Zero();
     // 高斯牛顿的求解,H矩阵和b矩阵
-    M21D H = M21D::Zero();
+    M21D H = M21D::Identity();
     V21D b = V21D::Zero();
 
     for (size_t i = 0; i < max_iter_num_; i++) {
@@ -51,12 +51,14 @@ void IESKF::Update() {
         if (shared_state.valid == false) {
             break;
         }
+        H.setZero();
+        b.setZero();
         // 误差重置时的雅可比矩阵
         delta = state_ - predict_x;
         M21D J = M21D::Identity();
         // 投影P矩阵
-        J.block<3, 3>(0, 0) = Jr(delta.segment<3>(0));
-        J.block<3, 3>(6, 6) = Jr(delta.segment<3>(6));
+        J.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
+        J.block<3, 3>(6, 6) = JrInv(delta.segment<3>(6));
         H += J.transpose() * cov_.inverse() * J;
         b += J.transpose() * cov_.inverse() * delta;
         H.block<12, 12>(0, 0) += shared_state.H_;

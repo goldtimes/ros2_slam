@@ -1,5 +1,6 @@
 #pragma once
 #include <omp.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include "eigen_type.hh"
@@ -10,6 +11,7 @@ namespace slam {
 using PointType = PointXYZIRT;
 using PointCloudType = pcl::PointCloud<PointType>;
 using PointCloudPtr = PointCloudType::Ptr;
+using PointVec = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
 
 template <typename T>
 inline V3D ToV3D(const T& point) {
@@ -26,5 +28,6 @@ inline T ToPoint(const V3D& pt) {
 }
 
 PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform);
+PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
 
 }  // namespace slam
