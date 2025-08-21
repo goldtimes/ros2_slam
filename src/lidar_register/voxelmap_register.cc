@@ -100,8 +100,8 @@ void VoxelMapRegister::UpdateMap() {
         pv.cov = cov_world;
         pv_list.push_back(pv);
     }
-    updateVoxelMap(pv_list, voxel_size_, max_layer_, layer_point_size_, max_points_size_, max_points_size_,
-                   planer_threshold_, voxel_map_, max_capacity_, data_, grids_);
+    // updateVoxelMap(pv_list, voxel_size_, max_layer_, layer_point_size_, max_points_size_, max_points_size_,
+    //                planer_threshold_, voxel_map_, max_capacity_, data_, grids_);
 }
 
 void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) {
@@ -111,7 +111,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
     V3D trans_end = nav_state.t_wi;
     double total_res = 0.0;
     auto effct_feat_num = 0;
-    auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+    auto current_pose = SE3(rot_end, trans_end);
     auto T_WL = current_pose * system_config_->lidar2robot_;
     // to world cloud
     auto cloud_world = TransformLidarOMP(current_lidar_, T_WL);
@@ -136,6 +136,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
     if (effct_feat_num < 10) {
         LOG_ERROR("NO effective points");
         shared_data.valid = false;
+        return;
     }
     shared_data.valid = true;
 
@@ -146,6 +147,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
     shared_data.H_.setZero();
     shared_data.b_.setZero();
     Eigen::Matrix<double, 1, 12> J;
+    J.setZero();
     // 论文中的jv
     Eigen::Matrix<double, 1, 6> J_v;
     // #ifdef MP_EN
@@ -165,6 +167,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
         Eigen::Matrix<double, 1, 3> dres_dr;
         dres_dr = -norm_vec.transpose() * rot_end * point_body_crossmat;
         V3D dres_dt = norm_vec;
+        // 外参标定
         if (system_config_->frontend_config_.calib_lidar2imu) {
         } else {
             J.block<1, 3>(0, 0) = dres_dr;
@@ -178,16 +181,17 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
         // 这里计算论文中的每个观测噪声Ri
         // J_v * 协方差 * J_v^T 。这里不是构造1x9的矩阵，但是本质上是一样的
         Eigen::Matrix<double, 1, 6> J_nq;
-        J_nq << point_wolrd - ptpl_list[i].center;
-        J_nq << -ptpl_list[i].normal;
+        J_nq.block<1, 3>(0, 0) = point_wolrd - ptpl_list[i].center;
+        J_nq.block<1, 3>(0, 3) = -ptpl_list[i].normal;
         double sigma_l = J_nq * ptpl_list[i].plane_cov * J_nq.transpose();
         M3D cov_lidar = ptpl_list[i].cov_lidar;
         M3D R_cov_Rt = T_WL.so3().matrix() * cov_lidar * T_WL.so3().matrix().transpose();
         double r_cov = sigma_l + norm_vec.transpose() * R_cov_Rt * norm_vec;
+        assert(r_cov > 0.0);
         double r_info = r_cov < 0.0001 ? 1000 : 1.0 / r_cov;
         // 这样会导致更新完全倾斜到雷达侧
         shared_data.H_ += J.transpose() * r_info * J;
-        shared_data.b_ -= J.transpose() * r_info * pd2;
+        shared_data.b_ += J.transpose() * r_info * pd2;
     }
     LOG_INFO("total_res:{}", total_res / effct_feat_num);
 }

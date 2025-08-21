@@ -55,14 +55,15 @@ void IESKF::Update() {
         delta = state_ - predict_x;
         M21D J = M21D::Identity();
         // 投影P矩阵
-        J.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
-        J.block<3, 3>(6, 6) = JrInv(delta.segment<3>(6));
+        J.block<3, 3>(0, 0) = Jr(delta.segment<3>(0));
+        J.block<3, 3>(6, 6) = Jr(delta.segment<3>(6));
         H += J.transpose() * cov_.inverse() * J;
         b += J.transpose() * cov_.inverse() * delta;
         H.block<12, 12>(0, 0) += shared_state.H_;
         b.block<12, 1>(0, 0) += shared_state.b_;
 
         delta = -H.inverse() * b;
+        LOG_INFO("delta:{}", delta.transpose());
         state_ += delta;
         shared_state.iter_num += 1;
         if (stop_func_(delta)) {
