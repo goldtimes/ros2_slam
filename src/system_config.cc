@@ -15,6 +15,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         lidar_config_.lidar_max_range = config["lidar"]["lidar_max_range"].as<double>();
         lidar_config_.lidar_position_noise_std = config["lidar"]["lidar_position_noise_std"].as<double>();
         lidar_config_.lidar_rotation_noise_std = config["lidar"]["lidar_rotation_noise_std"].as<double>();
+        lidar_config_.lidar_noise_std = config["lidar"]["lidar_noise_std"].as<double>();
         lidar_config_.print();
         // 加载IMU相关的配置
         imu_config_.imu_topic = config["imu"]["imu_topic"].as<std::string>();

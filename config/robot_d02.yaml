@@ -9,6 +9,7 @@ lidar:
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
   is_tms_head: true # 雷达的时间戳是否为帧首
+  lidar_noise_std: 0.001 # 雷达点云噪声标准差
   
 imu:
   imu_topic: "/livox/imu"
