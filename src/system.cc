@@ -13,7 +13,9 @@ System::System(const std::string& config_path) : config_path_(config_path) {
     front_end_ptr_ = new FrontEnd(this);
     T_IL = system_config_ptr_->lidar2imu_;
     T_BL = system_config_ptr_->lidar2robot_;
-    T_BI = (T_BL.inverse() * T_IL).inverse();
+    auto T_LI = T_IL.inverse();
+    // T_BI = T_BL * T_LI;
+    T_BI = (T_BL * T_LI);
     // 开启前端的线程
     front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
     system_init_.store(false);

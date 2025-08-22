@@ -66,6 +66,9 @@ void IESKF::Update() {
 
         delta = -H.inverse() * b;
         // LOG_INFO("delta:{}", delta.transpose());
+        if (std::isnan(delta[0])) {
+            break;
+        }
         state_ += delta;
         shared_state.iter_num += 1;
         if (stop_func_(delta)) {

@@ -40,7 +40,7 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         // 设置初始协方差状态
         kf_->Cov().setIdentity();
         // 位置的协方差
-        kf_->Cov().block<3, 3>(3, 3) = M3D::Identity() * 0.00001;
+        // kf_->Cov().block<3, 3>(3, 3) = M3D::Identity() * 0.00001;
         // 外参协方差置信度较高
         kf_->Cov().block<3, 3>(6, 6) = M3D::Identity() * 0.00001;
         kf_->Cov().block<3, 3>(9, 9) = M3D::Identity() * 0.00001;

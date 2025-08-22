@@ -16,7 +16,7 @@ struct NavState {
     V3D ba = V3D::Zero();        // imu的bias
     V3D g = V3D(0, 0, -9.81);    // 重力
     void InitGravityDir(const V3D& gravity_dir) {
-        g = gravity_dir * NavState::gravity;
+        g = gravity_dir.normalized() * NavState::gravity;
     }
 
     // 状态量的改变

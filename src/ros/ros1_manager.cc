@@ -222,7 +222,7 @@ void ROS1Manager::PublishTF(const double& sensor_time) {
     // 发布robot_link在odom的tf信息
     auto current_state = system_ptr_->GetCurentNavState();
     SE3 T_iInG(current_state.r_wi, current_state.t_wi);
-    SE3 T_bInG = system_ptr_->GetImuToBaselink().inverse() * T_iInG;
+    SE3 T_bInG = T_iInG * system_ptr_->GetImuToBaselink().inverse();
     geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time, T_bInG);
     tran_OB.header.frame_id = "odom";
     tran_OB.child_frame_id = "robot_link";

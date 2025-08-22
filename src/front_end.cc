@@ -95,11 +95,17 @@ void FrontEnd::Run() {
                 if (front_end_status_ == FrontEndStatus::MAPPING) {
                     // LOG_INFO("befor state: \n");
                     // kf_ptr_->GetState().Print();
+                    auto t1 = std::chrono::high_resolution_clock::now();
+                    // second
                     if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
                         LOG_INFO("Align Success");
                         lidar_register_ptr_->UpdateMap();
                         // LOG_INFO("after state: \n");
                         // kf_ptr_->GetState().Print();
+                        auto t2 = std::chrono::high_resolution_clock::now();
+                        // second
+                        auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+                        LOG_INFO("Align and Update:{} ms", total_time * 1e3);
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }
