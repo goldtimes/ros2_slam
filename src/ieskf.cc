@@ -65,7 +65,7 @@ void IESKF::Update() {
         b.block<12, 1>(0, 0) += shared_state.b_;
 
         delta = -H.inverse() * b;
-        LOG_INFO("delta:{}", delta.transpose());
+        // LOG_INFO("delta:{}", delta.transpose());
         state_ += delta;
         shared_state.iter_num += 1;
         if (stop_func_(delta)) {

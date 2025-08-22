@@ -64,6 +64,7 @@ void FrontEnd::Run() {
                             front_end_status_ = FrontEndStatus::MAP_INIT;
                             system_->SetSystemInit(true);
                             LOG_INFO("IMU_INIT!");
+                            kf_ptr_->GetState().Print();
                         }
                     }
                     continue;
@@ -80,7 +81,7 @@ void FrontEnd::Run() {
                     TransformLidarOMP(undistort_cloud_lidar_, T_BL.so3().matrix(), T_BL.translation());
                 // transform to world
                 undistort_cloud_odom_->clear();
-                auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_il);
+                auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
                 auto T_WL = current_pose * T_IL;
                 undistort_cloud_odom_ =
                     TransformLidarOMP(undistort_cloud_lidar_, T_WL.so3().matrix(), T_WL.translation());
@@ -92,9 +93,13 @@ void FrontEnd::Run() {
                     continue;
                 }
                 if (front_end_status_ == FrontEndStatus::MAPPING) {
+                    // LOG_INFO("befor state: \n");
+                    // kf_ptr_->GetState().Print();
                     if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
                         LOG_INFO("Align Success");
                         lidar_register_ptr_->UpdateMap();
+                        // LOG_INFO("after state: \n");
+                        // kf_ptr_->GetState().Print();
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }

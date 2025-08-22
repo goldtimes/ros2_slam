@@ -1,4 +1,5 @@
 #pragma once
+#include "eigen_type.hh"
 #include "ikd_tree.hh"
 #include "lidar_point_type.hh"
 #include "lidar_register.hh"
@@ -46,5 +47,8 @@ class P2PlaneRegister : public LidarRegister {
     int cube_len = 100;
     int det_range = 60;
     double move_thresh = 1.5;
+
+    double lidar_noise_std_;
+    double lidar_info_matrix_;
 };
 }  // namespace slam
