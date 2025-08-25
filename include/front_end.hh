@@ -48,7 +48,7 @@ class FrontEnd {
     void AllocateMemory();
 
    private:
-    System* system_ = nullptr;
+    System* system_;
     MeasureGroup measure_group_;
     FrontEndStatus front_end_status_ = FrontEndStatus::IMU_INIT;
     bool opt_wheel_ = true;

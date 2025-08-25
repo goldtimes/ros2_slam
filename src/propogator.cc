@@ -5,7 +5,7 @@
 
 namespace slam {
 Propogator::Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IESKF> kf)
-    : system_config_ptr_(config_), kf_(kf) {
+    : system_config_ptr_(config_), kf_(kf), Q_(Eigen::Matrix<double, 12, 12>::Zero()) {
     LOG_INFO("Propogator init");
     imu_init_ptr_ = std::make_shared<StaticImuInit>();
     Q_.Zero();

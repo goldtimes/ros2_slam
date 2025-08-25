@@ -77,7 +77,7 @@ void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr&
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
     PointCloudPtr cloud_ptr(new PointCloudType);
-    evaluate_and_call([&]() { return system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
@@ -99,8 +99,7 @@ void ROS1Manager::Livox2CloudCallback(const livox_ros_driver2::CustomMsg::ConstP
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
     PointCloudPtr cloud_ptr(new PointCloudType);
-    evaluate_and_call([&]() { return system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); },
-                      "lidar_process");
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
@@ -121,8 +120,7 @@ void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
     PointCloudPtr cloud_ptr(new PointCloudType);
-    evaluate_and_call([&]() { return system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); },
-                      "lidar_process");
+    evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }

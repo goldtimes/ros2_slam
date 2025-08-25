@@ -47,7 +47,7 @@ bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF>
         auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
         auto T_WL = current_pose * system_config_->lidar2imu_;
         auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL);
-        // pcl::io::savePCDFileBinary("/home/kilox/cloud_world_tmp.pcd", *cloud_world_tmp);
+        // pcl::io::savePCDFileBinary("cloud_world_tmp.pcd", *cloud_world_tmp);
         m_ikdtree->Build(cloud_world_tmp->points);
         LOG_INFO("Build Map Size:{}, cloud  size:{}", m_ikdtree->size(), cloud_world_tmp->size());
         first_frame_ = false;

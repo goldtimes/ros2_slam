@@ -23,6 +23,9 @@ struct MeasureGroup {
     std::deque<GNSS> gnsss;
     MeasureGroup() {
         curent_cloud.reset(new PointCloudType);
+        imus.clear();
+        encoders.clear();
+        gnsss.clear();
     }
 };
 

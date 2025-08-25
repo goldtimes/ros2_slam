@@ -8,8 +8,7 @@
 
 namespace slam {
 
-FrontEnd::FrontEnd(System* system) {
-    system_ = system;
+FrontEnd::FrontEnd(System* system) : system_(system) {
     LOG_INFO("FrontEnd init done!");
     use_encoder_ = system_->GetSystemConfig()->has_encoder_;
     use_gnss_ = system_->GetSystemConfig()->has_gnss_;
@@ -23,7 +22,7 @@ FrontEnd::FrontEnd(System* system) {
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
     // propogator
-    propogator_ptr_ = std::make_shared<Propogator>(system->GetSystemConfig(), kf_ptr_);
+    propogator_ptr_ = std::make_shared<Propogator>(system_->GetSystemConfig(), kf_ptr_);
     AllocateMemory();
     // voxel_map_odom
     if (system_->GetSystemConfig()->use_voxel_) {
@@ -165,8 +164,9 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
-                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
+        // LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
+        //         measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
+        //         lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;

@@ -556,7 +556,6 @@ void KD_TREE<PointType>::acquire_removed_points(PointVector &removed_points) {
     Points_deleted.clear();
     Multithread_Points_deleted.clear();
     pthread_mutex_unlock(&points_deleted_rebuild_mutex_lock);
-    return;
 }
 
 template <typename PointType>
@@ -607,7 +606,6 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVecto
     (*root)->left_son_ptr = left_son;
     (*root)->right_son_ptr = right_son;
     Update((*root));
-    return;
 }
 
 template <typename PointType>
@@ -630,7 +628,6 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root) {
         if (*root != nullptr) (*root)->father_ptr = father_ptr;
         if (*root == Root_Node) STATIC_ROOT_NODE->left_son_ptr = *root;
     }
-    return;
 }
 
 template <typename PointType>
@@ -760,7 +757,6 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, b
     bool need_rebuild = allow_rebuild & Criterion_Check((*root));
     if (need_rebuild) Rebuild(root);
     if ((*root) != nullptr) (*root)->working_flag = false;
-    return;
 }
 
 template <typename PointType>
