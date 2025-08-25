@@ -1,4 +1,4 @@
-#pragma
+#pragma once
 #include "lidar_register.hh"
 #include "voxel_map.hh"
 

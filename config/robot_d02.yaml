@@ -96,7 +96,14 @@ front_end:
     angle_cov: 0.01 #点云角度噪声
 
 
-  use_ndt: 
+  use_ndt: # 增量的ndt配准算法
     voxle_size: 1.0
+    near_search: true # 默认的临近搜索的6
+    max_capacity: 100000
+    min_effective_pts: 10
+    min_pts_in_voxel: 5
+    max_pts_in_voxel: 50
+    res_outlier_thresh: 5.0
+    eps: 0.001
 
 

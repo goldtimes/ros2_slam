@@ -145,11 +145,25 @@ struct VoxelConfig {
     }
 };
 struct NDTConfig {
-    double voxle_size;
+    double voxel_size;
+    bool near_search;
+    int max_capacity;
+    int min_effective_pts;
+    int min_pts_in_voxel;
+    int max_pts_in_voxel;
+    double res_outlier_thresh;
+    double eps;
     // 重载print函数
     void print() const {
         LOG_INFO("NDTConfig:");
-        LOG_INFO("  voxle_size: {:03.3f}", voxle_size);
+        LOG_INFO("  voxle_size: {:03.3f}", voxel_size);
+        LOG_INFO("  near_search: {}", near_search);
+        LOG_INFO("  max_capacity: {}", max_capacity);
+        LOG_INFO("  min_effective_pts: {}", min_effective_pts);
+        LOG_INFO("  min_pts_in_voxel: {}", min_pts_in_voxel);
+        LOG_INFO("  max_pts_in_voxel: {}", max_pts_in_voxel);
+        LOG_INFO("  res_outlier_thresh: {:03.3f}", res_outlier_thresh);
+        LOG_INFO("  eps: {:03.3f}", eps);
     }
 };
 

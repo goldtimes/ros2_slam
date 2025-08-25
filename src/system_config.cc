@@ -133,6 +133,15 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         }
         if (use_ndt_) {
             frontend_config_.ndt_config.voxle_size = config["front_end"]["use_ndt"]["voxle_size"].as<double>();
+            frontend_config_.ndt_config.near_search = config["front_end"]["use_ndt"]["near_search"].as<bool>();
+            frontend_config_.ndt_config.max_capacity = config["front_end"]["use_ndt"]["max_capacity"].as<int>();
+            frontend_config_.ndt_config.min_effective_pts =
+                config["front_end"]["use_ndt"]["min_effective_pts"].as<int>();
+            frontend_config_.ndt_config.min_pts_in_voxel = config["front_end"]["use_ndt"]["min_pts_in_voxel"].as<int>();
+            frontend_config_.ndt_config.max_pts_in_voxel = config["front_end"]["use_ndt"]["max_pts_in_voxel"].as<int>();
+            frontend_config_.ndt_config.res_outlier_thresh =
+                config["front_end"]["use_ndt"]["res_outlier_thresh"].as<double>();
+            frontend_config_.ndt_config.eps = config["front_end"]["use_ndt"]["eps"].as<double>();
             frontend_config_.ndt_config.print();
         }
     } catch (const YAML::Exception& e) {
