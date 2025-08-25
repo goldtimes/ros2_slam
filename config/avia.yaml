@@ -49,8 +49,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
-use_voxel: false
+use_p2plane: false
+use_voxel: true
 use_ndt: false
 
 has_encoder: false
@@ -77,12 +77,12 @@ front_end:
     move_thresh: 1.5 # 移动阈值
 
   use_voxel_map: 
-    voxle_size: 0.2
-    max_layer: 0 #  # 4 layer, 0, 1, 2, 3
+    voxle_size: 1.0
+    max_layer: 4 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
-    plannar_threshold: 0.01 # 平面阈值
-    max_points_size: 1000 # 每个voxel最大的点云数量
-    max_cov_points_size: 1000 # 每个voxel最大的协方差点云数量
+    plannar_threshold: 0.03 # 平面阈值
+    max_points_size: 100 # 每个voxel最大的点云数量
+    max_cov_points_size: 100 # 每个voxel最大的协方差点云数量
     max_capacity: 10000 # 整体的voxel个数
     update_omp: false # 更新voxel地图时使用omp加速
     sigma_num: 3
@@ -92,8 +92,8 @@ front_end:
     pub_point_cloud: true # 发布点云
     dense_map_enable: false # 是否发布稠密地图
     pub_point_cloud_skip: 5             # publish one points per five points
-    ranging_cov: 0.03 #点云范围噪声
-    angle_cov: 0.01 #点云角度噪声
+    ranging_cov: 0.04 #点云范围噪声
+    angle_cov: 0.1 #点云角度噪声
 
 
   use_ndt: 
