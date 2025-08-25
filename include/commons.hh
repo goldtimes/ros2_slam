@@ -21,6 +21,9 @@ struct MeasureGroup {
     std::deque<IMU> imus;
     std::deque<Encoder> encoders;
     std::deque<GNSS> gnsss;
+    MeasureGroup() {
+        curent_cloud.reset(new PointCloudType);
+    }
 };
 
 // 滤波器的输入

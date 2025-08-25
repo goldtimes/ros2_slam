@@ -5,12 +5,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 # debug模式
-if("${ENABLE_DEBUG}")
-    message(STATUS " ***  build with debug mode !!!  ****  ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
-else ()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
-endif()
+# if("${ENABLE_DEBUG}")
+#     message(STATUS " ***  build with debug mode !!!  ****  ")
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+# else ()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+# endif()
 
 set(
     ROS_PACKAGE 
@@ -54,9 +54,6 @@ find_package(Ceres REQUIRED)
 # yaml-cpp
 find_package(yaml-cpp REQUIRED)
 
-# tbb
-find_package(TBB REQUIRED)
-
 #eigen
 find_package(Eigen3 REQUIRED)
 # openmp
@@ -65,7 +62,7 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 add_definitions(-DMP_EN)
-add_definitions(-DMP_PROC_NUM=6)
+add_definitions(-DMP_PROC_NUM=4)
 
 include_directories(
   ${PROJECT_SOURCE_DIR}/thirdparty

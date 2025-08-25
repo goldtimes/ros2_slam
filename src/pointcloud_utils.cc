@@ -6,7 +6,7 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform
     PointCloudPtr transformed_cloud(new PointCloudType);
     transformed_cloud->resize(cloud->size());
 #ifdef MP_EN
-    omp_set_num_threads(6);
+    omp_set_num_threads(4);
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < cloud->size(); ++i) {
@@ -23,7 +23,7 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const 
     PointCloudPtr transformed_cloud(new PointCloudType);
     transformed_cloud->resize(cloud->size());
 #ifdef MP_EN
-    omp_set_num_threads(6);
+    omp_set_num_threads(4);
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < cloud->size(); ++i) {

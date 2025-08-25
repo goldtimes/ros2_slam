@@ -5,7 +5,7 @@ M3D IESKF::Jr(const V3D& inp) {
     return Sophus::SO3d::jl(inp).transpose();
 }
 M3D IESKF::JrInv(const V3D& inp) {
-    return Sophus::SO3d::jl(inp).inverse().transpose();
+    return Sophus::SO3d::jl_inv(inp).transpose();
 }
 
 void IESKF::Predict(const Input& input, double dt, const M12D& Q) {

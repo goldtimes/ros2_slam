@@ -131,5 +131,12 @@ void System::reset() {
 }
 
 System::~System() {
+    if (front_end_thread_ptr_->joinable()) {
+        front_end_thread_ptr_->join();
+    }
+    if (front_end_ptr_ != nullptr) {
+        delete front_end_ptr_;
+        front_end_ptr_ = nullptr;
+    }
 }
 }  // namespace slam

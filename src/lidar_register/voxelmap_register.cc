@@ -36,7 +36,7 @@ bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF
     if (first_frame_) {
         // transform cloud_lidar to world frame
         auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
-        auto T_WL = current_pose * system_config_->lidar2robot_;
+        auto T_WL = current_pose * system_config_->lidar2imu_;
         auto cloud_world = TransformLidarOMP(cloud_lidar, T_WL);
         std::vector<pointWithCov> pv_list;
         for (size_t i = 0; i < cloud_lidar->size(); ++i) {
@@ -54,7 +54,7 @@ bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF
                                     system_config_->frontend_config_.voxel_config.angle_cov);
             // 计算世界坐标下的点的协方差
             M3D cov_world;
-            cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2robot_, cov_lidar);
+            cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2imu_, cov_lidar);
             pv.cov = cov_world;
             pv_list.push_back(pv);
         }
@@ -69,8 +69,8 @@ bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF
 bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     lidar_covs_.clear();
     current_lidar_ = cloud_lidar;
-    for (size_t i = 0; i < cloud_lidar->size(); ++i) {
-        auto pt_lidar = ToV3D(cloud_lidar->points[i]);
+    for (size_t i = 0; i < current_lidar_->size(); ++i) {
+        auto pt_lidar = ToV3D(current_lidar_->points[i]);
         if (pt_lidar[2] == 0) {
             pt_lidar[2] = 0.001;
         }
@@ -85,7 +85,7 @@ bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
 void VoxelMapRegister::UpdateMap() {
     // 更新地图
     auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
-    auto T_WL = current_pose * system_config_->lidar2robot_;
+    auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
     auto cloud_world = TransformLidarOMP(current_lidar_, T_WL);
     // 计算point with cov
@@ -96,12 +96,12 @@ void VoxelMapRegister::UpdateMap() {
         auto pt_world = ToV3D(cloud_world->points[i]);
         pv.point = pt_world;
         M3D cov_lidar = lidar_covs_[i];
-        M3D cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2robot_, lidar_covs_[i]);
+        M3D cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2imu_, cov_lidar);
         pv.cov = cov_world;
         pv_list.push_back(pv);
     }
-    // updateVoxelMap(pv_list, voxel_size_, max_layer_, layer_point_size_, max_points_size_, max_points_size_,
-    //                planer_threshold_, voxel_map_, max_capacity_, data_, grids_);
+    updateVoxelMap(pv_list, voxel_size_, max_layer_, layer_point_size_, max_points_size_, max_points_size_,
+                   planer_threshold_, voxel_map_, max_capacity_, data_, grids_);
 }
 
 void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) {
@@ -112,7 +112,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
     double total_res = 0.0;
     auto effct_feat_num = 0;
     auto current_pose = SE3(rot_end, trans_end);
-    auto T_WL = current_pose * system_config_->lidar2robot_;
+    auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
     auto cloud_world = TransformLidarOMP(current_lidar_, T_WL);
     std::vector<ptpl> ptpl_list;
@@ -125,7 +125,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
         pv.point = pt_lidar;
         pv.point_world = pt_world;
         pv.cov_lidar = lidar_covs_[i];
-        M3D cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2robot_, lidar_covs_[i]);
+        M3D cov_world = transformLiDARCovToWorld(pt_lidar, kf_ptr_, system_config_->lidar2imu_, lidar_covs_[i]);
         pv.cov = cov_world;
         pv_list.push_back(pv);
     }
@@ -188,7 +188,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
         M3D R_cov_Rt = T_WL.so3().matrix() * cov_lidar * T_WL.so3().matrix().transpose();
         double r_cov = sigma_l + norm_vec.transpose() * R_cov_Rt * norm_vec;
         assert(r_cov > 0.0);
-        double r_info = r_cov < 0.0001 ? 1000 : 1.0 / r_cov;
+        double r_info = r_cov < 0.001 ? 1000 : 1.0 / r_cov;
         // 这样会导致更新完全倾斜到雷达侧
         shared_data.H_ += J.transpose() * r_info * J;
         shared_data.b_ += J.transpose() * r_info * pd2;
@@ -208,7 +208,8 @@ M3D VoxelMapRegister::transformLiDARCovToWorld(const Eigen::Vector3d &point_lida
                                    (-point_crossmat).transpose() * lidar_to_imu.rotationMatrix().transpose() +
                                kf_ptr->GetCov().block<3, 3>(9, 9);
     // P_L =  T_L_to_I * P_L
-    Eigen::Vector3d p_body = lidar_to_imu.rotationMatrix() * point_lidar + lidar_to_imu.translation();
+    // Eigen::Vector3d p_body = lidar_to_imu.rotationMatrix() * point_lidar + lidar_to_imu.translation();
+    Eigen::Vector3d p_body = lidar_to_imu * point_lidar;
 
     point_crossmat << SKEW_SYM_MATRX(p_body);
 

@@ -4,6 +4,7 @@ namespace slam {
 P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_config, std::shared_ptr<IESKF> kf_ptr)
     : LidarRegister(system_config, kf_ptr) {
     LOG_INFO("P2PlaneRegister constructor");
+    first_frame_ = true;
     // ikd_tree树
     m_ikdtree = std::make_shared<KD_TREE<slam::PointXYZIRT>>();
     m_ikdtree->set_downsample_param(map_resolution);
@@ -29,10 +30,15 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     kf_ptr_->SetLidarLossFunc(
         [this](NavState &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([](const V21D &delta) { return delta.norm() < 1e-6; });
+    kf_ptr_->SetStopFunc([&](const V21D &delta) -> bool {
+        V3D rot_delta = delta.block<3, 1>(0, 0);
+        V3D t_delta = delta.block<3, 1>(3, 0);
+        return (rot_delta.norm() * 57.3 < 0.01) && (t_delta.norm() * 100 < 0.015);
+    });
 }
 P2PlaneRegister::~P2PlaneRegister() {
 }
+
 bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // trans to world cloud
     // set to ikdtree
@@ -40,16 +46,17 @@ bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF>
         // transform cloud_lidar to world frame
         auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
         auto T_WL = current_pose * system_config_->lidar2imu_;
-        auto cloud_world = TransformLidarOMP(cloud_lidar, T_WL);
-        m_ikdtree->Build(cloud_world->points);
-        LOG_INFO("Build Map Size:{}, cloud  size:{}", m_ikdtree->size(), cloud_world->size());
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL);
+        // pcl::io::savePCDFileBinary("/home/kilox/cloud_world_tmp.pcd", *cloud_world_tmp);
+        m_ikdtree->Build(cloud_world_tmp->points);
+        LOG_INFO("Build Map Size:{}, cloud  size:{}", m_ikdtree->size(), cloud_world_tmp->size());
         first_frame_ = false;
     }
-    const auto current_state = kf_ptr_->GetState();
-    SE3 T_WI(current_state.r_wi, current_state.t_wi);
-    V3D pos_lidar = SE3(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_.translation();
-    V3D pose_lidar_test = T_WI.so3().matrix() * system_config_->lidar2imu_.translation() + T_WI.translation();
-    LOG_INFO("pos_lidar: {}, pose_lidar_test: {}", pos_lidar.transpose(), pose_lidar_test.transpose());
+    // const auto current_state = kf_ptr_->GetState();
+    // SE3 T_WI(current_state.r_wi, current_state.t_wi);
+    // V3D pos_lidar = SE3(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_.translation();
+    // V3D pose_lidar_test = T_WI.so3().matrix() * system_config_->lidar2imu_.translation() + T_WI.translation();
+    // LOG_INFO("pos_lidar: {}, pose_lidar_test: {}", pos_lidar.transpose(), pose_lidar_test.transpose());
     return true;
 }
 
@@ -75,7 +82,7 @@ void P2PlaneRegister::TrimCloud() {
         dist_to_map_edge[i][0] = std::fabs(pos_lidar[i] - m_local_map.local_map_corner.vertex_min[i]);
         dist_to_map_edge[i][1] = std::fabs(pos_lidar[i] - m_local_map.local_map_corner.vertex_max[i]);
         // 小于阈值就需要移动地图
-        if (dist_to_map_edge[i][0] < det_thresh || dist_to_map_edge[i][1] < det_thresh) {
+        if (dist_to_map_edge[i][0] <= det_thresh || dist_to_map_edge[i][1] <= det_thresh) {
             need_move = true;
         }
     }
@@ -189,6 +196,9 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
         const auto pt_lidar = ToV3D(point_lidar);
         auto &point_world = cloud_world->points[i];
         const auto pt_world = T_WL * pt_lidar;
+        // auto pt_world_test =
+        //     current_state.r_wi * (current_state.r_il * pt_lidar + current_state.t_il) + current_state.t_wi;
+        // LOG_INFO("pt_world:{}, pt_world_test:{}", pt_world.transpose(), pt_world_test.transpose());
         point_world.x = pt_world[0];
         point_world.y = pt_world[1];
         point_world.z = pt_world[2];
@@ -207,7 +217,8 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
         Eigen::Vector4d plane_coeff;
         m_point_selected_flag[i] = false;
         if (EstimatePlane(points_near, 0.1, plane_coeff)) {
-            double pd2 = plane_coeff.head<3>().dot(pt_world) + plane_coeff(3);
+            double pd2 = plane_coeff(0) * point_world.x + plane_coeff(1) * point_world.y +
+                         plane_coeff(2) * point_world.z + plane_coeff(3);
             double s = 1 - 0.9 * std::fabs(pd2) / sqrt(pt_lidar.norm());
             if (s > 0.9) {
                 m_point_selected_flag[i] = true;
@@ -259,7 +270,7 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
         // std::cout << "H:" << shared_data.H_ << std::endl;
         // std::cout << "b:" << shared_data.b_ << std::endl;
     }
-    LOG_INFO("iter:{} res:{}", shared_data.iter_num, effect_feat_num / total_res);
+    LOG_INFO("iter:{},effect_feat_num:{}, res:{}", shared_data.iter_num, effect_feat_num, total_res);
 }
 
 bool P2PlaneRegister::EstimatePlane(const PointVec &points, double thresh, Eigen::Vector4d &plane_coeff) {
