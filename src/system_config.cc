@@ -144,8 +144,11 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             frontend_config_.ndt_config.eps = config["front_end"]["use_ndt"]["eps"].as<double>();
             frontend_config_.ndt_config.print();
         }
+    } catch (const YAML::BadFile& e) {
+        LOG_ERROR("config file not found: {}", config_path);
+        return false;
     } catch (const YAML::Exception& e) {
-        LOG_ERROR("Load config file failed: {}", e.what());
+        LOG_ERROR("config file parser error: {}", e.what());
         return false;
     }
     return true;

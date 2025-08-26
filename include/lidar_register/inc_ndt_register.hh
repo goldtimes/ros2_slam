@@ -1,4 +1,5 @@
 #pragma once
+#include "inc_ndt.hh"
 #include "lidar_register.hh"
 
 namespace slam {
@@ -22,5 +23,9 @@ class IncNdtRegister : public LidarRegister {
     int max_pts_in_voxel_;
     double res_outlier_thresh_;
     double eps_;
+    bool calib_lidar2imu_;
+
+    std::shared_ptr<IncNdt> ndt_ptr_;
+    SE3 last_pose_;
 };
 }  // namespace slam

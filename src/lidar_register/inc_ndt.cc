@@ -3,7 +3,7 @@
 
 namespace slam {
 IncNdt::IncNdt(double voxel_size, bool near_search, int max_capacity, int min_effective_pts, int min_pts_in_voxel,
-               int max_pts_in_voxel, double res_outlier_thresh, double eps)
+               int max_pts_in_voxel, double res_outlier_thresh, double eps, bool calib_lidar2imu)
     : voxel_size_(voxel_size),
       near_search_(near_search),
       max_capacity_(max_capacity),
@@ -11,9 +11,11 @@ IncNdt::IncNdt(double voxel_size, bool near_search, int max_capacity, int min_ef
       min_pts_in_voxel_(min_pts_in_voxel),
       max_pts_in_voxel_(max_pts_in_voxel),
       res_outlier_thresh_(res_outlier_thresh),
-      eps_(eps) {
+      eps_(eps),
+      calib_lidar2imu_(calib_lidar2imu) {
     inv_voxel_size_ = 1.0 / voxel_size_;
     GenerateNearbyGrids();
+    source_.reset(new PointCloudType);
 }
 IncNdt::~IncNdt() {
 }
@@ -21,7 +23,7 @@ IncNdt::~IncNdt() {
 void IncNdt::GenerateNearbyGrids() {
     if (!near_search_)
         nearby_grids_.emplace_back(KeyType::Zero());
-    else if (near_search_) {  // 上下左右前后
+    else {  // 上下左右前后
         nearby_grids_ = {KeyType(0, 0, 0),  KeyType(-1, 0, 0), KeyType(1, 0, 0), KeyType(0, 1, 0),
                          KeyType(0, -1, 0), KeyType(0, 0, -1), KeyType(0, 0, 1)};
     }
@@ -50,7 +52,7 @@ void IncNdt::AddCloud(PointCloudPtr& cloud_world) {
             data_.splice(data_.begin(), data_, iter->second);
             iter->second = data_.begin();
         }
-        active_voxels.insert(key);
+        active_voxels.emplace(key);
     }
     // 更新voxel
     for (auto it = active_voxels.begin(); it != active_voxels.end(); it++) {
@@ -61,9 +63,10 @@ void IncNdt::AddCloud(PointCloudPtr& cloud_world) {
     first_frame_ = false;
 }
 
-void IncNdt::ComputeResidualAndJacobians(const SE3& input_pose, M12D& HTVH, V12D& HTVr) {
+void IncNdt::ComputeResidualAndJacobians(NavState& nav_state, ESKFShareState& shared_data) {
     assert(grids_.empty() == false);
-    SE3 pose = input_pose;
+    SE3 pose = SE3(nav_state.r_wi, nav_state.t_wi);
+    shared_data.valid = true;
     int num_residual_per_point = 1;
     if (near_search_) num_residual_per_point = 7;
     std::vector<int> index(source_->points.size());
@@ -80,20 +83,71 @@ void IncNdt::ComputeResidualAndJacobians(const SE3& input_pose, M12D& HTVH, V12D
         V3D pt_body = ToV3D(point_body);
         V3D pt_world = pose * pt_body;
         Eigen::Vector3i key = (pt_world * inv_voxel_size_).cast<int>();
-        
+        // 遍历周围栅格
+        for (int i = 0; i < nearby_grids_.size(); ++i) {
+            V3i real_key = key + nearby_grids_[i];
+            auto it = grids_.find(real_key);
+            int real_idx = idx * num_residual_per_point + i;
+            if (it != grids_.end() && it->second->second.ndt_estimated_) {
+                // 已经估计了ndt
+                auto& v = it->second->second;
+                V3D e = pt_world - v.mu_;
+                double res = e.transpose() * v.info_ * e;
+                if (std::isnan(res) || res > res_outlier_thresh_) {
+                    // 标记为无效点
+                    effect_pts[real_idx] = false;
+                    continue;
+                }
+                // 残差是合理的
+                Eigen::Matrix<double, 3, 12> J;
+                J.setZero();
+                // 不标定外参
+                if (!calib_lidar2imu_) {
+                    // 对旋转的雅可比矩阵
+                    J.block<3, 3>(0, 0) = -pose.so3().matrix() * Sophus::SO3d::hat(pt_body);
+                    // 对平移的雅可比矩阵
+                    J.block<3, 3>(0, 3) = Eigen::Matrix3d::Identity();
+                } else {
+                }
+                jacobians[real_idx] = J;
+                errors[real_idx] = e;
+                infos[real_idx] = v.info_;
+                effect_pts[real_idx] = true;
+            } else {
+                effect_pts[real_idx] = false;
+            }
+        }
     }
+    if (effect_pts.size() < 10) {
+        shared_data.valid = false;
+        return;
+    }
+    // 累加Hessian 和 error
+    double total_res = 0;
+    int effective_num = 0;
+    shared_data.H_.setZero();
+    shared_data.b_.setZero();
+
+    const double info_ration = 0.01;
+    for (int idx = 0; idx < effect_pts.size(); ++idx) {
+        if (!effect_pts[idx]) continue;
+        total_res += errors[idx].transpose() * infos[idx] * errors[idx];
+        effective_num++;
+        shared_data.H_ += jacobians[idx].transpose() * infos[idx] * jacobians[idx] * info_ration;
+        shared_data.b_ += jacobians[idx].transpose() * infos[idx] * errors[idx] * info_ration;
+    }
+    LOG_INFO("iter: {}, total_res: {}, effective_num: {}, aver res:{}", shared_data.iter_num, total_res, effective_num,
+             total_res / effective_num);
 }
 
 void IncNdt::UpdateVoxel(VoxelData& v) {
     if (first_frame_) {
         // 第一帧，将所有体素都估计一次
         if (v.pts_.size() > 1) {
-        } else if (v.pts_.size() == 1) {
-            v.mu_ = v.pts_[0];
-            v.info_ = M3D::Identity() * 1e2;
+            ComputeMeanAndCov(v.pts_, v.mu_, v.sigma_, [this](const V3D& pt) { return pt; });
+            v.info_ = (v.sigma_ + M3D::Identity() * 1e-3).inverse();  // 避免出nan
         } else {
-            // 其实是一定有点的
-            v.mu_ = V3D::Zero();
+            v.mu_ = v.pts_[0];
             v.info_ = M3D::Identity() * 1e2;
         }
         v.ndt_estimated_ = true;
@@ -118,7 +172,7 @@ void IncNdt::UpdateVoxel(VoxelData& v) {
         // 先估计当前的均值和方差
         ComputeMeanAndCov(v.pts_, cur_mu, cur_var, [this](const V3D& pt) { return pt; });
         // 更新均值和方差
-        UpdateMeanAndCov(v.num_pts_, v.pts_.size(), v.mu_, v.info_, cur_mu, cur_var, new_mu, new_var);
+        UpdateMeanAndCov(v.num_pts_, v.pts_.size(), v.mu_, v.sigma_, cur_mu, cur_var, new_mu, new_var);
         v.mu_ = new_mu;
         v.sigma_ = new_var;
         v.num_pts_ += v.pts_.size();

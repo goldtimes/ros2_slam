@@ -1,5 +1,6 @@
 #include "front_end.hh"
 #include "ieskf.hh"
+#include "lidar_register/inc_ndt_register.hh"
 #include "lidar_register/p2plane_register.hh"
 #include "lidar_register/voxelmap_register.hh"
 #include "propogator.hh"
@@ -31,6 +32,7 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     } else if (system_->GetSystemConfig()->use_p2plane_) {
         lidar_register_ptr_ = std::make_shared<P2PlaneRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_ndt_) {
+        lidar_register_ptr_ = std::make_shared<IncNdtRegister>(system_->GetSystemConfig(), kf_ptr_);
     }
 }
 

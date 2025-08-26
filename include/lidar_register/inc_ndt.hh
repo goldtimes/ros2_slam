@@ -1,8 +1,10 @@
 #include <Eigen/Eigen>
-#include <commons.hh>
 #include <list>
+#include "commons.hh"
 #include "eigen_type.hh"
+#include "logger.hh"
 #include "pointcloud_utils.hh"
+#include "state.hh"
 namespace slam {
 
 class IncNdt {
@@ -13,6 +15,7 @@ class IncNdt {
     };
 
     using KeyType = Eigen::Matrix<int, 3, 1>;
+    using V3i = Eigen::Matrix<int, 3, 1>;
 
     // 体素内的结构体
     struct VoxelData {
@@ -39,7 +42,7 @@ class IncNdt {
     };
 
     IncNdt(double voxel_size, bool near_search, int max_capacity, int min_effective_pts, int min_pts_in_voxel,
-           int max_pts_in_voxel, double res_outlier_thresh, double eps);
+           int max_pts_in_voxel, double res_outlier_thresh, double eps, bool calib_lidar2imu);
     ~IncNdt();
 
     /// 获取一些统计信息
@@ -62,12 +65,15 @@ class IncNdt {
      * @param HTVH
      * @param HTVr
      */
-    void ComputeResidualAndJacobians(const SE3& pose, M12D& HTVH, V12D& HTVr);
+    void ComputeResidualAndJacobians(NavState& nav_state, ESKFShareState& shared_data);
 
    private:
     void GenerateNearbyGrids();
 
     void UpdateVoxel(VoxelData& v);
+
+   public:
+    PointCloudPtr source_;
 
    private:
     double voxel_size_;
@@ -81,12 +87,12 @@ class IncNdt {
     double eps_;
 
     bool first_frame_ = true;
+    bool calib_lidar2imu_ = false;
 
     using KeyAndData = std::pair<KeyType, VoxelData>;
     std::list<KeyAndData> data_;  // 真实的数据，用于缓存/清理
     std::unordered_map<KeyType, std::list<KeyAndData>::iterator, hash_vec<3>> grids_;  // 栅格数据，存储真实数据的迭代器
 
-    PointCloudPtr source_;
     std::vector<KeyType> nearby_grids_;
 };
 
