@@ -122,6 +122,32 @@ void ComputeMeanAndCov(const C& collects, Eigen::Matrix<double, dim, 1>& mean, E
 }
 
 /**
+ * 高斯分布合并
+ * @tparam S    scalar type
+ * @tparam D    dimension
+ * @param hist_m        历史点数
+ * @param curr_n        当前点数
+ * @param hist_mean     历史均值
+ * @param hist_var      历史方差
+ * @param curr_mean     当前均值
+ * @param curr_var      当前方差
+ * @param new_mean      新的均值
+ * @param new_var       新的方差
+ */
+template <typename S, int D>
+void UpdateMeanAndCov(int hist_m, int curr_n, const Eigen::Matrix<S, D, 1>& hist_mean,
+                      const Eigen::Matrix<S, D, D>& hist_var, const Eigen::Matrix<S, D, 1>& curr_mean,
+                      const Eigen::Matrix<S, D, D>& curr_var, Eigen::Matrix<S, D, 1>& new_mean,
+                      Eigen::Matrix<S, D, D>& new_var) {
+    assert(hist_m > 0);
+    assert(curr_n > 0);
+    new_mean = (hist_m * hist_mean + curr_n * curr_mean) / (hist_m + curr_n);
+    new_var = (hist_m * (hist_var + (hist_mean - new_mean) * (hist_mean - new_mean).template transpose()) +
+               curr_n * (curr_var + (curr_mean - new_mean) * (curr_mean - new_mean).template transpose())) /
+              (hist_m + curr_n);
+}
+
+/**
  * pose插值算法
  * @tparam T  数据类型 NavState
  * @tparam C 容器类型 std::deque<NavState>
@@ -185,6 +211,39 @@ inline bool InterpolatePose(double query_time, C&& data, FT&& take_time_func, FP
                  pose_first.translation() * (1 - s) + pose_second.translation() * s);
     best_match = s < 0.5 ? *match_iter : *match_iter_next;
     return true;
+}
+
+/// 矢量哈希
+template <int N>
+struct hash_vec {
+    inline size_t operator()(const Eigen::Matrix<int, N, 1>& v) const;
+};
+
+template <>
+inline size_t hash_vec<2>::operator()(const Eigen::Matrix<int, 2, 1>& v) const {
+    return size_t(((v[0] * 73856093) ^ (v[1] * 471943)) % 10000000);
+}
+
+template <>
+inline size_t hash_vec<3>::operator()(const Eigen::Matrix<int, 3, 1>& v) const {
+    return size_t(((v[0] * 73856093) ^ (v[1] * 471943) ^ (v[2] * 83492791)) % 10000000);
+}
+
+/// 矢量比较
+template <int N>
+struct less_vec {
+    inline bool operator()(const Eigen::Matrix<int, N, 1>& v1, const Eigen::Matrix<int, N, 1>& v2) const;
+};
+
+// 实现2D和3D的比较
+template <>
+inline bool less_vec<2>::operator()(const Eigen::Matrix<int, 2, 1>& v1, const Eigen::Matrix<int, 2, 1>& v2) const {
+    return v1[0] < v2[0] || (v1[0] == v2[0] && v1[1] < v2[1]);
+}
+
+template <>
+inline bool less_vec<3>::operator()(const Eigen::Matrix<int, 3, 1>& v1, const Eigen::Matrix<int, 3, 1>& v2) const {
+    return v1[0] < v2[0] || (v1[0] == v2[0] && v1[1] < v2[1]) || (v1[0] == v2[0] && v1[1] == v2[1] && v1[2] < v2[2]);
 }
 
 }  // namespace slam

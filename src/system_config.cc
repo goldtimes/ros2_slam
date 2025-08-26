@@ -132,7 +132,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             frontend_config_.voxel_config.print();
         }
         if (use_ndt_) {
-            frontend_config_.ndt_config.voxle_size = config["front_end"]["use_ndt"]["voxle_size"].as<double>();
+            frontend_config_.ndt_config.voxel_size = config["front_end"]["use_ndt"]["voxel_size"].as<double>();
             frontend_config_.ndt_config.near_search = config["front_end"]["use_ndt"]["near_search"].as<bool>();
             frontend_config_.ndt_config.max_capacity = config["front_end"]["use_ndt"]["max_capacity"].as<int>();
             frontend_config_.ndt_config.min_effective_pts =
