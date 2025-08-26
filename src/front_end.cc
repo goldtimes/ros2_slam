@@ -27,7 +27,6 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     AllocateMemory();
     // voxel_map_odom
     if (system_->GetSystemConfig()->use_voxel_) {
-        // 初始化voxel_map
         lidar_register_ptr_ = std::make_shared<VoxelMapRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_p2plane_) {
         lidar_register_ptr_ = std::make_shared<P2PlaneRegister>(system_->GetSystemConfig(), kf_ptr_);

@@ -23,7 +23,7 @@ class IncNdt {
         }
         VoxelData(const V3D& pt) {
             pts_.emplace_back(pt);
-            num_pts_++;
+            num_pts_ = 1;
         }
 
         void AddPoint(const V3D& pt) {

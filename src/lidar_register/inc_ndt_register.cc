@@ -20,7 +20,7 @@ IncNdtRegister::IncNdtRegister(const std::shared_ptr<SystemConfig> &system_confi
     kf_ptr_->SetLidarLossFunc(
         [this](NavState &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([](const V21D &delta) { return delta.norm() < 1e-3; });
+    kf_ptr_->SetStopFunc([](const V21D &delta) { return delta.norm() < 1e-6; });
 }
 
 IncNdtRegister::~IncNdtRegister() {
@@ -56,7 +56,7 @@ void IncNdtRegister::UpdateMap() {
     auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
     auto delta_pose = last_pose_.inverse() * current_pose;
 
-    if (delta_pose.translation().norm() > 0.5 || delta_pose.so3().log().norm() > (10.0 / 180.0 * M_PI)) {
+    if (delta_pose.translation().norm() > 1.0 || delta_pose.so3().log().norm() > (10.0 / 180.0 * M_PI)) {
         auto cloud_world = TransformLidarOMP(ndt_ptr_->source_, delta_pose);
         ndt_ptr_->AddCloud(cloud_world);
         last_pose_ = current_pose;

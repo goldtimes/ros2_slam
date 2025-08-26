@@ -133,8 +133,8 @@ void IncNdt::ComputeResidualAndJacobians(NavState& nav_state, ESKFShareState& sh
         if (!effect_pts[idx]) continue;
         total_res += errors[idx].transpose() * infos[idx] * errors[idx];
         effective_num++;
-        shared_data.H_ += jacobians[idx].transpose() * infos[idx] * jacobians[idx] * info_ration;
-        shared_data.b_ += jacobians[idx].transpose() * infos[idx] * errors[idx] * info_ration;
+        shared_data.H_ += jacobians[idx].transpose() * infos[idx] * jacobians[idx] * 0.01;
+        shared_data.b_ += jacobians[idx].transpose() * infos[idx] * errors[idx] * 0.01;
     }
     LOG_INFO("iter: {}, total_res: {}, effective_num: {}, aver res:{}", shared_data.iter_num, total_res, effective_num,
              total_res / effective_num);
