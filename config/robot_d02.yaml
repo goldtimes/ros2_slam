@@ -3,9 +3,9 @@ lidar:
   lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
   use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
   lidar_topic: "/livox/lidar"
-  point_filter_num: 5 # 点云滤波次数
+  point_filter_num: 6 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
-  lidar_max_range: 100.0 # 雷达最大范围
+  lidar_max_range: 30.0 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
   is_tms_head: true # 雷达的时间戳是否为帧首
@@ -49,8 +49,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
-use_voxel: false
+use_p2plane: false
+use_voxel: true
 use_ndt: false # 不要用，这算法有点问题
 
 has_encoder: true
@@ -61,7 +61,7 @@ front_end:
   # 里程计前端的通用参数
   calib_lidar2imu: false # 是否标定外参
   keep_angle_ranges: [-160, 160] # 保留的角度范围
-  remove_ranges: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
+  remove_ranges: [0.05, -0.15, 0.2, -0.2] # [x, -x, y, -y] 前左右的正方向上
   max_iteration: 10 # 最大迭代次数
 
   use_p2plane: 
@@ -77,8 +77,8 @@ front_end:
     move_thresh: 1.5 # 移动阈值
 
   use_voxel_map: 
-    voxle_size: 0.2
-    max_layer: 0 #  # 4 layer, 0, 1, 2, 3
+    voxle_size: 1.0
+    max_layer: 4 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值
     max_points_size: 1000 # 每个voxel最大的点云数量
@@ -93,7 +93,7 @@ front_end:
     dense_map_enable: false # 是否发布稠密地图
     pub_point_cloud_skip: 5             # publish one points per five points
     ranging_cov: 0.03 #点云范围噪声
-    angle_cov: 0.01 #点云角度噪声
+    angle_cov: 0.1 #点云角度噪声
 
 
   use_ndt: # 增量的ndt配准算法

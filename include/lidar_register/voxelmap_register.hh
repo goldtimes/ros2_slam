@@ -18,10 +18,9 @@ class VoxelMapRegister : public LidarRegister {
     M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
                                  const PoseTrans &T_IL, const Eigen::Matrix3d &cov_lidar);
 
-   private:
-    M3D il_t_var;
-    M3D il_r_var;
+    void calcBodyCov(Eigen::Vector3d &pb, const double &range_inc, const double &degree_inc, Eigen::Matrix3d &cov);
 
+   private:
     double voxel_size_;
     int max_layer_;
     std::vector<int> layer_point_size_;
@@ -35,11 +34,10 @@ class VoxelMapRegister : public LidarRegister {
     double range_cov;
     double angle_cov;
 
-    std::unordered_map<VOXEL_LOC, OctoTree *> voxel_map_;
-    std::list<std::pair<VOXEL_LOC, OctoTree *>> data_;
-    std::unordered_map<VOXEL_LOC, std::list<std::pair<VOXEL_LOC, OctoTree *>>::iterator> grids_;
+    std::shared_ptr<VoxelMap> voxel_map_;
 
     // 先计算lidar的cov
     std::vector<M3D> lidar_covs_;
+    std::vector<ResidualData> residual_infos_;
 };
 }  // namespace slam
