@@ -77,13 +77,14 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     imu_caches_.clear();
     imu_caches_.push_back(last_imu_);
     imu_caches_.insert(imu_caches_.end(), meas.imus.begin(), meas.imus.end());
+    const double imu_time_begin = imu_caches_.front().timestamp_;
     const double imu_end_time = imu_caches_.back().timestamp_;
     const double cloud_begin_time = meas.lidar_beg_time;
     const double propogate_end_time = meas.lidar_end_time;
     // 准备好去畸变的数据
-    imu_states_.clear();
-    NominalState state = GetNominalState();
-    imu_states_.push_back(state);
+    imu_pose_cache_.clear();
+    imu_pose_cache_.emplace_back(0.0, last_acc_, last_gyro_, kf_->GetState().v, kf_->GetState().t_wi,
+                                 kf_->GetState().r_wi);
 
     V3D mid_acc, mid_gyro;
     double dt = 0.0;
@@ -101,7 +102,7 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
         mid_gyro = 0.5 * (head.gyro + tail.gyro);
         mid_acc = 0.5 * (head.acc + tail.acc);
         if (head.timestamp_ < last_propagate_time_) {
-            dt = head.timestamp_ - last_propagate_time_;
+            dt = tail.timestamp_ - last_propagate_time_;
         } else {
             dt = tail.timestamp_ - head.timestamp_;
         }
@@ -109,9 +110,13 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
         input.acc = mid_acc;
         input.gyro = mid_gyro;
         kf_->Predict(input, dt, Q_);
+        last_acc_ = kf_->GetState().r_wi * (mid_acc - kf_->GetState().ba) + kf_->GetState().g;
+        last_gyro_ = mid_gyro - kf_->GetState().bg;
+        double offset = tail.timestamp_ - cloud_begin_time;
+        imu_pose_cache_.emplace_back(offset, last_acc_, last_gyro_, kf_->GetState().v, kf_->GetState().t_wi,
+                                     kf_->GetState().r_wi);
         // kf_->GetState().Print();
         current_imu_time_ = head.timestamp_;
-        imu_states_.push_back(GetNominalState());
     }
     dt = propogate_end_time - imu_end_time;
     // LOG_INFO("DT:{}", dt);
@@ -120,10 +125,42 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     last_imu_ = imu_caches_.back();
     last_propagate_time_ = propogate_end_time;
     // 去畸变
-    UndistortLidar(meas.curent_cloud, out_cloud);
+    UndistortLidar(meas, out_cloud);
 }
 
-void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
+void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
+    M3D cur_r_wi = kf_->GetState().r_wi;
+    V3D cur_t_wi = kf_->GetState().t_wi;
+    M3D cur_r_il = kf_->GetState().r_il;
+    V3D cur_t_il = kf_->GetState().t_il;
+    auto it_pcl = meas.curent_cloud->points.end() - 1;
+    const double cloud_start_time = meas.lidar_beg_time;
+    for (auto it_kp = imu_pose_cache_.end() - 1; it_kp != imu_pose_cache_.begin(); it_kp--) {
+        auto head = it_kp - 1;
+        auto tail = it_kp;
+
+        M3D imu_r_wi = head->rot;
+        V3D imu_t_wi = head->pos;
+        V3D imu_vel = head->vel;
+        V3D imu_acc = tail->acc;
+        V3D imu_gyro = tail->gyro;
+        double dt = 0.0;
+        double offset_lidar_time = it_pcl->time - cloud_start_time;
+        for (; offset_lidar_time > head->offset; it_pcl--) {
+            dt = offset_lidar_time - head->offset;
+            V3D point(it_pcl->x, it_pcl->y, it_pcl->z);
+            M3D point_rot = imu_r_wi * Sophus::SO3d::exp(imu_gyro * dt).matrix();
+            V3D point_pos = imu_t_wi + imu_vel * dt + 0.5 * imu_acc * dt * dt;
+            V3D p_compensate =
+                cur_r_il.transpose() *
+                (cur_r_wi.transpose() * (point_rot * (cur_r_il * point + cur_t_il) + point_pos - cur_t_wi) - cur_t_il);
+            it_pcl->x = p_compensate(0);
+            it_pcl->y = p_compensate(1);
+            it_pcl->z = p_compensate(2);
+            if (it_pcl == meas.curent_cloud->points.begin()) break;
+        }
+    }
+    cloud_out = meas.curent_cloud;
 }
 
 // void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {

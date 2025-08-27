@@ -50,5 +50,7 @@ class P2PlaneRegister : public LidarRegister {
 
     double lidar_noise_std_;
     double lidar_info_matrix_;
+    bool updated_success = true;
+    int updated_failed_num_ = 0;
 };
 }  // namespace slam

@@ -11,6 +11,20 @@ class StaticImuInit;
 class SystemConfig;
 struct NominalState;
 
+struct Pose {
+   public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    V3D acc;
+    V3D gyro;
+    M3D rot;
+    V3D pos;
+    V3D vel;
+    Pose();
+    Pose(double t, V3D a, V3D g, V3D v, V3D p, Eigen::Matrix3d r) : offset(t), acc(a), gyro(g), vel(v), pos(p), rot(r) {
+    }
+    double offset;
+};
+
 class Propogator {
    public:
     Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IESKF> kf);
@@ -25,7 +39,7 @@ class Propogator {
     // 状态传播
     void PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cloud);
 
-    void UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out);
+    void UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out);
     NominalState GetNominalState() const;
 
    private:
@@ -50,6 +64,10 @@ class Propogator {
     double last_propagate_time_;
     std::deque<NominalState> imu_states_;
     std::deque<IMU> imu_caches_;
+
+    std::deque<Pose> imu_pose_cache_;
+    V3D last_acc_;
+    V3D last_gyro_;
 
     PoseTrans T_IL_;
 };

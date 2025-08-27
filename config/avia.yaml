@@ -49,9 +49,9 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
+use_p2plane: false
 use_voxel: false
-use_ndt: false
+use_ndt: true
 
 has_encoder: false
 has_gnss: false

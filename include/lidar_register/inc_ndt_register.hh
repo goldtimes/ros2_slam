@@ -26,6 +26,6 @@ class IncNdtRegister : public LidarRegister {
     bool calib_lidar2imu_;
 
     std::shared_ptr<IncNdt> ndt_ptr_;
-    SE3 last_pose_;
+    PoseTrans last_pose_;
 };
 }  // namespace slam

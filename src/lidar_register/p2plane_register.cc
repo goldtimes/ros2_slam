@@ -180,6 +180,9 @@ bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> k
     current_lidar_ = cloud_lidar;
     TrimCloud();
     kf_ptr_->Update();
+    if (updated_failed_num_ > 3) {
+        return false;
+    }
     return true;
 }
 void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) {
@@ -241,6 +244,8 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
     // LOG_INFO("effect_feat_num: {}", effect_feat_num);
     if (effect_feat_num < 1) {
         shared_data.valid = false;
+        updated_success = false;
+        updated_failed_num_++;
         LOG_INFO("NO Effective Points!");
         return;
     }
@@ -270,6 +275,8 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
         // std::cout << "H:" << shared_data.H_ << std::endl;
         // std::cout << "b:" << shared_data.b_ << std::endl;
     }
+    updated_success = true;
+    updated_failed_num_ = 0;
     LOG_INFO("iter:{},effect_feat_num:{}, res:{}", shared_data.iter_num, effect_feat_num, total_res);
 }
 

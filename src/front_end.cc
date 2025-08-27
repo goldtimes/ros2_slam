@@ -113,11 +113,11 @@ void FrontEnd::Run() {
                         front_end_status_ = FrontEndStatus::LOST;
                     }
                 }
-                // if (front_end_status_ == FrontEndStatus::LOST) {
-                //     // 丢失后，需要重新初始化
-                //     LOG_INFO("Lost, reinit");
-                //     continue;
-                // }
+                if (front_end_status_ == FrontEndStatus::LOST) {
+                    // 丢失后，需要重新初始化
+                    LOG_INFO("Lost, reinit");
+                    continue;
+                }
             }
         } else {
             continue;
