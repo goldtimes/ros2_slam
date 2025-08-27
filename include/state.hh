@@ -46,12 +46,12 @@ struct NominalState {
         return SE3(R_, p_);
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const NominalState& s) {
-        os << "p: " << s.p_.transpose() << ", v: " << s.v_.transpose()
-           << ", q: " << s.R_.unit_quaternion().coeffs().transpose() << ", bg: " << s.bg_.transpose()
-           << ", ba: " << s.ba_.transpose();
-        return os;
-    }
+    // friend std::ostream& operator<<(std::ostream& os, const NominalState& s) {
+    //     os << "p: " << s.p_.transpose() << ", v: " << s.v_.transpose()
+    //        << ", q: " << s.R_.().coeffs().transpose() << ", bg: " << s.bg_.transpose()
+    //        << ", ba: " << s.ba_.transpose();
+    //     return os;
+    // }
 
     double timestamp_ = 0;  // 时间
     SO3 R_;                 // 旋转

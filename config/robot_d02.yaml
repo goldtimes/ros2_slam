@@ -60,7 +60,7 @@ has_camera: false
 front_end:
   # 里程计前端的通用参数
   calib_lidar2imu: false # 是否标定外参
-  keep_angle_ranges: [-180, 180] # 保留的角度范围
+  keep_angle_ranges: [-160, 160] # 保留的角度范围
   remove_ranges: [-0.15, 0.05, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
   max_iteration: 10 # 最大迭代次数
 
@@ -103,7 +103,7 @@ front_end:
     min_effective_pts: 10
     min_pts_in_voxel: 5
     max_pts_in_voxel: 50
-    res_outlier_thresh: 5.0
+    res_outlier_thresh: 10
     eps: 0.001
 
 

@@ -1,5 +1,6 @@
 #include "propogator.hh"
 #include "ieskf.hh"
+#include "pose_trans.hh"
 #include "static_imu_init.hh"
 #include "system_config.hh"
 
@@ -35,7 +36,7 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         T_IL_ = PoseTrans(kf_->State().r_il, kf_->State().t_il);
         // 设置bg,ba
         kf_->State().bg = imu_init_ptr_->GetMeanGyro();
-        kf_->State().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
+        // kf_->State().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
 
         // 设置初始协方差状态
         kf_->Cov().setIdentity();
@@ -82,6 +83,11 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     const double cloud_begin_time = meas.lidar_beg_time;
     const double propogate_end_time = meas.lidar_end_time;
     // 准备好去畸变的数据
+    // 准备好去畸变的数据
+    imu_states_.clear();
+    NominalState state = GetNominalState();
+    imu_states_.push_back(state);
+
     imu_pose_cache_.clear();
     imu_pose_cache_.emplace_back(0.0, last_acc_, last_gyro_, kf_->GetState().v, kf_->GetState().t_wi,
                                  kf_->GetState().r_wi);
@@ -117,6 +123,7 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
                                      kf_->GetState().r_wi);
         // kf_->GetState().Print();
         current_imu_time_ = head.timestamp_;
+        imu_states_.push_back(GetNominalState());
     }
     dt = propogate_end_time - imu_end_time;
     // LOG_INFO("DT:{}", dt);
@@ -128,41 +135,64 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     UndistortLidar(meas, out_cloud);
 }
 
-void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
-    M3D cur_r_wi = kf_->GetState().r_wi;
-    V3D cur_t_wi = kf_->GetState().t_wi;
-    M3D cur_r_il = kf_->GetState().r_il;
-    V3D cur_t_il = kf_->GetState().t_il;
-    auto it_pcl = meas.curent_cloud->points.end() - 1;
-    const double cloud_start_time = meas.lidar_beg_time;
-    for (auto it_kp = imu_pose_cache_.end() - 1; it_kp != imu_pose_cache_.begin(); it_kp--) {
-        auto head = it_kp - 1;
-        auto tail = it_kp;
+// void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
+//     M3D cur_r_wi = kf_->GetState().r_wi;
+//     V3D cur_t_wi = kf_->GetState().t_wi;
+//     M3D cur_r_il = kf_->GetState().r_il;
+//     V3D cur_t_il = kf_->GetState().t_il;
+//     auto it_pcl = meas.curent_cloud->points.end() - 1;
+//     const double cloud_start_time = meas.lidar_beg_time;
+//     for (auto it_kp = imu_pose_cache_.end() - 1; it_kp != imu_pose_cache_.begin(); it_kp--) {
+//         auto head = it_kp - 1;
+//         auto tail = it_kp;
 
-        M3D imu_r_wi = head->rot;
-        V3D imu_t_wi = head->pos;
-        V3D imu_vel = head->vel;
-        V3D imu_acc = tail->acc;
-        V3D imu_gyro = tail->gyro;
-        double dt = 0.0;
-        double offset_lidar_time = it_pcl->time - cloud_start_time;
-        for (; offset_lidar_time > head->offset; it_pcl--) {
-            dt = offset_lidar_time - head->offset;
-            V3D point(it_pcl->x, it_pcl->y, it_pcl->z);
-            M3D point_rot = imu_r_wi * Sophus::SO3d::exp(imu_gyro * dt).matrix();
-            V3D point_pos = imu_t_wi + imu_vel * dt + 0.5 * imu_acc * dt * dt;
-            V3D p_compensate =
-                cur_r_il.transpose() *
-                (cur_r_wi.transpose() * (point_rot * (cur_r_il * point + cur_t_il) + point_pos - cur_t_wi) - cur_t_il);
-            it_pcl->x = p_compensate(0);
-            it_pcl->y = p_compensate(1);
-            it_pcl->z = p_compensate(2);
-            if (it_pcl == meas.curent_cloud->points.begin()) break;
-        }
+//         M3D imu_r_wi = head->rot;
+//         V3D imu_t_wi = head->pos;
+//         V3D imu_vel = head->vel;
+//         V3D imu_acc = tail->acc;
+//         V3D imu_gyro = tail->gyro;
+//         double dt = 0.0;
+//         double offset_lidar_time = it_pcl->time - cloud_start_time;
+//         for (; offset_lidar_time > head->offset; it_pcl--) {
+//             dt = offset_lidar_time - head->offset;
+//             V3D point(it_pcl->x, it_pcl->y, it_pcl->z);
+//             M3D point_rot = imu_r_wi * Sophus::SO3d::exp(imu_gyro * dt).matrix();
+//             V3D point_pos = imu_t_wi + imu_vel * dt + 0.5 * imu_acc * dt * dt;
+//             V3D p_compensate =
+//                 cur_r_il.transpose() *
+//                 (cur_r_wi.transpose() * (point_rot * (cur_r_il * point + cur_t_il) + point_pos - cur_t_wi) -
+//                 cur_t_il);
+//             it_pcl->x = p_compensate(0);
+//             it_pcl->y = p_compensate(1);
+//             it_pcl->z = p_compensate(2);
+//             if (it_pcl == meas.curent_cloud->points.begin()) break;
+//         }
+//     }
+//     cloud_out = meas.curent_cloud;
+// }
+
+void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
+    NominalState imu_state_end = GetNominalState();
+    // 末尾时刻的位姿
+    SE3 T_end(imu_state_end.R_, imu_state_end.p_);
+    SE3 T_IL = SE3(T_IL_.R, T_IL_.t);
+    // save pcd
+    // pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
+    // 去畸变
+    for (auto& point : meas.curent_cloud->points) {
+        SE3 Ti = T_end;
+        NominalState best_mathc;
+        InterpolatePose<NominalState>(
+            point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
+            [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
+        V3D pt_eigen = point.getVector3fMap().cast<double>();
+        V3D pt_compensate = T_IL.inverse() * T_end.inverse() * Ti * T_IL * pt_eigen;
+        point.x = pt_compensate(0);
+        point.y = pt_compensate(1);
+        point.z = pt_compensate(2);
     }
     cloud_out = meas.curent_cloud;
 }
-
 // void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
 //     NominalState imu_state_end = GetNominalState();
 //     // 末尾时刻的位姿
