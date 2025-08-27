@@ -277,7 +277,8 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
     }
     updated_success = true;
     updated_failed_num_ = 0;
-    LOG_INFO("iter:{},effect_feat_num:{}, res:{}", shared_data.iter_num, effect_feat_num, total_res);
+    LOG_INFO("iter:{},effect_feat_num:{}, res:{}, aver res:{}", shared_data.iter_num, effect_feat_num, total_res,
+             total_res / effect_feat_num);
 }
 
 bool P2PlaneRegister::EstimatePlane(const PointVec &points, double thresh, Eigen::Vector4d &plane_coeff) {

@@ -129,10 +129,8 @@ bool LidarProcess::mid360_process(const sensor_msgs::PointCloud2::ConstPtr& clou
         //     return;
         // }
         // 过滤范围点云
-        if (livox_point.x < remove_lidar_front_ && livox_point.x > remove_lidar_back_) {
-            continue;
-        }
-        if (livox_point.y < remove_lidar_left_ && livox_point.y > remove_lidar_right_) {
+        if (livox_point.x < remove_lidar_front_ && livox_point.x > remove_lidar_back_ &&
+            livox_point.y < remove_lidar_left_ && livox_point.y > remove_lidar_right_) {
             continue;
         }
         // 角度过滤
