@@ -30,9 +30,9 @@ IncNdtRegister::~IncNdtRegister() {
 bool IncNdtRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     if (first_frame_) {
         // transform cloud_lidar to world frame
-        auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+        auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
         auto T_WL = current_pose * system_config_->lidar2imu_;
-        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL);
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         // pcl::io::savePCDFileBinary("cloud_world_tmp.pcd", *cloud_world_tmp);
         ndt_ptr_->AddCloud(cloud_world_tmp);
         first_frame_ = false;
@@ -42,7 +42,7 @@ bool IncNdtRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
 
 bool IncNdtRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // transform cloud_lidar to body
-    auto cloud_body = TransformLidarOMP(cloud_lidar, system_config_->lidar2imu_);
+    auto cloud_body = TransformLidarOMP(cloud_lidar, system_config_->lidar2imu_.R, system_config_->lidar2imu_.t);
     // 降采样
     ndt_ptr_->SetSource(cloud_body);
     kf_ptr_->Update();

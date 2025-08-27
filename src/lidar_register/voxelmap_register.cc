@@ -35,9 +35,9 @@ VoxelMapRegister::~VoxelMapRegister() {
 bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     if (first_frame_) {
         // transform cloud_lidar to world frame
-        auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+        auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
         auto T_WL = current_pose * system_config_->lidar2imu_;
-        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL);
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         std::vector<pointWithCov> pv_list;
         for (size_t i = 0; i < cloud_lidar->size(); ++i) {
             auto pt_lidar = ToV3D(cloud_lidar->points[i]);
@@ -84,10 +84,10 @@ bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
 
 void VoxelMapRegister::UpdateMap() {
     // 更新地图
-    auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+    auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
     auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
-    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL);
+    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL.R, T_WL.t);
     // 计算point with cov
     std::vector<pointWithCov> pv_list;
     for (size_t i = 0; i < cloud_world->size(); ++i) {
@@ -111,10 +111,10 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
     V3D trans_end = nav_state.t_wi;
     double total_res = 0.0;
     auto effct_feat_num = 0;
-    auto current_pose = SE3(rot_end, trans_end);
+    auto current_pose = PoseTrans(rot_end, trans_end);
     auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
-    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL);
+    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL.R, T_WL.t);
     std::vector<ptpl> ptpl_list;
     std::vector<pointWithCov> pv_list;
     pv_list.resize(cloud_world->size());
@@ -186,7 +186,7 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
         J_nq.block<1, 3>(0, 3) = -ptpl_list[i].normal;
         double sigma_l = J_nq * ptpl_list[i].plane_cov * J_nq.transpose();
         M3D cov_lidar = ptpl_list[i].cov_lidar;
-        M3D R_cov_Rt = T_WL.so3().matrix() * cov_lidar * T_WL.so3().matrix().transpose();
+        M3D R_cov_Rt = T_WL.R * cov_lidar * T_WL.R.transpose();
         double r_cov = sigma_l + norm_vec.transpose() * R_cov_Rt * norm_vec;
         assert(r_cov > 0.0);
         double r_info = r_cov < 0.0001 ? 1000 : 1.0 / r_cov;
@@ -198,15 +198,15 @@ void VoxelMapRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shar
 }
 
 M3D VoxelMapRegister::transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
-                                               const SE3 &lidar_to_imu, const Eigen::Matrix3d &cov_lidar) {
+                                               const PoseTrans &lidar_to_imu, const Eigen::Matrix3d &cov_lidar) {
     Eigen::Matrix3d point_crossmat;
     point_crossmat << SKEW_SYM_MATRX(point_lidar);
 
     // lidar到body的方差传播
     // conjugate() 共轭
-    Eigen::Matrix3d cov_body = lidar_to_imu.so3().matrix() * cov_lidar * lidar_to_imu.so3().matrix().transpose() +
-                               lidar_to_imu.so3().matrix() * (-point_crossmat) * kf_ptr->GetCov().block<3, 3>(6, 6) *
-                                   (-point_crossmat).transpose() * lidar_to_imu.so3().matrix().transpose() +
+    Eigen::Matrix3d cov_body = lidar_to_imu.R * cov_lidar * lidar_to_imu.R.transpose() +
+                               lidar_to_imu.R * (-point_crossmat) * kf_ptr->GetCov().block<3, 3>(6, 6) *
+                                   (-point_crossmat).transpose() * lidar_to_imu.R.transpose() +
                                kf_ptr->GetCov().block<3, 3>(9, 9);
     // P_L =  T_L_to_I * P_L
     // Eigen::Vector3d p_body = lidar_to_imu.rotationMatrix() * point_lidar + lidar_to_imu.translation();

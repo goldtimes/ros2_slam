@@ -53,11 +53,11 @@ class System {
 
     const double GetSystemTime() const;
 
-    const SE3 GetTLidarToImu() const;
+    const PoseTrans GetTLidarToImu() const;
 
-    const SE3 GetLidarToBaselink() const;
+    const PoseTrans GetLidarToBaselink() const;
 
-    const SE3 GetImuToBaselink() const;
+    const PoseTrans GetImuToBaselink() const;
     // lidar坐标系原始数据
     const PointCloudPtr GetCloudInLidarLink() const;
 
@@ -91,8 +91,8 @@ class System {
     std::atomic<bool> system_init_;
 
     // 坐标信息
-    SE3 T_IL;
-    SE3 T_BL;
-    SE3 T_BI;
+    PoseTrans T_IL;
+    PoseTrans T_BL;
+    PoseTrans T_BI;
 };
 }  // namespace slam

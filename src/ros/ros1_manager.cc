@@ -219,8 +219,8 @@ void ROS1Manager::Visualize() {
 void ROS1Manager::PublishTF(const double& sensor_time) {
     // 发布robot_link在odom的tf信息
     auto current_state = system_ptr_->GetCurentNavState();
-    SE3 T_iInG(current_state.r_wi, current_state.t_wi);
-    SE3 T_bInG = T_iInG * system_ptr_->GetImuToBaselink().inverse();
+    PoseTrans T_iInG(current_state.r_wi, current_state.t_wi);
+    PoseTrans T_bInG = T_iInG * system_ptr_->GetImuToBaselink().inverse();
     geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time, T_bInG);
     tran_OB.header.frame_id = "odom";
     tran_OB.child_frame_id = "robot_link";
@@ -249,21 +249,21 @@ void ROS1Manager::PublishLidar(const double& sensor_time) {
     cloud_odom_pub_.publish(cloud_odom);
 }
 
-geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const SE3& transform,
+geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const PoseTrans& transform,
                                                                  bool flip_trans) {
-    SE3 T = transform;
+    PoseTrans T = transform;
     if (flip_trans) {
         T = transform.inverse();
     }
     geometry_msgs::TransformStamped trans;
     trans.header.stamp = ros::Time(timestamp);
-    trans.transform.rotation.x = T.so3().unit_quaternion().x();
-    trans.transform.rotation.y = T.so3().unit_quaternion().y();
-    trans.transform.rotation.z = T.so3().unit_quaternion().z();
-    trans.transform.rotation.w = T.so3().unit_quaternion().w();
-    trans.transform.translation.x = T.translation().x();
-    trans.transform.translation.y = T.translation().y();
-    trans.transform.translation.z = T.translation().z();
+    trans.transform.rotation.x = T.eigen_q().x();
+    trans.transform.rotation.y = T.eigen_q().y();
+    trans.transform.rotation.z = T.eigen_q().z();
+    trans.transform.rotation.w = T.eigen_q().w();
+    trans.transform.translation.x = T.t.x();
+    trans.transform.translation.y = T.t.y();
+    trans.transform.translation.z = T.t.z();
     return trans;
 }
 

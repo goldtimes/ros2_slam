@@ -51,6 +51,6 @@ class Propogator {
     std::deque<NominalState> imu_states_;
     std::deque<IMU> imu_caches_;
 
-    SE3 T_IL_;
+    PoseTrans T_IL_;
 };
 }  // namespace slam

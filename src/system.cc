@@ -89,15 +89,15 @@ const double System::GetSystemTime() const {
     return front_end_ptr_->GetCurentTime();
 }
 
-const SE3 System::GetTLidarToImu() const {
+const PoseTrans System::GetTLidarToImu() const {
     return T_IL;
 }
 
-const SE3 System::GetLidarToBaselink() const {
+const PoseTrans System::GetLidarToBaselink() const {
     return T_BL;
 }
 
-const SE3 System::GetImuToBaselink() const {
+const PoseTrans System::GetImuToBaselink() const {
     return T_BI;
 }
 

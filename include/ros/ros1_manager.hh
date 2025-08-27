@@ -48,7 +48,8 @@ class ROS1Manager {
     void PublishLidar(const double& sensor_time);
 
    private:
-    geometry_msgs::TransformStamped GetTransformStamped(const double timestamp, const SE3& transform = SE3(),
+    geometry_msgs::TransformStamped GetTransformStamped(const double timestamp,
+                                                        const PoseTrans& transform = PoseTrans(),
                                                         bool flip_trans = false);
 
     sensor_msgs::PointCloud2 ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,

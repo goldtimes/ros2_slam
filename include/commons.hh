@@ -3,6 +3,7 @@
 #include "eigen_type.hh"
 #include "logger.hh"
 #include "pointcloud_utils.hh"
+#include "pose_trans.hh"
 #include "sensors.hh"
 
 namespace slam {

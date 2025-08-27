@@ -201,8 +201,8 @@ class SystemConfig {
     bool has_gnss_;
     bool has_camera_;
 
-    SE3 lidar2imu_;
-    SE3 imu2encoder_;
-    SE3 lidar2robot_;
+    PoseTrans lidar2imu_;
+    PoseTrans imu2encoder_;
+    PoseTrans lidar2robot_;
 };
 }  // namespace slam

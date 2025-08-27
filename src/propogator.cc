@@ -9,10 +9,10 @@ Propogator::Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IE
     LOG_INFO("Propogator init");
     imu_init_ptr_ = std::make_shared<StaticImuInit>();
     Q_.Zero();
-    Q_.block<3, 3>(0, 0) = M3D::Identity() * std::pow(system_config_ptr_->imu_config_.acc_noise_std, 2);
-    Q_.block<3, 3>(3, 3) = M3D::Identity() * std::pow(system_config_ptr_->imu_config_.gyro_noise_std, 2);
-    Q_.block<3, 3>(6, 6) = M3D::Identity() * std::pow(system_config_ptr_->imu_config_.acc_bias_noise_std, 2);
-    Q_.block<3, 3>(9, 9) = M3D::Identity() * std::pow(system_config_ptr_->imu_config_.gyro_bias_noise_std, 2);
+    Q_.block<3, 3>(0, 0) = M3D::Identity() * system_config_ptr_->imu_config_.acc_noise_std;
+    Q_.block<3, 3>(3, 3) = M3D::Identity() * system_config_ptr_->imu_config_.gyro_noise_std;
+    Q_.block<3, 3>(6, 6) = M3D::Identity() * system_config_ptr_->imu_config_.acc_bias_noise_std;
+    Q_.block<3, 3>(9, 9) = M3D::Identity() * system_config_ptr_->imu_config_.gyro_bias_noise_std;
 }
 Propogator::~Propogator() {
 }
@@ -30,9 +30,9 @@ bool Propogator::Initialize(MeasureGroup& meas) {
         kf_->State().r_wi = (Eigen::Quaterniond::FromTwoVectors((-mean_acc).normalized(), V3D(0, 0, -1))).matrix();
         kf_->State().InitGravityDir(V3D(0, 0, -1));
         // 设置外参信息
-        kf_->State().r_il = system_config_ptr_->lidar2imu_.so3().matrix();
-        kf_->State().t_il = system_config_ptr_->lidar2imu_.translation();
-        T_IL_ = SE3(kf_->State().r_il, kf_->State().t_il);
+        kf_->State().r_il = system_config_ptr_->lidar2imu_.R;
+        kf_->State().t_il = system_config_ptr_->lidar2imu_.t;
+        T_IL_ = PoseTrans(kf_->State().r_il, kf_->State().t_il);
         // 设置bg,ba
         kf_->State().bg = imu_init_ptr_->GetMeanGyro();
         kf_->State().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
@@ -124,27 +124,30 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
 }
 
 void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
-    NominalState imu_state_end = GetNominalState();
-    // 末尾时刻的位姿
-    SE3 T_end = SE3(imu_state_end.R_, imu_state_end.p_);
-    // save pcd
-    // pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
-    // 去畸变
-    for (auto& point : cloud_in->points) {
-        SE3 Ti = T_end;
-        NominalState best_mathc;
-        InterpolatePose<NominalState>(
-            point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
-            [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
-        V3D pt_eigen = point.getVector3fMap().cast<double>();
-        V3D pt_compensate = T_IL_.inverse() * T_end.inverse() * Ti * T_IL_ * pt_eigen;
-        point.x = pt_compensate(0);
-        point.y = pt_compensate(1);
-        point.z = pt_compensate(2);
-    }
-
-    cloud_out = cloud_in;
-    // pcl::io::savePCDFileBinary("/home/kilox/undistort.pcd", *cloud_out);
 }
+
+// void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
+//     NominalState imu_state_end = GetNominalState();
+//     // 末尾时刻的位姿
+//     SE3 T_end = SE3(imu_state_end.R_, imu_state_end.p_);
+//     // save pcd
+//     // pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
+//     // 去畸变
+//     for (auto& point : cloud_in->points) {
+//         SE3 Ti = T_end;
+//         NominalState best_mathc;
+//         InterpolatePose<NominalState>(
+//             point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
+//             [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
+//         V3D pt_eigen = point.getVector3fMap().cast<double>();
+//         V3D pt_compensate = T_IL_.inverse() * T_end.inverse() * Ti * T_IL_ * pt_eigen;
+//         point.x = pt_compensate(0);
+//         point.y = pt_compensate(1);
+//         point.z = pt_compensate(2);
+//     }
+
+//     cloud_out = cloud_in;
+//     // pcl::io::savePCDFileBinary("/home/kilox/undistort.pcd", *cloud_out);
+// }
 
 }  // namespace slam

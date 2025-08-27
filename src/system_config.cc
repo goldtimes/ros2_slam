@@ -66,12 +66,12 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         Eigen::Matrix4d T_imu2enc = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(imu2enc_vec.data());
 
         // 先转换成四元素的目的是防止旋转矩阵不是正交的
-        lidar2imu_ =
-            SE3(Eigen::Quaterniond(T_lidar2imu.block<3, 3>(0, 0)).toRotationMatrix(), T_lidar2imu.block<3, 1>(0, 3));
+        lidar2imu_ = PoseTrans(Eigen::Quaterniond(T_lidar2imu.block<3, 3>(0, 0)).toRotationMatrix(),
+                               T_lidar2imu.block<3, 1>(0, 3));
         imu2encoder_ =
-            SE3(Eigen::Quaterniond(T_imu2enc.block<3, 3>(0, 0)).toRotationMatrix(), T_imu2enc.block<3, 1>(0, 3));
-        lidar2robot_ = SE3(Eigen::Quaterniond(T_lidar2robot.block<3, 3>(0, 0)).toRotationMatrix(),
-                           T_lidar2robot.block<3, 1>(0, 3));
+            PoseTrans(Eigen::Quaterniond(T_imu2enc.block<3, 3>(0, 0)).toRotationMatrix(), T_imu2enc.block<3, 1>(0, 3));
+        lidar2robot_ = PoseTrans(Eigen::Quaterniond(T_lidar2robot.block<3, 3>(0, 0)).toRotationMatrix(),
+                                 T_lidar2robot.block<3, 1>(0, 3));
         print_matrix(T_lidar2imu, std::string("T_lidar2imu"));
         print_matrix(T_lidar2robot, std::string("T_lidar2robot"));
         print_matrix(T_imu2enc, std::string("T_imu2enc"));

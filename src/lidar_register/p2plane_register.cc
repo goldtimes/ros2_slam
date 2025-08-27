@@ -44,9 +44,9 @@ bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF>
     // set to ikdtree
     if (first_frame_) {
         // transform cloud_lidar to world frame
-        auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+        auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
         auto T_WL = current_pose * system_config_->lidar2imu_;
-        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL);
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         // pcl::io::savePCDFileBinary("cloud_world_tmp.pcd", *cloud_world_tmp);
         m_ikdtree->Build(cloud_world_tmp->points);
         LOG_INFO("Build Map Size:{}, cloud  size:{}", m_ikdtree->size(), cloud_world_tmp->size());
@@ -64,7 +64,7 @@ void P2PlaneRegister::TrimCloud() {
     // 清空需要裁剪的区域
     m_local_map.cub_to_rm.clear();
     const auto current_state = kf_ptr_->GetState();
-    V3D pos_lidar = SE3(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_.translation();
+    V3D pos_lidar = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_.t;
     // 初始化立方体的范围
     if (!m_local_map.initialized) {
         for (int i = 0; i < 3; ++i) {
@@ -126,7 +126,7 @@ void P2PlaneRegister::IncreMap() {
         return;
     }
     const NavState &current_state = kf_ptr_->GetState();
-    SE3 T_WL = SE3(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
+    PoseTrans T_WL = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
     int cloud_size = current_lidar_->size();
     PointVec point_to_add;
     PointVec point_no_need_downsample;
@@ -186,7 +186,7 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
     int size = current_lidar_->size();
     double total_res = 0;
     const NavState &current_state = kf_ptr_->GetState();
-    SE3 T_WL = SE3(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
+    PoseTrans T_WL = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
 #ifdef MP_EN
     omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for

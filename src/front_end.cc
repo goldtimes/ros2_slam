@@ -85,14 +85,12 @@ void FrontEnd::Run() {
                     "propogate_and_undistort", false);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
-                undistort_cloud_robot_ =
-                    TransformLidarOMP(undistort_cloud_lidar_, T_BL.so3().matrix(), T_BL.translation());
+                undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL.R, T_BL.t);
                 // transform to world
                 undistort_cloud_odom_->clear();
-                auto current_pose = SE3(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+                auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
                 auto T_WL = current_pose * T_IL;
-                undistort_cloud_odom_ =
-                    TransformLidarOMP(undistort_cloud_lidar_, T_WL.so3().matrix(), T_WL.translation());
+                undistort_cloud_odom_ = TransformLidarOMP(undistort_cloud_lidar_, T_WL.R, T_WL.t);
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
                     if (lidar_register_ptr_->InitMap(undistort_cloud_lidar_, kf_ptr_)) {
                         front_end_status_ = FrontEndStatus::MAPPING;

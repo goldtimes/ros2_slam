@@ -16,7 +16,7 @@ class VoxelMapRegister : public LidarRegister {
 
    private:
     M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
-                                 const SE3 &T_IL, const Eigen::Matrix3d &cov_lidar);
+                                 const PoseTrans &T_IL, const Eigen::Matrix3d &cov_lidar);
 
    private:
     M3D il_t_var;

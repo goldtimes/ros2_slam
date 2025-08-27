@@ -64,9 +64,9 @@ class FrontEnd {
     NavState nav_state_;
 
     // 坐标信息
-    SE3 T_IL;
-    SE3 T_BL;
-    SE3 T_BI;
+    PoseTrans T_IL;
+    PoseTrans T_BL;
+    PoseTrans T_BI;
 
     std::shared_ptr<LidarRegister> lidar_register_ptr_;
     PointCloudPtr undistort_cloud_lidar_;
