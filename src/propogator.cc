@@ -8,7 +8,7 @@ namespace slam {
 Propogator::Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IESKF> kf)
     : system_config_ptr_(config_), kf_(kf), Q_(Eigen::Matrix<double, 12, 12>::Zero()) {
     LOG_INFO("Propogator init");
-    imu_init_ptr_ = std::make_shared<StaticImuInit>();
+    // imu_init_ptr_ = std::make_shared<StaticImuInit>();
     Q_.Zero();
     Q_.block<3, 3>(0, 0) = M3D::Identity() * system_config_ptr_->imu_config_.acc_noise_std;
     Q_.block<3, 3>(3, 3) = M3D::Identity() * system_config_ptr_->imu_config_.gyro_noise_std;
@@ -19,57 +19,87 @@ Propogator::~Propogator() {
 }
 
 bool Propogator::Initialize(MeasureGroup& meas) {
-    if (imu_init_ptr_->GetInitSuccess()) {
-        return true;
+    // if (imu_init_ptr_->GetInitSuccess()) {
+    //     return true;
+    // }
+    imu_init_buffer_.insert(imu_init_buffer_.end(), meas.imus.begin(), meas.imus.end());
+    if (imu_init_buffer_.size() < 20) {
+        return false;
     }
-    imu_init_ptr_->AddMeasurements(meas.imus);
-    if (imu_init_ptr_->TryInit()) {
-        init_success_ = true;
-        // 重力对齐
-        auto mean_acc = imu_init_ptr_->GetMeanAcc();
-        auto mean_gyro = imu_init_ptr_->GetMeanGyro();
-        kf_->State().r_wi = (Eigen::Quaterniond::FromTwoVectors((-mean_acc).normalized(), V3D(0, 0, -1))).matrix();
-        kf_->State().InitGravityDir(V3D(0, 0, -1));
-        // 设置外参信息
-        kf_->State().r_il = system_config_ptr_->lidar2imu_.R;
-        kf_->State().t_il = system_config_ptr_->lidar2imu_.t;
-        T_IL_ = PoseTrans(kf_->State().r_il, kf_->State().t_il);
-        // 设置bg,ba
-        kf_->State().bg = imu_init_ptr_->GetMeanGyro();
-        // kf_->State().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
+    Eigen::Vector3d acc_mean = Eigen::Vector3d::Zero();
+    Eigen::Vector3d gyro_mean = Eigen::Vector3d::Zero();
+    for (const auto& imu : imu_init_buffer_) {
+        acc_mean += imu.acc;
+        gyro_mean += imu.gyro;
+    }
+    acc_mean /= static_cast<double>(imu_init_buffer_.size());
+    gyro_mean /= static_cast<double>(imu_init_buffer_.size());
 
-        // 设置初始协方差状态
-        kf_->Cov().setIdentity();
-        // 位置的协方差
-        kf_->Cov().block<3, 3>(0, 0) = M3D::Identity() * 0.00001;
-        kf_->Cov().block<3, 3>(3, 3) = M3D::Identity() * 0.00001;
-        // 外参协方差置信度较高
-        kf_->Cov().block<3, 3>(6, 6) = M3D::Identity() * 0.00001;
-        kf_->Cov().block<3, 3>(9, 9) = M3D::Identity() * 0.00001;
-        // bg ba
-        kf_->Cov().block<3, 3>(15, 15) = M3D::Identity() * 0.0001;
-        kf_->Cov().block<3, 3>(18, 18) = M3D::Identity() * 0.0001;
-        // get last imu data
-        last_imu_ = imu_init_ptr_->last_imu_;
-        current_imu_time_ = last_imu_.timestamp_;
-        Eigen::Quaterniond q_inG = Eigen::Quaterniond(kf_->GetState().r_wi);
-        Eigen::Quaterniond q_il = Eigen::Quaterniond(kf_->GetState().r_il);
-        LOG_INFO(REDPURPLE "System init success time:{}" RESET, last_imu_.timestamp_);
-        LOG_INFO(REDPURPLE "r_il:{}" RESET, q_il.coeffs().transpose());
-        LOG_INFO(REDPURPLE "t_il:{}" RESET, kf_->GetState().t_il.transpose());
-        LOG_INFO(REDPURPLE "orientation:{}" RESET, q_inG.coeffs().transpose());
-        LOG_INFO(REDPURPLE "position:{}" RESET, kf_->GetState().t_wi.transpose());
-        LOG_INFO(REDPURPLE "vel:{}" RESET, kf_->GetState().v.transpose());
-        LOG_INFO(REDPURPLE "bg:{}" RESET, kf_->GetState().bg.transpose());
-        LOG_INFO(REDPURPLE "ba:{}" RESET, kf_->GetState().ba.transpose());
-        LOG_INFO(REDPURPLE "g:{}" RESET, kf_->GetState().g.transpose());
-        return true;
-    }
-    return false;
+    // 设置外参信息
+    kf_->x().rot_ext = system_config_ptr_->lidar2imu_.R;
+    kf_->x().pos_ext = system_config_ptr_->lidar2imu_.t;
+    kf_->x().bg = gyro_mean;
+    kf_->x().rot =
+        (Eigen::Quaterniond::FromTwoVectors((-acc_mean).normalized(), Eigen::Vector3d(0.0, 0.0, -1.0)).matrix());
+    kf_->x().InitGravityDir(Eigen::Vector3d(0, 0, -1.0));
+
+    kf_->Cov().setIdentity();
+    kf_->Cov().block<3, 3>(6, 6) = Eigen::Matrix3d::Identity() * 0.00001;
+    kf_->Cov().block<3, 3>(9, 9) = Eigen::Matrix3d::Identity() * 0.00001;
+    kf_->Cov().block<3, 3>(15, 15) = Eigen::Matrix3d::Identity() * 0.0001;
+    kf_->Cov().block<3, 3>(18, 18) = Eigen::Matrix3d::Identity() * 0.0001;
+    kf_->Cov().block<2, 2>(21, 21) = Eigen::Matrix2d::Identity() * 0.00001;
+
+    init_success_ = true;
+
+    // imu_init_ptr_->AddMeasurements(meas.imus);
+    // if (imu_init_ptr_->TryInit()) {
+    //     init_success_ = true;
+    //     // 重力对齐
+    //     auto mean_acc = imu_init_ptr_->GetMeanAcc();
+    //     auto mean_gyro = imu_init_ptr_->GetMeanGyro();
+    //     kf_->x().r_wi = (Eigen::Quaterniond::FromTwoVectors((-mean_acc).normalized(), V3D(0, 0, -1))).matrix();
+    //     kf_->x().InitGravityDir(V3D(0, 0, -1));
+    //     // 设置外参信息
+    //     kf_->x().r_il = system_config_ptr_->lidar2imu_.R;
+    //     kf_->x().t_il = system_config_ptr_->lidar2imu_.t;
+    //     T_IL_ = PoseTrans(kf_->x().r_il, kf_->x().t_il);
+    //     // 设置bg,ba
+    //     kf_->x().bg = imu_init_ptr_->GetMeanGyro();
+    //     // kf_->x().ba = imu_init_ptr_->GetMeanAcc() - kf_->GetState().r_wi.transpose() * V3D(0, 0, 9.8);
+
+    //     // 设置初始协方差状态
+    //     kf_->Cov().setIdentity();
+    //     // 位置的协方差
+    //     // kf_->Cov().block<3, 3>(0, 0) = M3D::Identity() * 0.00001;
+    //     // kf_->Cov().block<3, 3>(3, 3) = M3D::Identity() * 0.00001;
+    //     // 外参协方差置信度较高
+    //     kf_->Cov().block<3, 3>(6, 6) = M3D::Identity() * 0.00001;
+    //     kf_->Cov().block<3, 3>(9, 9) = M3D::Identity() * 0.00001;
+    //     // bg ba
+    //     kf_->Cov().block<3, 3>(15, 15) = M3D::Identity() * 0.0001;
+    //     kf_->Cov().block<3, 3>(18, 18) = M3D::Identity() * 0.0001;
+    //     // get last imu data
+    last_imu_ = meas.imus.back();
+    current_imu_time_ = last_imu_.timestamp_;
+    Eigen::Quaterniond q_inG = Eigen::Quaterniond(kf_->GetState().rot);
+    Eigen::Quaterniond q_il = Eigen::Quaterniond(kf_->GetState().rot_ext);
+    LOG_INFO(REDPURPLE "System init success time:{}" RESET, last_imu_.timestamp_);
+    LOG_INFO(REDPURPLE "r_il:{}" RESET, q_il.coeffs().transpose());
+    LOG_INFO(REDPURPLE "t_il:{}" RESET, kf_->GetState().pos_ext.transpose());
+    LOG_INFO(REDPURPLE "orientation:{}" RESET, q_inG.coeffs().transpose());
+    LOG_INFO(REDPURPLE "position:{}" RESET, kf_->GetState().pos.transpose());
+    LOG_INFO(REDPURPLE "vel:{}" RESET, kf_->GetState().vel.transpose());
+    LOG_INFO(REDPURPLE "bg:{}" RESET, kf_->GetState().bg.transpose());
+    LOG_INFO(REDPURPLE "ba:{}" RESET, kf_->GetState().ba.transpose());
+    LOG_INFO(REDPURPLE "g:{}" RESET, kf_->GetState().g.transpose());
+    return true;
+    // }
+    // return false;
 }
 
 NominalState Propogator::GetNominalState() const {
-    return NominalState(current_imu_time_, kf_->GetState().r_wi, kf_->GetState().t_wi, kf_->GetState().v,
+    return NominalState(current_imu_time_, kf_->GetState().rot, kf_->GetState().pos, kf_->GetState().vel,
                         kf_->GetState().bg, kf_->GetState().ba);
 }
 
@@ -89,8 +119,8 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     imu_states_.push_back(state);
 
     imu_pose_cache_.clear();
-    imu_pose_cache_.emplace_back(0.0, last_acc_, last_gyro_, kf_->GetState().v, kf_->GetState().t_wi,
-                                 kf_->GetState().r_wi);
+    imu_pose_cache_.emplace_back(0.0, last_acc_, last_gyro_, kf_->GetState().vel, kf_->GetState().pos,
+                                 kf_->GetState().rot);
 
     V3D mid_acc, mid_gyro;
     double dt = 0.0;
@@ -116,11 +146,11 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
         input.acc = mid_acc;
         input.gyro = mid_gyro;
         kf_->Predict(input, dt, Q_);
-        last_acc_ = kf_->GetState().r_wi * (mid_acc - kf_->GetState().ba) + kf_->GetState().g;
+        last_acc_ = kf_->GetState().rot * (mid_acc - kf_->GetState().ba) + kf_->GetState().g;
         last_gyro_ = mid_gyro - kf_->GetState().bg;
         double offset = tail.timestamp_ - cloud_begin_time;
-        imu_pose_cache_.emplace_back(offset, last_acc_, last_gyro_, kf_->GetState().v, kf_->GetState().t_wi,
-                                     kf_->GetState().r_wi);
+        imu_pose_cache_.emplace_back(offset, last_acc_, last_gyro_, kf_->GetState().vel, kf_->GetState().pos,
+                                     kf_->GetState().rot);
         // kf_->GetState().Print();
         current_imu_time_ = head.timestamp_;
         imu_states_.push_back(GetNominalState());
@@ -193,28 +223,5 @@ void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
     }
     cloud_out = meas.curent_cloud;
 }
-// void Propogator::UndistortLidar(const PointCloudPtr& cloud_in, PointCloudPtr& cloud_out) {
-//     NominalState imu_state_end = GetNominalState();
-//     // 末尾时刻的位姿
-//     SE3 T_end = SE3(imu_state_end.R_, imu_state_end.p_);
-//     // save pcd
-//     // pcl::io::savePCDFileBinary("/home/kilox/distort.pcd", *cloud_in);
-//     // 去畸变
-//     for (auto& point : cloud_in->points) {
-//         SE3 Ti = T_end;
-//         NominalState best_mathc;
-//         InterpolatePose<NominalState>(
-//             point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
-//             [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
-//         V3D pt_eigen = point.getVector3fMap().cast<double>();
-//         V3D pt_compensate = T_IL_.inverse() * T_end.inverse() * Ti * T_IL_ * pt_eigen;
-//         point.x = pt_compensate(0);
-//         point.y = pt_compensate(1);
-//         point.z = pt_compensate(2);
-//     }
-
-//     cloud_out = cloud_in;
-//     // pcl::io::savePCDFileBinary("/home/kilox/undistort.pcd", *cloud_out);
-// }
 
 }  // namespace slam

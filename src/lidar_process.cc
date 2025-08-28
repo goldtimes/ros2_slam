@@ -197,40 +197,63 @@ bool LidarProcess::avia_process(const livox_ros_driver::CustomMsg::ConstPtr& clo
 }
 bool LidarProcess::avia_process(const livox_ros_driver2::CustomMsg::ConstPtr& msg, PointCloudPtr& out_cloud) {
     // LOG_INFO("avia_process");
-    int points_num = msg->point_num;
-    // 角度过滤点云，距离过滤点云，以及降采样
-    PointCloudPtr filtered_cloud(new PointCloudType);
-    filtered_cloud->reserve(points_num);
-    int valid_num = 0;
-    double time_start = msg->header.stamp.toSec();
-    // std::cout << std::fixed << "time_start: " << time_start << std::endl;
-    for (int i = 0; i < points_num; ++i) {
-        valid_num++;
-        if (valid_num % point_filter_num_ != 0) {
-            continue;
-        }
-        if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)) {
-            float x = msg->points[i].x;
-            float y = msg->points[i].y;
-            float z = msg->points[i].z;
-            float dist2 = x * x + y * y + z * z;
-            if (dist2 < min_range_ * min_range_ || dist2 > max_range_ * max_range_) {
-                continue;
-            }
-            PointType pt;
-            pt.x = x;
-            pt.y = y;
-            pt.z = z;
-            pt.intensity = msg->points[i].reflectivity;
-            // 每个点的时间戳是相对于第一个点的时间戳的偏移量，需要加上第一个点的时间戳
-            pt.time = time_start + msg->points[i].offset_time / 1e9;
-            // std::cout << std::fixed << "time_start: " << pt.time << std::endl;
 
-            pt.ring = msg->points[i].line;
-            filtered_cloud->push_back(pt);
+    int point_num = msg->point_num;
+    out_cloud->clear();
+    out_cloud->reserve(point_num / point_filter_num_ + 1);
+    uint valid_num = 0;
+    double time_start = msg->header.stamp.toSec();
+
+    for (uint i = 0; i < point_num; i++) {
+        if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)) {
+            if ((valid_num++) % point_filter_num_ != 0) continue;
+            PointType p;
+            p.x = msg->points[i].x;
+            p.y = msg->points[i].y;
+            p.z = msg->points[i].z;
+            p.intensity = msg->points[i].reflectivity;
+            p.time = time_start + msg->points[i].offset_time / 1e9;  // 纳秒->毫秒
+            double sq_range = p.x * p.x + p.y * p.y + p.z * p.z;
+            if (sq_range > (min_range_ * min_range_) && sq_range < max_range_ * max_range_) {
+                out_cloud->push_back(p);
+            }
         }
     }
-    out_cloud = filtered_cloud;
+    // int points_num = msg->point_num;
+    // // 角度过滤点云，距离过滤点云，以及降采样
+    // PointCloudPtr filtered_cloud(new PointCloudType);
+    // filtered_cloud->reserve(points_num);
+    // int valid_num = 0;
+    // double time_start = msg->header.stamp.toSec();
+    // // std::cout << std::fixed << "time_start: " << time_start << std::endl;
+    // for (int i = 0; i < points_num; ++i) {
+    //     if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) ==
+    //     0x00)) {
+    //         valid_num++;
+    //         if (valid_num % point_filter_num_ != 0) {
+    //             continue;
+    //         }
+    //         float x = msg->points[i].x;
+    //         float y = msg->points[i].y;
+    //         float z = msg->points[i].z;
+    //         float dist2 = x * x + y * y + z * z;
+    //         if (dist2 < min_range_ * min_range_ || dist2 > max_range_ * max_range_) {
+    //             continue;
+    //         }
+    //         PointType pt;
+    //         pt.x = x;
+    //         pt.y = y;
+    //         pt.z = z;
+    //         pt.intensity = msg->points[i].reflectivity;
+    //         // 每个点的时间戳是相对于第一个点的时间戳的偏移量，需要加上第一个点的时间戳
+    //         pt.time = time_start + msg->points[i].offset_time / 1e9;
+    //         // std::cout << std::fixed << "time_start: " << pt.time << std::endl;
+
+    //         pt.ring = msg->points[i].line;
+    //         filtered_cloud->push_back(pt);
+    //     }
+    // }
+    // out_cloud = filtered_cloud;
     // LOG_INFO("after filter point size:{}", out_cloud->size());
     return true;
 }

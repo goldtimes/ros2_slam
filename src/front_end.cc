@@ -88,7 +88,7 @@ void FrontEnd::Run() {
                 undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL.R, T_BL.t);
                 // transform to world
                 undistort_cloud_odom_->clear();
-                auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+                auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
                 auto T_WL = current_pose * T_IL;
                 undistort_cloud_odom_ = TransformLidarOMP(undistort_cloud_lidar_, T_WL.R, T_WL.t);
                 if (front_end_status_ == FrontEndStatus::MAP_INIT) {
@@ -209,7 +209,7 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
     return true;
 }
 
-NavState FrontEnd::GetCurentNavState() {
+State FrontEnd::GetCurentNavState() {
     return kf_ptr_->GetState();
 }
 

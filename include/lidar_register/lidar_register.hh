@@ -23,7 +23,7 @@ class LidarRegister {
     // 配准并更新地图
     virtual bool Align(PointCloudPtr& cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) = 0;
 
-    virtual void UpdateLidarFunc(NavState& nav_state, ESKFShareState& shared_data) = 0;
+    virtual void UpdateLidarFunc(State& nav_state, ESKFShareState& shared_data) = 0;
 
     virtual void UpdateMap() = 0;
 

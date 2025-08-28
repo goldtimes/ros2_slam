@@ -18,7 +18,7 @@ class P2PlaneRegister : public LidarRegister {
 
     virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
-    virtual void UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) override;
+    virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
 
     void TrimCloud();

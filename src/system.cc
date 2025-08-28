@@ -101,7 +101,7 @@ const PoseTrans System::GetImuToBaselink() const {
     return T_BI;
 }
 
-const NavState System::GetCurentNavState() const {
+const State System::GetCurentNavState() const {
     return front_end_ptr_->GetCurentNavState();
 }
 

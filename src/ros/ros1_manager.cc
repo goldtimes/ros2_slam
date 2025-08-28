@@ -1,4 +1,5 @@
 #include "ros/ros1_manager.hh"
+#include "lidar_register/voxel_map.hh"
 #include "system.hh"
 #include "system_config.hh"
 #include "utils.hh"
@@ -12,11 +13,20 @@ ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> syst
     InitService();
 
     visualize_thread_ = std::thread(&ROS1Manager::Visualize, this);
+
+    voxel_map_timer_ = nh_.createTimer(ros::Duration(5.0), &ROS1Manager::voxelTimerCB, this, false, false);
+    if (system_ptr_->GetSystemConfig()->frontend_config_.voxel_config.pub_voxel_map) {
+        voxel_map_timer_.start();
+    }
 }
 ROS1Manager::~ROS1Manager() {
     if (visualize_thread_.joinable()) {
         visualize_thread_.join();
     }
+}
+
+void ROS1Manager::voxelTimerCB(const ros::TimerEvent& event) {
+    // auto voxel_map = system_ptr_->GetVoxelMap();
 }
 
 void ROS1Manager::InitPub() {
@@ -219,7 +229,7 @@ void ROS1Manager::Visualize() {
 void ROS1Manager::PublishTF(const double& sensor_time) {
     // 发布robot_link在odom的tf信息
     auto current_state = system_ptr_->GetCurentNavState();
-    PoseTrans T_iInG(current_state.r_wi, current_state.t_wi);
+    PoseTrans T_iInG(current_state.rot, current_state.pos);
     PoseTrans T_bInG = T_iInG * system_ptr_->GetImuToBaselink().inverse();
     geometry_msgs::TransformStamped tran_OB = GetTransformStamped(sensor_time, T_bInG);
     tran_OB.header.frame_id = "odom";

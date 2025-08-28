@@ -60,6 +60,7 @@ class Propogator {
     V3D cov_bias_gyro_;
     M12D Q_;
 
+    std::deque<IMU> imu_init_buffer_;
     double current_imu_time_;
     double last_propagate_time_;
     std::deque<NominalState> imu_states_;

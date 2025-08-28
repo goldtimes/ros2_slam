@@ -63,9 +63,9 @@ void IncNdt::AddCloud(PointCloudPtr& cloud_world) {
     first_frame_ = false;
 }
 
-void IncNdt::ComputeResidualAndJacobians(NavState& nav_state, ESKFShareState& shared_data) {
+void IncNdt::ComputeResidualAndJacobians(State& nav_state, ESKFShareState& shared_data) {
     assert(grids_.empty() == false);
-    SE3 pose = SE3(nav_state.r_wi, nav_state.t_wi);
+    SE3 pose = SE3(nav_state.rot, nav_state.pos);
     shared_data.valid = true;
     int num_residual_per_point = 1;
     if (near_search_) num_residual_per_point = 7;

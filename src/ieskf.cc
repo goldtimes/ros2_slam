@@ -1,6 +1,10 @@
 #include "ieskf.hh"
 
 namespace slam {
+
+int IESKF::P_ID = 0, IESKF::R_ID = 3, IESKF::ER_ID = 6, IESKF::EP_ID = 9, IESKF::V_ID = 12, IESKF::BG_ID = 15,
+    IESKF::BA_ID = 18, IESKF::G_ID = 21;
+
 M3D IESKF::Jr(const V3D& inp) {
     return Sophus::SO3d::jl(inp).transpose();
 }
@@ -8,79 +12,75 @@ M3D IESKF::JrInv(const V3D& inp) {
     return Sophus::SO3d::jl_inv(inp).transpose();
 }
 
-void IESKF::Predict(const Input& input, double dt, const M12D& Q) {
-    // 预测状态
-    V21D delta = V21D::Zero();
-    delta.segment<3>(0) = (input.gyro - state_.bg) * dt;                             // 旋转量
-    delta.segment<3>(3) = state_.v * dt;                                             // 位移
-    delta.segment<3>(12) = (state_.r_wi * (input.acc - state_.ba) + state_.g) * dt;  // 速度,g 为-9.81
-    // 计算m_F矩阵
-    m_F_.setIdentity();
-    // delta_theta / delta_theta
-    m_F_.block<3, 3>(0, 0) = Sophus::SO3d::exp(-(input.gyro - state_.bg) * dt).matrix();
-    m_F_.block<3, 3>(0, 15) = -Jr((input.gyro - state_.bg) * dt) * dt;
-    m_F_.block<3, 3>(3, 12) = M3D::Identity() * dt;
-    m_F_.block<3, 3>(12, 0) = -state_.r_wi * Sophus::SO3d::hat(input.acc - state_.ba) * dt;
-    m_F_.block<3, 3>(12, 18) = -state_.r_wi * dt;
-    // 计算m_G矩阵
-    m_G_.setZero();
-    m_G_.block<3, 3>(0, 0) = -Jr((input.gyro - state_.bg) * dt) * dt;
-    m_G_.block<3, 3>(12, 3) = -state_.r_wi * dt;
-    m_G_.block<3, 3>(15, 6) = M3D::Identity() * dt;
-    m_G_.block<3, 3>(18, 9) = M3D::Identity() * dt;
-    // 状态更新
-    state_ += delta;
-    // 协方差更新
-    cov_ = m_F_ * cov_ * m_F_.transpose() + m_G_ * Q * m_G_.transpose();
+void IESKF::Predict(const Input& inp, double dt, const M12D& Q) {
+    Vector24d delta = Vector24d::Zero();
+    delta.segment<3>(0) = x_.vel * dt;
+    delta.segment<3>(3) = (inp.gyro - x_.bg) * dt;
+    delta.segment<3>(12) = (x_.rot * (inp.acc - x_.ba) + x_.g) * dt;
+    F_.setIdentity();
+    F_.block<3, 3>(0, 12) = Eigen::Matrix3d::Identity() * dt;
+    F_.block<3, 3>(3, 3) = Sophus::SO3d::exp(-(inp.gyro - x_.bg) * dt).matrix();
+    F_.block<3, 3>(3, 15) = -Jr((inp.gyro - x_.bg) * dt) * dt;
+    F_.block<3, 3>(12, 3) = -x_.rot * Sophus::SO3d::hat(inp.acc - x_.ba) * dt;
+    F_.block<3, 3>(12, 18) = -x_.rot * dt;
+    F_.block<3, 2>(12, 21) = x_.getMx() * dt;
+    F_.block<2, 2>(21, 21) = x_.getNx() * x_.getMx();
+
+    G_.setZero();
+    G_.block<3, 3>(3, 0) = -Jr((inp.gyro - x_.bg) * dt) * dt;
+    G_.block<3, 3>(12, 3) = -x_.rot * dt;
+    G_.block<3, 3>(15, 6) = Eigen::Matrix3d::Identity() * dt;
+    G_.block<3, 3>(18, 9) = Eigen::Matrix3d::Identity() * dt;
+    x_ += delta;
+    P_ = F_ * P_ * F_.transpose() + G_ * Q * G_.transpose();
 }
 
 void IESKF::Update() {
     // 预测状态值
-    NavState predict_x = state_;
+    State predict_x = x_;
     ESKFShareState shared_state;
     shared_state.iter_num = 0;
     shared_state.res = 1e10;
-    V21D delta = V21D::Zero();
+    Vector23d delta = Vector23d::Zero();
     // 高斯牛顿的求解,H矩阵和b矩阵
-    M21D H = M21D::Identity();
-    V21D b = V21D::Zero();
-
     for (size_t i = 0; i < max_iter_num_; i++) {
         // 构建点面的残差
         lidar_loss_func_(predict_x, shared_state);
         if (shared_state.valid == false) {
             break;
         }
-        H.setZero();
-        b.setZero();
+        H_.setZero();
+        b_.setZero();
         // 误差重置时的雅可比矩阵
-        delta = state_ - predict_x;
-        M21D J = M21D::Identity();
-        // 投影P矩阵
-        J.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
-        J.block<3, 3>(6, 6) = JrInv(delta.segment<3>(6));
-        H += J.transpose() * cov_.inverse() * J;
-        b += J.transpose() * cov_.inverse() * delta;
-        H.block<12, 12>(0, 0) += shared_state.H_;
-        b.block<12, 1>(0, 0) += shared_state.b_;
+        delta = x_ - predict_x;
+        Matrix23d J = Matrix23d::Identity();
+        J.block<3, 3>(3, 3) = Jr(delta.segment<3>(3));
+        J.block<3, 3>(6, 6) = Jr(delta.segment<3>(6));
+        J.block<2, 2>(21, 21) = x_.getNx() * predict_x.getMx(delta.segment<2>(21));
+        H_ += J.transpose() * P_.inverse() * J;
+        b_ += J.transpose() * P_.inverse() * delta;
+        H_.block<12, 12>(0, 0) += shared_state.H_;
+        b_.block<12, 1>(0, 0) += shared_state.b_;
 
-        delta = -H.inverse() * b;
+        delta = -H_.inverse() * b_;
         // LOG_INFO("delta:{},delta_norm:{}", delta.transpose(), delta.norm());
         if (std::isnan(delta[0])) {
             break;
         }
-        state_ += delta;
+        x_ += delta;
         shared_state.iter_num += 1;
-        if (stop_func_(delta)) {
+        // if (stop_func_(delta)) {
+        //     break;
+        // }
+        if (delta.maxCoeff() < 0.001) {
             break;
         }
     }
     // 更新协方差
-    M21D L = M21D::Identity();
-    // L.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
-    // L.block<3, 3>(6, 6) = JrInv(delta.segment<3>(6));
-    L.block<3, 3>(0, 0) = Jr(delta.segment<3>(0));
+    Matrix23d L = Matrix23d::Identity();
+    L.block<3, 3>(3, 3) = Jr(delta.segment<3>(3));
     L.block<3, 3>(6, 6) = Jr(delta.segment<3>(6));
-    cov_ = L * H.inverse() * L.transpose();
+    L.block<2, 2>(21, 21) = x_.getNx() * predict_x.getMx(delta.segment<2>(21));
+    P_ = L * H_.inverse() * L.transpose();
 }
 }  // namespace slam

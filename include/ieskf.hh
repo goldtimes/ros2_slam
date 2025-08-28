@@ -5,12 +5,13 @@
 
 namespace slam {
 
-using lidar_loss_func = std::function<void(NavState&, ESKFShareState&)>;
+using lidar_loss_func = std::function<void(State&, ESKFShareState&)>;
 using stop_func = std::function<bool(const V21D& dx)>;
 
 // 迭代卡尔曼滤波器
 class IESKF {
    public:
+    static int P_ID, R_ID, ER_ID, EP_ID, V_ID, BG_ID, BA_ID, G_ID;
     IESKF() {
         LOG_INFO("IESKF init");
     }
@@ -35,27 +36,27 @@ class IESKF {
 
     void Update();
 
-    const NavState& GetState() const {
-        return state_;
+    const State& GetState() const {
+        return x_;
     }
 
-    const M21D& GetCov() const {
-        return cov_;
+    const Matrix23d& GetCov() const {
+        return P_;
     }
 
-    NavState& State() {
-        return state_;
+    State& x() {
+        return x_;
     }
 
-    M21D& Cov() {
-        return cov_;
+    Matrix23d& Cov() {
+        return P_;
     }
 
    private:
     // 状态量
-    NavState state_;
+    State x_;
     // 协方差
-    M21D cov_ = M21D::Zero();
+    Matrix23d P_ = Matrix23d::Zero();
     // 最大迭代次数
     size_t max_iter_num_ = 10;
     // 损失函数
@@ -63,9 +64,12 @@ class IESKF {
     // 停止函数
     stop_func stop_func_;
     // 预测矩阵
-    M21D m_F_ = M21D::Zero();
+    Matrix23d F_ = Matrix23d::Zero();
     // 输入矩阵
-    Eigen::Matrix<double, 21, 12> m_G_ = Eigen::Matrix<double, 21, 12>::Zero();
+    Eigen::Matrix<double, 23, 12> G_ = Eigen::Matrix<double, 23, 12>::Zero();
+
+    Matrix23d H_;
+    Vector23d b_;
     double current_time_;
 };
 }  // namespace slam

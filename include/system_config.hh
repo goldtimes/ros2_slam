@@ -126,8 +126,8 @@ struct VoxelConfig {
         LOG_INFO("VoxelConfig:");
         LOG_INFO("  voxle_size: {:03.3f}", voxle_size);
         LOG_INFO("  max_layer: {}", max_layer);
-        LOG_INFO("  layer_point_size: [{},{},{},{},{}]", layer_point_size[0], layer_point_size[1], layer_point_size[2],
-                 layer_point_size[3], layer_point_size[4]);
+        // LOG_INFO("  layer_point_size: [{},{}]", layer_point_size[0], layer_point_size[1], layer_point_size[2],
+        //          layer_point_size[3], layer_point_size[4]);
         LOG_INFO("  plannar_threshold: {:03.3f}", plannar_threshold);
         LOG_INFO("  max_points_size: {}", max_points_size);
         LOG_INFO("  max_cov_points_size: {}", max_cov_points_size);

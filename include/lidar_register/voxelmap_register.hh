@@ -1,4 +1,5 @@
 #pragma once
+#include <pcl/filters/voxel_grid.h>
 #include "lidar_register.hh"
 #include "voxel_map.hh"
 
@@ -11,14 +12,14 @@ class VoxelMapRegister : public LidarRegister {
 
     virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
-    virtual void UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) override;
+    virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
 
    private:
-    M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
-                                 const PoseTrans &T_IL, const Eigen::Matrix3d &cov_lidar);
+    // M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,
+    //                              const PoseTrans &T_IL, const Eigen::Matrix3d &cov_lidar);
 
-    void calcBodyCov(Eigen::Vector3d &pb, const double &range_inc, const double &degree_inc, Eigen::Matrix3d &cov);
+    M3D calcBodyCov(Eigen::Vector3d &pb, const float range_inc, const float degree_inc);
 
    private:
     double voxel_size_;
@@ -35,9 +36,7 @@ class VoxelMapRegister : public LidarRegister {
     double angle_cov;
 
     std::shared_ptr<VoxelMap> voxel_map_;
-
-    // 先计算lidar的cov
-    std::vector<M3D> lidar_covs_;
     std::vector<ResidualData> residual_infos_;
+    // pcl::VoxelGrid<PointType> scan_filter_;
 };
 }  // namespace slam

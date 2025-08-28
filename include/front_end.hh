@@ -32,7 +32,7 @@ class FrontEnd {
         return measure_group_.lidar_beg_time;
     }
 
-    NavState GetCurentNavState();
+    State GetCurentNavState();
 
     // lidar坐标系原始数据
     const PointCloudPtr GetCloudInLidarLink() const;
@@ -42,6 +42,12 @@ class FrontEnd {
 
     // odom坐标系点云
     const PointCloudPtr GetCloudInOdomLink() const;
+
+    // std::shared_ptr<VoxelMap> GetVoxelMap() const {
+    //     return lidar_register_ptr_;
+    // }
+
+    bool InitializeImu(std::deque<IMU>& imus);
 
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
@@ -61,7 +67,7 @@ class FrontEnd {
 
     std::shared_ptr<Propogator> propogator_ptr_;
     std::shared_ptr<IESKF> kf_ptr_;
-    NavState nav_state_;
+    State nav_state_;
 
     // 坐标信息
     PoseTrans T_IL;

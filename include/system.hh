@@ -6,6 +6,7 @@
 #include <thread>
 #include "commons.hh"
 #include "lidar_process.hh"
+#include "lidar_register/voxel_map.hh"
 #include "logger.hh"
 #include "sensors.hh"
 #include "state.hh"
@@ -49,7 +50,7 @@ class System {
         system_init_.store(init);
     }
 
-    const NavState GetCurentNavState() const;
+    const State GetCurentNavState() const;
 
     const double GetSystemTime() const;
 
@@ -66,6 +67,10 @@ class System {
 
     // odom坐标系点云
     const PointCloudPtr GetCloudInOdomLink() const;
+
+    // std::shared_ptr<VoxelMap> GetVoxelMap() const {
+    //     return front_end_ptr_->GetVoxelMap();
+    // }
 
    public:
     std::condition_variable m_buff_cv_;

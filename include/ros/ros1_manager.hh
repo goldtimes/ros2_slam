@@ -54,6 +54,7 @@ class ROS1Manager {
 
     sensor_msgs::PointCloud2 ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,
                                            double timestamp = -1);
+    void voxelTimerCB(const ros::TimerEvent& event);
 
    private:
     ros::NodeHandle nh_;
@@ -67,6 +68,8 @@ class ROS1Manager {
     ros::Publisher cloud_lidar_pub_;
     ros::Publisher cloud_robot_pub_;
     ros::Publisher cloud_odom_pub_;
+
+    ros::Timer voxel_map_timer_;
 
     // tf2
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;

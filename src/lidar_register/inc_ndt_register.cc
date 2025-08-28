@@ -18,7 +18,7 @@ IncNdtRegister::IncNdtRegister(const std::shared_ptr<SystemConfig> &system_confi
                                         max_pts_in_voxel_, res_outlier_thresh_, eps_, calib_lidar2imu_);
     // 设置雷达损失函数
     kf_ptr_->SetLidarLossFunc(
-        [this](NavState &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
+        [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
     kf_ptr_->SetStopFunc([](const V21D &delta) { return delta.norm() < 1e-6; });
 }
@@ -30,7 +30,7 @@ IncNdtRegister::~IncNdtRegister() {
 bool IncNdtRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     if (first_frame_) {
         // transform cloud_lidar to world frame
-        auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+        auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
         auto T_WL = current_pose * system_config_->lidar2imu_;
         auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         // pcl::io::savePCDFileBinary("cloud_world_tmp.pcd", *cloud_world_tmp);
@@ -48,12 +48,12 @@ bool IncNdtRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf
     kf_ptr_->Update();
     return true;
 }
-void IncNdtRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) {
+void IncNdtRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {
     ndt_ptr_->ComputeResidualAndJacobians(nav_state, shared_data);
 }
 
 void IncNdtRegister::UpdateMap() {
-    auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+    auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
     auto delta_pose = last_pose_.inverse() * current_pose;
 
     // if (delta_pose.t.norm() > 0.5 || delta_pose.RPY().norm() > (10.0 / 180.0 * M_PI)) {

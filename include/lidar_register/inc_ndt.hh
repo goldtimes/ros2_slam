@@ -65,7 +65,7 @@ class IncNdt {
      * @param HTVH
      * @param HTVr
      */
-    void ComputeResidualAndJacobians(NavState& nav_state, ESKFShareState& shared_data);
+    void ComputeResidualAndJacobians(State& nav_state, ESKFShareState& shared_data);
 
    private:
     void GenerateNearbyGrids();

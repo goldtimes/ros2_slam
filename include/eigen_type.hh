@@ -49,6 +49,19 @@ using MatX18d = Eigen::Matrix<double, -1, 18>;
 using Quatd = Eigen::Quaterniond;
 using Quatf = Eigen::Quaternionf;
 
+using Vector21d = Eigen::Matrix<double, 21, 1>;
+using Vector12d = Eigen::Matrix<double, 12, 1>;
+using Matrix21d = Eigen::Matrix<double, 21, 21>;
+using Matrix12d = Eigen::Matrix<double, 12, 12>;
+using Matrix21x12d = Eigen::Matrix<double, 21, 12>;
+using Matrix23x12d = Eigen::Matrix<double, 23, 12>;
+
+using Matrix23d = Eigen::Matrix<double, 23, 23>;
+using Vector23d = Eigen::Matrix<double, 23, 1>;
+using Vector24d = Eigen::Matrix<double, 24, 1>;
+using Matrix3x2d = Eigen::Matrix<double, 3, 2>;
+using Matrix2x3d = Eigen::Matrix<double, 2, 3>;
+
 // const M3D Eye3d = M3D::Identity();
 // const Mat3f Eye3f = Mat3f::Identity();
 // const V3D Zero3d(0, 0, 0);

@@ -28,7 +28,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
              move_thresh);
     // 设置雷达损失函数
     kf_ptr_->SetLidarLossFunc(
-        [this](NavState &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
+        [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
     kf_ptr_->SetStopFunc([&](const V21D &delta) -> bool {
         V3D rot_delta = delta.block<3, 1>(0, 0);
@@ -44,7 +44,7 @@ bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF>
     // set to ikdtree
     if (first_frame_) {
         // transform cloud_lidar to world frame
-        auto current_pose = PoseTrans(kf_ptr_->GetState().r_wi, kf_ptr_->GetState().t_wi);
+        auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
         auto T_WL = current_pose * system_config_->lidar2imu_;
         auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         // pcl::io::savePCDFileBinary("cloud_world_tmp.pcd", *cloud_world_tmp);
@@ -64,7 +64,7 @@ void P2PlaneRegister::TrimCloud() {
     // 清空需要裁剪的区域
     m_local_map.cub_to_rm.clear();
     const auto current_state = kf_ptr_->GetState();
-    V3D pos_lidar = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_.t;
+    V3D pos_lidar = PoseTrans(current_state.rot, current_state.pos) * system_config_->lidar2imu_.t;
     // 初始化立方体的范围
     if (!m_local_map.initialized) {
         for (int i = 0; i < 3; ++i) {
@@ -125,8 +125,8 @@ void P2PlaneRegister::IncreMap() {
     if (current_lidar_->empty()) {
         return;
     }
-    const NavState &current_state = kf_ptr_->GetState();
-    PoseTrans T_WL = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
+    const State &current_state = kf_ptr_->GetState();
+    PoseTrans T_WL = PoseTrans(current_state.rot, current_state.pos) * system_config_->lidar2imu_;
     int cloud_size = current_lidar_->size();
     PointVec point_to_add;
     PointVec point_no_need_downsample;
@@ -185,11 +185,11 @@ bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> k
     }
     return true;
 }
-void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &shared_data) {
+void P2PlaneRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {
     int size = current_lidar_->size();
     double total_res = 0;
-    const NavState &current_state = kf_ptr_->GetState();
-    PoseTrans T_WL = PoseTrans(current_state.r_wi, current_state.t_wi) * system_config_->lidar2imu_;
+    const State &current_state = kf_ptr_->GetState();
+    PoseTrans T_WL = PoseTrans(current_state.rot, current_state.pos) * system_config_->lidar2imu_;
 #ifdef MP_EN
     omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for
@@ -260,14 +260,15 @@ void P2PlaneRegister::UpdateLidarFunc(NavState &nav_state, ESKFShareState &share
         const V3D pt_lidar = ToV3D(point_lidar);
         const V3D norm_vec = ToV3D(norm);
         // 残差对旋转的雅可比矩阵
-        Eigen::Matrix<double, 1, 3> dres_dr = -norm_vec.transpose() * current_state.r_wi *
-                                              Sophus::SO3d::hat(current_state.r_il * pt_lidar + current_state.t_il);
+        Eigen::Matrix<double, 1, 3> dres_dr =
+            -norm_vec.transpose() * current_state.rot *
+            Sophus::SO3d::hat(current_state.rot_ext * pt_lidar + current_state.pos_ext);
         // 残差对平移的雅可比矩阵
         V3D dres_dt = norm_vec;
         if (system_config_->frontend_config_.calib_lidar2imu) {
         } else {
-            J.block<1, 3>(0, 0) = dres_dr;
-            J.block<1, 3>(0, 3) = dres_dt.transpose();
+            J.block<1, 3>(0, 3) = dres_dr;
+            J.block<1, 3>(0, 0) = dres_dt.transpose();
         }
         shared_data.H_ += J.transpose() * lidar_info_matrix_ * J;
         shared_data.b_ += J.transpose() * lidar_info_matrix_ * norm.intensity;
