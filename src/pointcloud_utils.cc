@@ -14,7 +14,10 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform
         const auto pt_transforemd = transform * pt_eigen;
         //  这样计算会有问题
         // const auto pt_transforemd = transform.so3().matrix() * pt_eigen + transform.translation();
-        transformed_cloud->points[i] = ToPoint<PointType>(pt_transforemd);
+        PointType pt = ToPoint<PointType>(pt_transforemd);
+        pt.ring = cloud->points[i].ring;
+        pt.intensity = cloud->points[i].intensity;
+        transformed_cloud->points[i] = pt;
     }
     return transformed_cloud;
 }
@@ -29,7 +32,10 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const 
     for (size_t i = 0; i < cloud->size(); ++i) {
         const auto pt_eigen = ToV3D(cloud->points[i]);
         const auto pt_transforemd = R * pt_eigen + t;
-        transformed_cloud->points[i] = ToPoint<PointType>(pt_transforemd);
+        PointType pt = ToPoint<PointType>(pt_transforemd);
+        pt.ring = cloud->points[i].ring;
+        pt.intensity = cloud->points[i].intensity;
+        transformed_cloud->points[i] = pt;
     }
     return transformed_cloud;
 }

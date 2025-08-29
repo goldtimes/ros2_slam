@@ -286,7 +286,8 @@ void ROS1Manager::PublishState(const double& sensor_time) {
         lio_path_.header.frame_id = "odom";
         lio_path_.header.stamp = ros::Time(sensor_time);
         lio_path_pub_.publish(lio_path_);
-        if (lio_path_.poses.size() > 100) {
+        if (lio_path_.poses.size() > 10000) {
+            // 为了不让内存增长
             lio_path_.poses.erase(lio_path_.poses.begin());
         }
     }
