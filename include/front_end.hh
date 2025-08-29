@@ -47,6 +47,8 @@ class FrontEnd {
     //     return lidar_register_ptr_;
     // }
 
+    const Matrix23d GetCov() const;
+
     bool InitializeImu(std::deque<IMU>& imus);
 
    private:

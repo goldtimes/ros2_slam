@@ -39,7 +39,7 @@ class PoseTrans {
         return ret;
     }
 
-    Eigen::Quaterniond eigen_q() {
+    const Eigen::Quaterniond eigen_q() const {
         return Eigen::Quaterniond(R);
     }
 

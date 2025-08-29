@@ -1,5 +1,6 @@
 #pragma once
 #include <omp.h>
+#include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
@@ -29,5 +30,6 @@ inline T ToPoint(const V3D& pt) {
 
 PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform);
 PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
+PointCloudPtr TransformLidar(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
 
 }  // namespace slam

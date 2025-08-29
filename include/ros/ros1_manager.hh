@@ -2,6 +2,7 @@
 #include <livox_ros_driver/CustomMsg.h>
 #include <livox_ros_driver2/CustomMsg.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
@@ -12,6 +13,7 @@
 #include <thread>
 #include "commons.hh"
 #include "logger.hh"
+#include "ros/publisher.h"
 
 namespace slam {
 
@@ -56,6 +58,9 @@ class ROS1Manager {
                                            double timestamp = -1);
     void voxelTimerCB(const ros::TimerEvent& event);
 
+    void PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg);
+    void PoseTransToOdomMsg(const PoseTrans& pose_trans, nav_msgs::Odometry& odom_msg);
+
    private:
     ros::NodeHandle nh_;
 
@@ -68,6 +73,11 @@ class ROS1Manager {
     ros::Publisher cloud_lidar_pub_;
     ros::Publisher cloud_robot_pub_;
     ros::Publisher cloud_odom_pub_;
+
+    ros::Publisher lio_path_pub_;
+    ros::Publisher lio_odom_pub_;
+
+    nav_msgs::Path lio_path_;
 
     ros::Timer voxel_map_timer_;
 

@@ -71,6 +71,7 @@ class System {
     // std::shared_ptr<VoxelMap> GetVoxelMap() const {
     //     return front_end_ptr_->GetVoxelMap();
     // }
+    const Matrix23d GetCov() const;
 
    public:
     std::condition_variable m_buff_cv_;

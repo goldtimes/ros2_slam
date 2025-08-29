@@ -54,7 +54,7 @@ void FrontEnd::Run() {
         // 存在虚假唤醒，需要判断条件是否满足
         if (system_->m_buff_cv_.wait_for(lock, std::chrono::milliseconds(1000), [&] {
                 // LOG_INFO("lidar_queue size: {}", system_->lidar_queue_.size());
-                return !system_->lidar_queue_.empty();
+                return !system_->imu_queue_.empty();
             })) {
             // 验证了线程的唤醒条件是正确的
             // system_->lidar_queue_.pop_front();
@@ -82,7 +82,7 @@ void FrontEnd::Run() {
                 undistort_cloud_lidar_->clear();
                 evaluate_and_call(
                     [&]() { propogator_ptr_->PropogateAndUndistort(measure_group_, undistort_cloud_lidar_); },
-                    "propogate_and_undistort", false);
+                    "propogate_and_undistort", true);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
                 undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL.R, T_BL.t);
@@ -228,4 +228,7 @@ const PointCloudPtr FrontEnd::GetCloudInOdomLink() const {
     return undistort_cloud_odom_;
 }
 
+const Matrix23d FrontEnd::GetCov() const {
+    return kf_ptr_->GetCov();
+}
 }  // namespace slam

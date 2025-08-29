@@ -49,8 +49,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1895,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false
-use_voxel: true
+use_p2plane: true
+use_voxel: false
 use_ndt: false
 
 has_encoder: false
@@ -79,7 +79,7 @@ front_end:
   use_voxel_map: 
     voxle_size: 0.5
     max_layer: 2 #  # 4 layer, 0, 1, 2, 3
-    layer_point_size: [20, 10] # 每层开始估计平面的阈值
+    layer_point_size: [5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值
     max_points_size: 100 # 每个voxel最大的点云数量
     max_cov_points_size: 100 # 每个voxel最大的协方差点云数量

@@ -1,5 +1,7 @@
 #include "ros/ros1_manager.hh"
+#include "geometry_msgs/PoseStamped.h"
 #include "lidar_register/voxel_map.hh"
+#include "ros/time.h"
 #include "system.hh"
 #include "system_config.hh"
 #include "utils.hh"
@@ -18,6 +20,8 @@ ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> syst
     if (system_ptr_->GetSystemConfig()->frontend_config_.voxel_config.pub_voxel_map) {
         voxel_map_timer_.start();
     }
+
+    lio_path_.header.frame_id = "odom";
 }
 ROS1Manager::~ROS1Manager() {
     if (visualize_thread_.joinable()) {
@@ -35,7 +39,11 @@ void ROS1Manager::InitPub() {
     cloud_lidar_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/lidar", 10);
     cloud_robot_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/robot_lidar", 10);
     cloud_odom_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/world_lidar", 10);
+
+    lio_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/lio_path", 10);
+    lio_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/lio_odom", 10);
 }
+
 void ROS1Manager::InitSub() {
     imu_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->imu_config_.imu_topic, 100, &ROS1Manager::ImuCallback,
                              this, ros::TransportHints().tcpNoDelay());
@@ -221,7 +229,7 @@ void ROS1Manager::Visualize() {
         last_visualize_time_ = system_ptr_->GetSystemTime();
 
         PublishTF(last_visualize_time_);
-        // PublishState(last_visualize_time_);
+        PublishState(last_visualize_time_);
         PublishLidar(last_visualize_time_);
     }
 }
@@ -248,6 +256,40 @@ void ROS1Manager::PublishTF(const double& sensor_time) {
 }
 
 void ROS1Manager::PublishState(const double& sensor_time) {
+    if (lio_odom_pub_.getNumSubscribers() != 0) {
+        auto current_state = system_ptr_->GetCurentNavState();
+        PoseTrans current_pose(current_state.rot, current_state.pos);
+        nav_msgs::Odometry odom;
+        PoseTransToOdomMsg(current_pose, odom);
+        odom.header.frame_id = "odom";
+        odom.child_frame_id = "robot_link";
+        odom.header.stamp = ros::Time(sensor_time);
+        V3D vel = current_state.rot.transpose() * current_state.vel;
+        odom.twist.twist.linear.x = vel.x();
+        odom.twist.twist.linear.y = vel.y();
+        odom.twist.twist.linear.z = vel.z();
+        // odom.pose.covariance
+        for (int i = 0; i < 6; ++i) {
+            for (int j = 0; j < 6; ++j) {
+                odom.pose.covariance[i * 6 + j] = system_ptr_->GetCov()(i, j);
+            }
+        }
+        lio_odom_pub_.publish(odom);
+    }
+    if (lio_path_pub_.getNumSubscribers() != 0) {
+        lio_path_.header.stamp = ros::Time(sensor_time);
+        auto current_state = system_ptr_->GetCurentNavState();
+        PoseTrans current_pose(current_state.rot, current_state.pos);
+        geometry_msgs::PoseStamped pose;
+        PoseTransToPoseStampedMsg(current_pose, pose);
+        lio_path_.poses.push_back(pose);
+        lio_path_.header.frame_id = "odom";
+        lio_path_.header.stamp = ros::Time(sensor_time);
+        lio_path_pub_.publish(lio_path_);
+        if (lio_path_.poses.size() > 100) {
+            lio_path_.poses.erase(lio_path_.poses.begin());
+        }
+    }
 }
 
 void ROS1Manager::PublishLidar(const double& sensor_time) {
@@ -257,6 +299,25 @@ void ROS1Manager::PublishLidar(const double& sensor_time) {
     cloud_robot_pub_.publish(cloud_robot);
     auto cloud_odom = ToPointCloud2(system_ptr_->GetCloudInOdomLink(), "odom", sensor_time);
     cloud_odom_pub_.publish(cloud_odom);
+}
+
+void ROS1Manager::PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg) {
+    pose_msg.pose.position.x = pose_trans.t.x();
+    pose_msg.pose.position.y = pose_trans.t.y();
+    pose_msg.pose.position.z = pose_trans.t.z();
+    pose_msg.pose.orientation.x = pose_trans.eigen_q().x();
+    pose_msg.pose.orientation.y = pose_trans.eigen_q().y();
+    pose_msg.pose.orientation.z = pose_trans.eigen_q().z();
+    pose_msg.pose.orientation.w = pose_trans.eigen_q().w();
+}
+void ROS1Manager::PoseTransToOdomMsg(const PoseTrans& pose_trans, nav_msgs::Odometry& odom_msg) {
+    odom_msg.pose.pose.position.x = pose_trans.t.x();
+    odom_msg.pose.pose.position.y = pose_trans.t.y();
+    odom_msg.pose.pose.position.z = pose_trans.t.z();
+    odom_msg.pose.pose.orientation.x = pose_trans.eigen_q().x();
+    odom_msg.pose.pose.orientation.y = pose_trans.eigen_q().y();
+    odom_msg.pose.pose.orientation.z = pose_trans.eigen_q().z();
+    odom_msg.pose.pose.orientation.w = pose_trans.eigen_q().w();
 }
 
 geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double timestamp, const PoseTrans& transform,

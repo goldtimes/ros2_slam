@@ -69,12 +69,12 @@ void IESKF::Update() {
         }
         x_ += delta;
         shared_state.iter_num += 1;
-        // if (stop_func_(delta)) {
-        //     break;
-        // }
-        if (delta.maxCoeff() < 0.001) {
+        if (stop_func_(delta)) {
             break;
         }
+        // if (delta.maxCoeff() < 0.001) {
+        //     break;
+        // }
     }
     // 更新协方差
     Matrix23d L = Matrix23d::Identity();

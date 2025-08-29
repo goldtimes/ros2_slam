@@ -22,14 +22,14 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
     LOG_INFO("range_cov: {}, angle_cov: {}", range_cov, angle_cov);
     updatemap_omp_ = system_config_->frontend_config_.voxel_config.updatemap_omp;
     sigma_num_ = system_config_->frontend_config_.voxel_config.sigma_num;
-    voxel_map_ =
-        std::make_shared<VoxelMap>(voxel_size_, max_layer_, layer_point_size_, max_points_size_, planer_threshold_);
+    std::vector<int> layer_point_size = {20, 10};
+    voxel_map_ = std::make_shared<VoxelMap>(0.5, 2, layer_point_size, 100, 0.01);
     current_lidar_.reset(new PointCloudType);
     // 设置雷达损失函数
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([](const V21D &delta) { return delta.norm() < 1e-6; });
+    kf_ptr_->SetStopFunc([](const Vector23d &delta) { return delta.norm() < 1e-6; });
 
     residual_infos_.resize(10000);
 }
@@ -40,12 +40,14 @@ VoxelMapRegister::~VoxelMapRegister() {
 bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // pcl::io::savePCDFileASCII("/home/kilox/cloud_lidar.pcd", *cloud_lidar);
     if (first_frame_) {
+        M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
+        V3D p_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().pos_ext + kf_ptr_->GetState().pos;
         // transform cloud_lidar to world frame
         auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
         auto T_WL = current_pose * system_config_->lidar2imu_;
-        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
+        auto cloud_world_tmp = TransformLidar(cloud_lidar, r_wl, p_wl);
         std::vector<PointWithCov> pv_list;
-        for (size_t i = 0; i < cloud_lidar->size(); ++i) {
+        for (size_t i = 0; i < cloud_world_tmp->size(); ++i) {
             auto pt_lidar = ToV3D(cloud_lidar->points[i]);
             // LOG_INFO("pt_lidar: {}", pt_lidar.transpose());
             auto pt_world = ToV3D(cloud_world_tmp->points[i]);
@@ -61,7 +63,7 @@ bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF
             // 计算世界坐标下的点的协方差
             M3D point_body_crossmat = Sophus::SO3d::hat(pt_lidar);
             M3D cov_world;
-            cov_world = T_WL.R * cov_lidar * T_WL.R.transpose() +
+            cov_world = r_wl * cov_lidar * r_wl.transpose() +
                         point_body_crossmat * kf_ptr_->GetCov().block<3, 3>(IESKF::R_ID, IESKF::R_ID) *
                             point_body_crossmat.transpose() +
                         kf_ptr_->GetCov().block<3, 3>(IESKF::P_ID, IESKF::P_ID);
@@ -90,15 +92,14 @@ bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
         residual_infos_[i].pcov = cov_lidar;
     }
     kf_ptr_->Update();
-    return true;
-}
 
-void VoxelMapRegister::UpdateMap() {
     // 更新地图
+    M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
+    V3D p_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().pos_ext + kf_ptr_->GetState().pos;
     auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
     auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
-    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL.R, T_WL.t);
+    auto cloud_world = TransformLidar(current_lidar_, r_wl, p_wl);
     // 计算point with cov
     std::vector<PointWithCov> pv_list;
     for (size_t i = 0; i < cloud_world->size(); ++i) {
@@ -110,7 +111,7 @@ void VoxelMapRegister::UpdateMap() {
         Eigen::Matrix3d point_body_crossmat = Sophus::SO3d::hat(residual_infos_[i].point_lidar);
 
         M3D cov_world;
-        cov_world = T_WL.R * cov_lidar * T_WL.R.transpose() +
+        cov_world = r_wl * cov_lidar * r_wl.transpose() +
                     point_body_crossmat * kf_ptr_->GetCov().block<3, 3>(IESKF::R_ID, IESKF::R_ID) *
                         point_body_crossmat.transpose() +
                     kf_ptr_->GetCov().block<3, 3>(IESKF::P_ID, IESKF::P_ID);
@@ -118,6 +119,10 @@ void VoxelMapRegister::UpdateMap() {
         pv_list.push_back(pv);
     }
     voxel_map_->insert(pv_list);
+    return true;
+}
+
+void VoxelMapRegister::UpdateMap() {
 }
 
 void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {
@@ -127,12 +132,14 @@ void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_
     V3D trans_end = nav_state.pos;
     M3D rot_ext = nav_state.rot_ext;
     V3D pos_ext = nav_state.pos_ext;
+    M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
+    V3D p_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().pos_ext + kf_ptr_->GetState().pos;
     auto current_pose = PoseTrans(rot_end, trans_end);
     auto T_WL = current_pose * system_config_->lidar2imu_;
     // to world cloud
-    auto cloud_world = TransformLidarOMP(current_lidar_, T_WL.R, T_WL.t);
+    auto cloud_world = TransformLidar(current_lidar_, r_wl, p_wl);
     double total_res = 0.0;
-    int size = cloud_world->size();
+    int size = current_lidar_->size();
 #ifdef MP_EN
     omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for
@@ -142,11 +149,11 @@ void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_
         residual_infos_[i].is_valid = false;
         residual_infos_[i].current_layer = 0;
         residual_infos_[i].from_near = false;
-        residual_infos_[i].point_world = T_WL * residual_infos_[i].point_lidar;
+        residual_infos_[i].point_world = r_wl * residual_infos_[i].point_lidar + p_wl;
 
         Eigen::Matrix3d point_crossmat = Sophus::SO3d::hat(residual_infos_[i].point_lidar);
         residual_infos_[i].cov =
-            T_WL.R * residual_infos_[i].pcov * (T_WL.R.transpose()) +
+            r_wl * residual_infos_[i].pcov * r_wl.transpose() +
             point_crossmat * kf_ptr_->GetCov().block<3, 3>(IESKF::R_ID, IESKF::R_ID) * (point_crossmat.transpose()) +
             kf_ptr_->GetCov().block<3, 3>(IESKF::P_ID, IESKF::P_ID);
         VoxelKey position = voxel_map_->index(residual_infos_[i].point_world);
@@ -173,8 +180,8 @@ void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_
                  residual_infos_[i].plane_norm;
         double r_info = r_cov < 0.0001 ? 1000 : 1 / r_cov;
         assert(r_cov > 0.0);
-        J.block<1, 3>(0, 0) = residual_infos_[i].plane_norm.transpose();
-        J.block<1, 3>(0, 3) = -residual_infos_[i].plane_norm.transpose() * rot_end *
+        J.block<1, 3>(0, 3) = residual_infos_[i].plane_norm.transpose();
+        J.block<1, 3>(0, 0) = -residual_infos_[i].plane_norm.transpose() * rot_end *
                               Sophus::SO3d::hat(rot_ext * residual_infos_[i].point_lidar + pos_ext);
         // std::cout << "j:" << J << ",r_info:" << r_info << std::endl;
         // if (system_config_->frontend_config_.calib_lidar2imu) {

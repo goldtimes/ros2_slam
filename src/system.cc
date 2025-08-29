@@ -1,5 +1,6 @@
 #include "system.hh"
 #include "front_end.hh"
+#include "state.hh"
 #include "system_config.hh"
 
 namespace slam {
@@ -103,6 +104,10 @@ const PoseTrans System::GetImuToBaselink() const {
 
 const State System::GetCurentNavState() const {
     return front_end_ptr_->GetCurentNavState();
+}
+
+const Matrix23d System::GetCov() const {
+    return front_end_ptr_->GetCov();
 }
 
 // lidar坐标系原始数据

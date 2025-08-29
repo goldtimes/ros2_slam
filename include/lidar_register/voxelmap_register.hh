@@ -37,6 +37,5 @@ class VoxelMapRegister : public LidarRegister {
 
     std::shared_ptr<VoxelMap> voxel_map_;
     std::vector<ResidualData> residual_infos_;
-    // pcl::VoxelGrid<PointType> scan_filter_;
 };
 }  // namespace slam

@@ -6,7 +6,7 @@
 namespace slam {
 
 using lidar_loss_func = std::function<void(State&, ESKFShareState&)>;
-using stop_func = std::function<bool(const V21D& dx)>;
+using stop_func = std::function<bool(const Vector23d& dx)>;
 
 // 迭代卡尔曼滤波器
 class IESKF {

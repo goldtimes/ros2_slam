@@ -34,4 +34,13 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const 
     return transformed_cloud;
 }
 
+PointCloudPtr TransformLidar(const PointCloudPtr& cloud, const M3D& r, const V3D& t) {
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform.block<3, 3>(0, 0) = r.cast<float>();
+    transform.block<3, 1>(0, 3) = t.cast<float>();
+    PointCloudPtr ret(new PointCloudType);
+    pcl::transformPointCloud(*cloud, *ret, transform);
+    return ret;
+}
+
 }  // namespace slam

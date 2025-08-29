@@ -104,9 +104,9 @@ void IncNdt::ComputeResidualAndJacobians(State& nav_state, ESKFShareState& share
                 // 不标定外参
                 if (!calib_lidar2imu_) {
                     // 对旋转的雅可比矩阵
-                    J.block<3, 3>(0, 0) = -pose.so3().matrix() * Sophus::SO3d::hat(pt_body);
+                    J.block<3, 3>(0, 3) = -pose.so3().matrix() * Sophus::SO3d::hat(pt_body);
                     // 对平移的雅可比矩阵
-                    J.block<3, 3>(0, 3) = Eigen::Matrix3d::Identity();
+                    J.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
                 } else {
                 }
                 jacobians[real_idx] = J;
@@ -133,8 +133,8 @@ void IncNdt::ComputeResidualAndJacobians(State& nav_state, ESKFShareState& share
         if (!effect_pts[idx]) continue;
         total_res += errors[idx].transpose() * infos[idx] * errors[idx];
         effective_num++;
-        shared_data.H_ += jacobians[idx].transpose() * infos[idx] * jacobians[idx] * 0.01;
-        shared_data.b_ += jacobians[idx].transpose() * infos[idx] * errors[idx] * 0.01;
+        shared_data.H_ += jacobians[idx].transpose() * infos[idx] * jacobians[idx];
+        shared_data.b_ += jacobians[idx].transpose() * infos[idx] * errors[idx];
     }
     LOG_INFO("iter: {}, total_res: {}, effective_num: {}, aver res:{}", shared_data.iter_num, total_res, effective_num,
              total_res / effective_num);
