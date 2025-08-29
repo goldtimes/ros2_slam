@@ -18,8 +18,8 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     T_IL = system_->GetSystemConfig()->lidar2imu_;
     T_BL = system_->GetSystemConfig()->lidar2robot_;
     auto T_LI = T_IL.inverse();
-    // T_BI = T_BL * T_LI;
     T_BI = (T_BL * T_LI);
+    T_EI = system_->GetSystemConfig()->imu2encoder_;
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
     // propogator
@@ -72,17 +72,26 @@ void FrontEnd::Run() {
                             front_end_status_ = FrontEndStatus::MAP_INIT;
                             system_->SetSystemInit(true);
                             LOG_INFO("IMU_INIT!");
+                            // 初始化轮速计的朝向
+                            PoseTrans T_WI(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+                            T_WE = T_WI * T_EI.inverse();
                             kf_ptr_->GetState().Print();
                         }
                     }
                     continue;
                 }
-                // 轮速计和gnss更新
-                // 状态递推以及对雷达去畸变
+
+                // imu的前向传播
                 undistort_cloud_lidar_->clear();
-                evaluate_and_call(
-                    [&]() { propogator_ptr_->PropogateAndUndistort(measure_group_, undistort_cloud_lidar_); },
-                    "propogate_and_undistort", true);
+                evaluate_and_call([&]() { propogator_ptr_->PropogateState(measure_group_); }, "propogate_and_undistort",
+                                  true);
+                // 对轮速计进行积分，对首尾进行插值
+                if (use_encoder_) {
+                }
+                // 对gnss进行处理
+                if (use_gnss_) {
+                }
+                propogator_ptr_->UndistortLidar(measure_group_, undistort_cloud_lidar_);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
                 undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL.R, T_BL.t);

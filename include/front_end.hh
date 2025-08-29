@@ -72,9 +72,16 @@ class FrontEnd {
     State nav_state_;
 
     // 坐标信息
+    // lidar到imu的外参
     PoseTrans T_IL;
+    // 激光雷达到robot的外参
     PoseTrans T_BL;
+    // imu到robot的外参
     PoseTrans T_BI;
+    // IMU到轮速计到外参，轮速计的中心暂时可以理解机器人的中心，如果后轮驱动的车型那就不一样，我们这里是差速模型
+    PoseTrans T_EI;
+    // 轮速计变换到world坐标系下，主要是朝向
+    PoseTrans T_WE;
 
     std::shared_ptr<LidarRegister> lidar_register_ptr_;
     PointCloudPtr undistort_cloud_lidar_;

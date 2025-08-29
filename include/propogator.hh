@@ -37,7 +37,7 @@ class Propogator {
     }
 
     // 状态传播
-    void PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cloud);
+    void PropogateState(MeasureGroup& meas);
 
     void UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out);
     NominalState GetNominalState() const;

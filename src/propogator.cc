@@ -103,7 +103,7 @@ NominalState Propogator::GetNominalState() const {
                         kf_->GetState().bg, kf_->GetState().ba);
 }
 
-void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cloud) {
+void Propogator::PropogateState(MeasureGroup& meas) {
     // 准备好imu数据
     imu_caches_.clear();
     imu_caches_.push_back(last_imu_);
@@ -161,8 +161,8 @@ void Propogator::PropogateAndUndistort(MeasureGroup& meas, PointCloudPtr& out_cl
     // kf_->GetState().Print();
     last_imu_ = imu_caches_.back();
     last_propagate_time_ = propogate_end_time;
-    // 去畸变
-    UndistortLidar(meas, out_cloud);
+    // // 去畸变
+    // UndistortLidar(meas, out_cloud);
 }
 
 // void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {

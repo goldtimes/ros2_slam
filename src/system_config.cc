@@ -64,7 +64,6 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         Eigen::Matrix4d T_lidar2imu = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(lidar2imu_vec.data());
         auto imu2enc_vec = config["T_imu2encoder"].as<std::vector<double>>();
         Eigen::Matrix4d T_imu2enc = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(imu2enc_vec.data());
-
         // 先转换成四元素的目的是防止旋转矩阵不是正交的
         lidar2imu_ = PoseTrans(Eigen::Quaterniond(T_lidar2imu.block<3, 3>(0, 0)).toRotationMatrix(),
                                T_lidar2imu.block<3, 1>(0, 3));
@@ -72,9 +71,11 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             PoseTrans(Eigen::Quaterniond(T_imu2enc.block<3, 3>(0, 0)).toRotationMatrix(), T_imu2enc.block<3, 1>(0, 3));
         lidar2robot_ = PoseTrans(Eigen::Quaterniond(T_lidar2robot.block<3, 3>(0, 0)).toRotationMatrix(),
                                  T_lidar2robot.block<3, 1>(0, 3));
+        imu2encoder_ = lidar2robot_ * lidar2imu_.inverse();
+
         print_matrix(T_lidar2imu, std::string("T_lidar2imu"));
         print_matrix(T_lidar2robot, std::string("T_lidar2robot"));
-        print_matrix(T_imu2enc, std::string("T_imu2enc"));
+        print_matrix(imu2encoder_.matrix(), std::string("T_imu2enc"));
 
         frontend_config_.keep_angle_ranges = config["front_end"]["keep_angle_ranges"].as<std::vector<double>>();
         frontend_config_.remove_ranges = config["front_end"]["remove_ranges"].as<std::vector<double>>();
