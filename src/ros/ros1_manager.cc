@@ -259,8 +259,9 @@ void ROS1Manager::PublishState(const double& sensor_time) {
     if (lio_odom_pub_.getNumSubscribers() != 0) {
         auto current_state = system_ptr_->GetCurentNavState();
         PoseTrans current_pose(current_state.rot, current_state.pos);
+        PoseTrans robot_pose = current_pose * system_ptr_->GetImuToBaselink().inverse();
         nav_msgs::Odometry odom;
-        PoseTransToOdomMsg(current_pose, odom);
+        PoseTransToOdomMsg(robot_pose, odom);
         odom.header.frame_id = "odom";
         odom.child_frame_id = "robot_link";
         odom.header.stamp = ros::Time(sensor_time);

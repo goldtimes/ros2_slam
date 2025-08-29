@@ -184,8 +184,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             system_->encoder_queue_.pop_front();
             encoder_time = system_->encoder_queue_.front().timestamp_;
         }
-        // LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
-        //          measures.encoders.front().timestamp_, measures.encoders.end()->timestamp_);
+        LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
+                 measures.encoders.front().timestamp_, measures.encoders.end()->timestamp_);
     }
     // 处理gnss数据
     double gnss_time = system_->gnss_queue_.front().timestamp_;
