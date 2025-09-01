@@ -10,6 +10,10 @@ namespace slam {
 ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr)
     : nh_(nh), system_ptr_(system_ptr) {
     LOG_INFO("ROS1Manager init");
+
+    has_encoder_ = system_ptr_->GetSystemConfig()->has_encoder_;
+    has_gnss_ = system_ptr_->GetSystemConfig()->has_gnss_;
+
     InitPub();
     InitSub();
     InitService();
@@ -20,8 +24,6 @@ ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> syst
     if (system_ptr_->GetSystemConfig()->frontend_config_.voxel_config.pub_voxel_map) {
         voxel_map_timer_.start();
     }
-
-    lio_path_.header.frame_id = "odom";
 }
 ROS1Manager::~ROS1Manager() {
     if (visualize_thread_.joinable()) {
@@ -42,6 +44,12 @@ void ROS1Manager::InitPub() {
 
     lio_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/lio_path", 10);
     lio_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/lio_odom", 10);
+    if (has_encoder_) {
+        encoder_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/encoder_path", 10);
+    }
+    if (has_gnss_) {
+        gnss_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/gnss_path", 10);
+    }
 }
 
 void ROS1Manager::InitSub() {
@@ -64,11 +72,11 @@ void ROS1Manager::InitSub() {
         LOG_ERROR("use_livox_driver must be 0, 1 or 2!");
         std::exit(1);
     }
-    if (system_ptr_->GetSystemConfig()->has_encoder_) {
+    if (has_encoder_) {
         encoder_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->encoder_config_.encoder_topic, 100,
                                      &ROS1Manager::EncoderCallback, this, ros::TransportHints().tcpNoDelay());
     }
-    if (system_ptr_->GetSystemConfig()->has_gnss_) {
+    if (has_gnss_) {
         gnss_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->gnss_config_.gnss_topic, 100,
                                   &ROS1Manager::GNSSCallback, this, ros::TransportHints().tcpNoDelay());
     }
@@ -187,6 +195,7 @@ void ROS1Manager::EncoderCallback(const nav_msgs::Odometry::ConstPtr& encoder_ms
     angular_vel << encoder_msg->twist.twist.angular.x, encoder_msg->twist.twist.angular.y,
         encoder_msg->twist.twist.angular.z;
     Encoder encoder(curr_encoder_time, linear_vel, angular_vel);
+    // std::cout << "encoder: " << encoder << std::endl;
     // push to system
     system_ptr_->AddEncoder(encoder);
 }
@@ -229,7 +238,16 @@ void ROS1Manager::Visualize() {
         last_visualize_time_ = system_ptr_->GetSystemTime();
 
         PublishTF(last_visualize_time_);
+        // pub odom
         PublishState(last_visualize_time_);
+        // pub path
+        auto current_state = system_ptr_->GetCurentNavState();
+        PoseTrans T_WI(current_state.rot, current_state.pos);
+        PublishPath(lio_path_pub_, lio_path_, "odom", last_visualize_time_, T_WI);
+        if (has_encoder_) {
+            PoseTrans T_WE = system_ptr_->GetTransformEncodeToWorld();
+            PublishPath(encoder_path_pub_, encoder_path_, "odom", last_visualize_time_, T_WE);
+        }
         PublishLidar(last_visualize_time_);
     }
 }
@@ -277,21 +295,20 @@ void ROS1Manager::PublishState(const double& sensor_time) {
         }
         lio_odom_pub_.publish(odom);
     }
-    if (lio_path_pub_.getNumSubscribers() != 0) {
-        lio_path_.header.stamp = ros::Time(sensor_time);
-        auto current_state = system_ptr_->GetCurentNavState();
-        PoseTrans current_pose(current_state.rot, current_state.pos);
-        geometry_msgs::PoseStamped pose;
-        PoseTransToPoseStampedMsg(current_pose, pose);
-        lio_path_.poses.push_back(pose);
-        lio_path_.header.frame_id = "odom";
-        lio_path_.header.stamp = ros::Time(sensor_time);
-        lio_path_pub_.publish(lio_path_);
-        if (lio_path_.poses.size() > 10000) {
-            // 为了不让内存增长
-            lio_path_.poses.erase(lio_path_.poses.begin());
-        }
-    }
+    // if (lio_path_pub_.getNumSubscribers() != 0) {
+    //     lio_path_.header.stamp = ros::Time(sensor_time);
+    //     auto current_state = system_ptr_->GetCurentNavState();
+    //     PoseTrans current_pose(current_state.rot, current_state.pos);
+    //     geometry_msgs::PoseStamped pose;
+    //     PoseTransToPoseStampedMsg(current_pose, pose);
+    //     lio_path_.poses.push_back(pose);
+    //     lio_path_.header.frame_id = "odom";
+    //     lio_path_pub_.publish(lio_path_);
+    //     if (lio_path_.poses.size() > 10000) {
+    //         // 为了不让内存增长
+    //         lio_path_.poses.erase(lio_path_.poses.begin());
+    //     }
+    // }
 }
 
 void ROS1Manager::PublishLidar(const double& sensor_time) {
@@ -353,5 +370,21 @@ sensor_msgs::PointCloud2 ROS1Manager::ToPointCloud2(const PointCloudPtr& cloud, 
         cloud_msg.header.stamp = ros::Time(timestamp);
     }
     return cloud_msg;
+}
+
+void ROS1Manager::PublishPath(const ros::Publisher pub, nav_msgs::Path& path, const std::string& frame_id,
+                              double sensor_time, const PoseTrans& pose_trans) {
+    if (pub.getNumSubscribers() != 0) {
+        path.header.stamp = ros::Time(sensor_time);
+        geometry_msgs::PoseStamped pose;
+        PoseTransToPoseStampedMsg(pose_trans, pose);
+        path.poses.push_back(pose);
+        path.header.frame_id = frame_id;
+        pub.publish(path);
+        if (path.poses.size() > 10000) {
+            // 为了不让内存增长
+            path.poses.erase(path.poses.begin());
+        }
+    }
 }
 }  // namespace slam

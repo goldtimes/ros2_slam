@@ -50,6 +50,8 @@ class System {
         system_init_.store(init);
     }
 
+    const PoseTrans GetTransformEncodeToWorld() const;
+
     const State GetCurentNavState() const;
 
     const double GetSystemTime() const;

@@ -125,6 +125,10 @@ const PointCloudPtr System::GetCloudInOdomLink() const {
     return front_end_ptr_->GetCloudInOdomLink();
 }
 
+const PoseTrans System::GetTransformEncodeToWorld() const {
+    return front_end_ptr_->GetTransformEncodeToWorld();
+}
+
 // 重置系统
 void System::reset() {
     std::lock_guard<std::mutex> lock(m_buf_mutex_);

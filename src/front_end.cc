@@ -1,4 +1,5 @@
 #include "front_end.hh"
+#include "encoder_process.hh"
 #include "ieskf.hh"
 #include "lidar_register/inc_ndt_register.hh"
 #include "lidar_register/p2plane_register.hh"
@@ -33,6 +34,10 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     } else if (system_->GetSystemConfig()->use_ndt_) {
         lidar_register_ptr_ = std::make_shared<IncNdtRegister>(system_->GetSystemConfig(), kf_ptr_);
     }
+
+    if (use_encoder_) {
+        encoder_processor_ptr_ = std::make_shared<EncoderProcessor>(system_->GetSystemConfig());
+    }
 }
 
 void FrontEnd::AllocateMemory() {
@@ -63,7 +68,7 @@ void FrontEnd::Run() {
             // get measurement
             MeasureGroup meas;
             if (GetMeasureGroup(meas)) {
-                LOG_INFO("GetMeasureGroup success!");
+                // LOG_INFO("GetMeasureGroup success!");
                 measure_group_ = meas;
                 if (front_end_status_ == FrontEndStatus::IMU_INIT) {
                     // 静态初始化
@@ -83,10 +88,25 @@ void FrontEnd::Run() {
 
                 // imu的前向传播
                 undistort_cloud_lidar_->clear();
+                PoseTrans start_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
                 evaluate_and_call([&]() { propogator_ptr_->PropogateState(measure_group_); }, "propogate_and_undistort",
-                                  true);
+                                  false);
+                PoseTrans end_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+                PoseTrans state_delta_pose = end_pose * start_pose.inverse();
+                LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
+                         state_delta_pose.RPY().norm());
                 // 对轮速计进行积分，对首尾进行插值
                 if (use_encoder_) {
+                    encoder_processor_ptr_->AddEncoder(measure_group_.encoders);
+                    PoseTrans encoder_delta_pose;
+                    auto res = encoder_processor_ptr_->Propagation(encoder_delta_pose, measure_group_.lidar_beg_time,
+                                                                   measure_group_.lidar_end_time);
+                    if (res) {
+                        LOG_INFO("encoder_delta_pose t_norm: {}, rotation_norm:{}", encoder_delta_pose.t.norm(),
+                                 encoder_delta_pose.RPY().norm());
+                    }
+                    // 更新TWE
+                    T_WE = T_WE * encoder_delta_pose;
                 }
                 // 对gnss进行处理
                 if (use_gnss_) {
@@ -111,7 +131,7 @@ void FrontEnd::Run() {
                     // kf_ptr_->GetState().Print();
                     auto t1 = std::chrono::high_resolution_clock::now();
                     if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
-                        LOG_INFO("Align Success");
+                        // LOG_INFO("Align Success");
                         lidar_register_ptr_->UpdateMap();
                         // LOG_INFO("after state: \n");
                         // kf_ptr_->GetState().Print();
@@ -172,9 +192,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        // LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
-        //         measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
-        //         lidar_mean_scantime_);
+        LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
+                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -183,18 +202,23 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         system_->imu_queue_.pop_front();
         imu_time = system_->imu_queue_.front().timestamp_;
     }
+    // 打印这里居然会有程序崩溃 log的double问题
     // LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
-    //          measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
+    //          measures.imus.front().timestamp_, measures.imus.back().timestamp_);
     // 处理encoder数据
     double encoder_time = system_->encoder_queue_.front().timestamp_;
+    // for (const auto& encode : system_->encoder_queue_) {
+    //     LOG_INFO("encoder time is {}", encode.timestamp_);
+    // }
     if (use_encoder_) {
         while (!system_->encoder_queue_.empty() && encoder_time < measures.lidar_end_time) {
             measures.encoders.push_back(system_->encoder_queue_.front());
             system_->encoder_queue_.pop_front();
             encoder_time = system_->encoder_queue_.front().timestamp_;
+            // LOG_INFO("encoder time is {}", encoder_time);
         }
-        LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
-                 measures.encoders.front().timestamp_, measures.encoders.end()->timestamp_);
+        // LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
+        //          measures.encoders.front().timestamp_, measures.encoders.back().timestamp_);
     }
     // 处理gnss数据
     double gnss_time = system_->gnss_queue_.front().timestamp_;
@@ -205,7 +229,7 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             gnss_time = system_->gnss_queue_.front().timestamp_;
         }
         LOG_INFO("gnss size is {}, gnss begin_time {}, gnss_end_time {}", measures.gnsss.size(),
-                 measures.gnsss.front().timestamp_, measures.gnsss.end()->timestamp_);
+                 measures.gnsss.front().timestamp_, measures.gnsss.back().timestamp_);
     }
 
     // 处理gnss数据

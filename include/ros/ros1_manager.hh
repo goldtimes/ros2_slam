@@ -61,6 +61,9 @@ class ROS1Manager {
     void PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg);
     void PoseTransToOdomMsg(const PoseTrans& pose_trans, nav_msgs::Odometry& odom_msg);
 
+    void PublishPath(const ros::Publisher pub, nav_msgs::Path& path, const std::string& frame_id, double sensor_time,
+                     const PoseTrans& pose_trans);
+
    private:
     ros::NodeHandle nh_;
 
@@ -75,11 +78,18 @@ class ROS1Manager {
     ros::Publisher cloud_odom_pub_;
 
     ros::Publisher lio_path_pub_;
+    ros::Publisher encoder_path_pub_;
     ros::Publisher lio_odom_pub_;
+    ros::Publisher gnss_path_pub_;
 
     nav_msgs::Path lio_path_;
+    nav_msgs::Path encoder_path_;
+    nav_msgs::Path gnss_path_;
 
     ros::Timer voxel_map_timer_;
+
+    bool has_encoder_ = false;
+    bool has_gnss_ = false;
 
     // tf2
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;

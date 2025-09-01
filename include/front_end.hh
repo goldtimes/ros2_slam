@@ -9,6 +9,7 @@ class System;
 class Propogator;
 class IESKF;
 class LidarRegister;
+class EncoderProcessor;
 
 enum class FrontEndStatus {
     IMU_INIT,  // 静态初始化
@@ -42,6 +43,10 @@ class FrontEnd {
 
     // odom坐标系点云
     const PointCloudPtr GetCloudInOdomLink() const;
+
+    const PoseTrans GetTransformEncodeToWorld() const {
+        return T_WE;
+    }
 
     // std::shared_ptr<VoxelMap> GetVoxelMap() const {
     //     return lidar_register_ptr_;
@@ -87,5 +92,8 @@ class FrontEnd {
     PointCloudPtr undistort_cloud_lidar_;
     PointCloudPtr undistort_cloud_robot_;
     PointCloudPtr undistort_cloud_odom_;
+
+    // 轮速计数据处理
+    std::shared_ptr<EncoderProcessor> encoder_processor_ptr_;
 };
 }  // namespace slam

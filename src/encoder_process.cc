@@ -7,6 +7,9 @@ EncoderProcessor::EncoderProcessor(const std::shared_ptr<SystemConfig>& config_p
 }
 
 void EncoderProcessor::AddEncoder(const std::deque<Encoder>& encoders) {
+    if (encoders.empty()) {
+        return;
+    }
     encoder_queue_.insert(encoder_queue_.end(), encoders.begin(), encoders.end());
     // 确保数据不要太多
     while (encoders.back().timestamp_ - encoders.front().timestamp_ > 1.0) {
@@ -19,12 +22,14 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
         return false;
     }
     // 检测是否有数据在lidar时间范围内
-    if (lidar_begin_time < encoder_queue_.front().timestamp_) {
-        return false;
-    }
-    if (lidar_end_time > encoder_queue_.back().timestamp_) {
-        return false;
-    }
+    // if (lidar_begin_time < encoder_queue_.front().timestamp_) {
+    //     LOG_ERROR("EncoderProcessor::Propagation: lidar_begin_time < encoder_queue_.front().timestamp_");
+    //     return false;
+    // }
+    // if (lidar_end_time > encoder_queue_.back().timestamp_) {
+    //     LOG_ERROR("EncoderProcessor::Propagation: lidar_end_time > encoder_queue_.back().timestamp_");
+    //     return false;
+    // }
 
     std::deque<Encoder> selected_data;
     int start_idx = -1, end_idx = -1;
@@ -34,6 +39,7 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
             if (selected_data.empty()) {
                 start_idx = i;
             }
+            // std::cout << "data: " << data << std::endl;
             selected_data.push_back(data);
             end_idx = i;
         }
@@ -51,13 +57,15 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
     if (selected_data.size() <= 2) {
         return false;
     }
+    LOG_INFO("EncoderProcessor::Propagation: selected_data.size() = {}", selected_data.size());
     // 积分
     PoseTrans ret_pose;
     for (int i = 1; i < selected_data.size(); ++i) {
         double dt = selected_data[i].timestamp_ - selected_data[i - 1].timestamp_;
-        double w = (selected_data[i].timestamp_ + selected_data[i - 1].timestamp_) / 2.0;
-        double v_x = selected_data[i].linear_vel.x();
-        double v_y = selected_data[i].linear_vel.y();
+        double w = (selected_data[i].angular_vel.z() + selected_data[i - 1].angular_vel.z()) / 2.0;
+        double v_x = (selected_data[i].linear_vel.x() + selected_data[i - 1].linear_vel.x()) / 2.0;
+        double v_y = (selected_data[i].linear_vel.y() + selected_data[i - 1].linear_vel.y()) / 2.0;
+        // LOG_INFO("EncoderProcessor::Propagation: dt = {}, w = {}, v_x = {}, v_y = {}", dt, w, v_x, v_y);
         M3D rot = M3D(Eigen::AngleAxisd(w * dt, V3D::UnitZ()));
         V3D trans = V3D(v_x * dt, v_y * dt, 0);
         PoseTrans delta(rot, trans);

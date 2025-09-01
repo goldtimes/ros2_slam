@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <memory>
 #include "eigen_type.hh"
 /**
@@ -27,6 +28,13 @@ struct Encoder {
     Encoder() = default;
     Encoder(double timestamp, const V3D& linear_vel, const V3D& angular_vel)
         : timestamp_(timestamp), linear_vel(linear_vel), angular_vel(angular_vel) {
+    }
+    // 打印
+    friend std::ostream& operator<<(std::ostream& os, const Encoder& encoder) {
+        os << "Encoder: timestamp = " << std::fixed << encoder.timestamp_
+           << ", linear_vel = " << encoder.linear_vel.transpose()
+           << ", angular_vel = " << encoder.angular_vel.transpose();
+        return os;
     }
 };
 

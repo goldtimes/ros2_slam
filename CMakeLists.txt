@@ -111,6 +111,7 @@ add_executable(slam_node
     src/lidar_register/p2plane_register.cc
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
+    src/encoder_process.cc
 )
 
 target_link_libraries(slam_node 
