@@ -4,6 +4,9 @@
 namespace slam {
 EncoderProcessor::EncoderProcessor(const std::shared_ptr<SystemConfig>& config_ptr) : config_ptr_(config_ptr) {
     is_static_ = true;
+    wheel_cov_ = 0.01;
+    nhc_y_ = 0.01;
+    nhc_z_ = 0.001;
 }
 
 void EncoderProcessor::AddEncoder(const std::deque<Encoder>& encoders) {
@@ -96,6 +99,62 @@ Encoder EncoderProcessor::interplate(Encoder& start, Encoder& end, const double&
     inter.linear_vel.y() = inter_y;
     inter.angular_vel.z() = inter_w;
     return inter;
+}
+
+void EncoderProcessor::UpdateEncoder(const Encoder& encoder, const Input& input, State& x,
+                                     ESKFShareState& share_state) {
+    // LOG_INFO("wheel vel:{}", encoder.linear_vel.transpose());
+    // LOG_INFO("input vel:{}", input.gyro.transpose());
+    V3D z = V3D::Zero();
+    Eigen::Matrix<double, 3, 33> H = Eigen::Matrix<double, 3, 33>::Zero();
+    M3D R = M3D::Zero();
+    // 计算残差
+    M3D angv_crossmat;
+    V3D gyro(input.gyro.x() - x.bg(0), input.gyro.y() - x.bg(1), input.gyro.z() - x.bg(2));  // 输入的角速度信息
+    angv_crossmat << SKEW_SYM_MATRX(gyro);
+    V3D wheel_vel = encoder.linear_vel;
+    const double wheel_scale = 1.0;
+    // 将imu的速度装换到wheel系
+    PoseTrans T_IE = T_EI_.inverse();
+    M3D R_wheelToImu = T_IE.R;
+    V3D t_WheelToImu = T_IE.t;
+    V3D current_vel = R_wheelToImu.transpose() * (x.rot.transpose() * x.vel + angv_crossmat * t_WheelToImu);
+    // LOG_INFO("current_vel:{}", current_vel.transpose());
+    V3D res = wheel_vel * wheel_scale - current_vel;
+    // LOG_INFO("res:{}", res.transpose());
+    // 求雅可比矩阵
+    Eigen::Matrix<double, 3, 33> J;
+    J.setZero();
+    M3D rot_crossmat;
+    V3D vel_in_body = x.rot.transpose() * x.vel;
+    rot_crossmat << SKEW_SYM_MATRX(vel_in_body);
+    // 残差对旋转的雅可比矩阵
+    J.block<3, 3>(0, 3) = -R_wheelToImu.transpose() * rot_crossmat;
+    // 残差对速度的雅可比矩阵
+    J.block<3, 3>(0, 12) = -R_wheelToImu.transpose() * x.rot.transpose();
+    // 对bg的雅可比矩阵
+    M3D bg_crossmat;
+    bg_crossmat << SKEW_SYM_MATRX(t_WheelToImu);
+    J.block<3, 3>(0, 15) = -R_wheelToImu.transpose() * bg_crossmat;
+    // 外参标定
+    // scale 标定
+    // 协方差
+    M3D tmp_mat = -R_wheelToImu.transpose() * bg_crossmat;
+    M3D cov_mat = M3D::Identity();
+    cov_mat(0, 0) = wheel_cov_;
+    if (gyro.norm() > 0.3) {
+        cov_mat(1, 1) = wheel_vel(0) * gyro.norm();
+    } else {
+        cov_mat(1, 1) = nhc_y_;
+    }
+    cov_mat(2, 2) = nhc_z_;
+    cov_mat = cov_mat + tmp_mat * tmp_mat.transpose() * 0.1;
+    share_state.valid = true;
+    share_state.H33_.setZero();
+    share_state.b33_.setZero();
+    share_state.H33_ = J.transpose() * 10000 * J;
+    share_state.b33_ = J.transpose() * 10000 * res;
+    LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 
 }  // namespace slam

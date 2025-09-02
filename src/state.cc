@@ -3,7 +3,7 @@
 namespace slam {
 double State::GRAVITY = 9.81;
 
-void State::operator+=(const Vector23d &delta) {
+void State::operator+=(const V33D &delta) {
     pos += delta.segment<3>(0);
     rot *= Sophus::SO3d::exp(delta.segment<3>(3)).matrix();
     rot_ext *= Sophus::SO3d::exp(delta.segment<3>(6)).matrix();
@@ -12,9 +12,13 @@ void State::operator+=(const Vector23d &delta) {
     bg += delta.segment<3>(15);
     ba += delta.segment<3>(18);
     g = Sophus::SO3d::exp(getBx() * delta.segment<2>(21)).matrix() * g;
+    rot_R_IE *= Sophus::SO3d::exp(delta.segment<3>(23)).matrix();
+    pos_t_IE += delta.segment<3>(26);
+    wheel_scale += delta.segment<1>(29);
+    rot_R_IG *= Sophus::SO3d::exp(delta.segment<3>(30)).matrix();
 }
 
-void State::operator+=(const Vector24d &delta) {
+void State::operator+=(const V34D &delta) {
     pos += delta.segment<3>(0);
     rot *= Sophus::SO3d::exp(delta.segment<3>(3)).matrix();
     rot_ext *= Sophus::SO3d::exp(delta.segment<3>(6)).matrix();
@@ -23,12 +27,17 @@ void State::operator+=(const Vector24d &delta) {
     bg += delta.segment<3>(15);
     ba += delta.segment<3>(18);
     g = Sophus::SO3d::exp(delta.segment<3>(21)).matrix() * g;
+    rot_R_IE *= Sophus::SO3d::exp(delta.segment<3>(24)).matrix();
+    pos_t_IE += delta.segment<3>(27);
+    wheel_scale += delta.segment<1>(30);
+    rot_R_IG *= Sophus::SO3d::exp(delta.segment<3>(31)).matrix();
 }
 
-Vector23d State::operator-(const State &other) {
-    Vector23d delta = Vector23d::Zero();
+V33D State::operator-(const State &other) {
+    V33D delta = V33D::Zero();
     delta.segment<3>(0) = pos - other.pos;
     delta.segment<3>(3) = Sophus::SO3d(other.rot.transpose() * rot).log();
+
     delta.segment<3>(6) = Sophus::SO3d(other.rot_ext.transpose() * rot_ext).log();
     delta.segment<3>(9) = pos_ext - other.pos_ext;
     delta.segment<3>(12) = vel - other.vel;
@@ -49,6 +58,10 @@ Vector23d State::operator-(const State &other) {
         res = theta / v_sin * other.getBx().transpose() * Sophus::SO3d::hat(other.g) * g;
     }
     delta.segment<2>(21) = res;
+    delta.segment<3>(23) = Sophus::SO3d(other.rot_R_IE.transpose() * rot_R_IE).log();
+    delta.segment<3>(26) = pos_t_IE - other.pos_t_IE;
+    delta.segment<1>(29) = wheel_scale - other.wheel_scale;
+    delta.segment<3>(30) = Sophus::SO3d(other.rot_R_IG.transpose() * rot_R_IG).log();
     return delta;
 }
 

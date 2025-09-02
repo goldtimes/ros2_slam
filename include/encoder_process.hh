@@ -2,6 +2,7 @@
 
 #include "commons.hh"
 #include "eigen_type.hh"
+#include "state.hh"
 
 namespace slam {
 
@@ -19,11 +20,21 @@ class EncoderProcessor {
 
     Encoder interplate(Encoder& start, Encoder& end, const double& tms);
 
+    void UpdateEncoder(const Encoder& encoder, const Input& input, State& x, ESKFShareState& share_state);
+
+    void SetTransformWheelToImu(const PoseTrans& T_EI) {
+        T_EI_ = T_EI;
+    }
+
    private:
     //    配置
     std::shared_ptr<SystemConfig> config_ptr_;
     bool is_static_;
     //    存放数据
     std::deque<Encoder> encoder_queue_;
+    PoseTrans T_EI_;
+    double wheel_cov_;
+    double nhc_y_;
+    double nhc_z_;
 };
 }  // namespace slam

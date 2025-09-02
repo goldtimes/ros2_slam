@@ -23,8 +23,26 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     T_EI = system_->GetSystemConfig()->imu2encoder_;
     // ieskf
     kf_ptr_ = std::make_shared<IESKF>();
+
+    if (use_encoder_) {
+        encoder_processor_ptr_ = std::make_shared<EncoderProcessor>(system_->GetSystemConfig());
+        encoder_processor_ptr_->SetTransformWheelToImu(T_EI);
+        kf_ptr_->SetWheelLossFunc(
+            [&](const Encoder& encoder, const Input& input, State& x, ESKFShareState& share_state) {
+                encoder_processor_ptr_->UpdateEncoder(encoder, input, x, share_state);
+            });
+        // 设置encoder外参
+        // 保证旋转的正交性，因为sophus对矩阵要求很严格 1 0 -2.77515e-17 0 1 0 0 -2.77515e-17  0  1 这样的矩阵会报错
+        kf_ptr_->x().rot_R_IE = Eigen::Quaterniond(T_EI.inverse().R).toRotationMatrix();
+        kf_ptr_->x().pos_t_IE = T_EI.inverse().t;
+    }
+
+    if (use_gnss_) {
+    }
+
     // propogator
     propogator_ptr_ = std::make_shared<Propogator>(system_->GetSystemConfig(), kf_ptr_);
+    propogator_ptr_->SetTransformWheelToImu(T_EI);
     AllocateMemory();
     // voxel_map_odom
     if (system_->GetSystemConfig()->use_voxel_) {
@@ -33,10 +51,6 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
         lidar_register_ptr_ = std::make_shared<P2PlaneRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_ndt_) {
         lidar_register_ptr_ = std::make_shared<IncNdtRegister>(system_->GetSystemConfig(), kf_ptr_);
-    }
-
-    if (use_encoder_) {
-        encoder_processor_ptr_ = std::make_shared<EncoderProcessor>(system_->GetSystemConfig());
     }
 }
 
@@ -89,8 +103,7 @@ void FrontEnd::Run() {
                 // imu的前向传播
                 undistort_cloud_lidar_->clear();
                 PoseTrans start_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
-                evaluate_and_call([&]() { propogator_ptr_->PropogateState(measure_group_); }, "propogate_and_undistort",
-                                  false);
+                evaluate_and_call([&]() { propogator_ptr_->PropogateState(meas); }, "propogate_and_undistort", false);
                 PoseTrans end_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
                 PoseTrans state_delta_pose = end_pose * start_pose.inverse();
                 LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
@@ -261,7 +274,7 @@ const PointCloudPtr FrontEnd::GetCloudInOdomLink() const {
     return undistort_cloud_odom_;
 }
 
-const Matrix23d FrontEnd::GetCov() const {
+const M33D FrontEnd::GetCov() const {
     return kf_ptr_->GetCov();
 }
 }  // namespace slam

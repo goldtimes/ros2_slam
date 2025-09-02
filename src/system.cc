@@ -106,7 +106,7 @@ const State System::GetCurentNavState() const {
     return front_end_ptr_->GetCurentNavState();
 }
 
-const Matrix23d System::GetCov() const {
+const M33D System::GetCov() const {
     return front_end_ptr_->GetCov();
 }
 

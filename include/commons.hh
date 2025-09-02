@@ -5,7 +5,7 @@
 #include "pointcloud_utils.hh"
 #include "pose_trans.hh"
 #include "sensors.hh"
-
+#define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
 namespace slam {
 enum class SLAM_MODE {
     MAPPING,         // 建图模式
@@ -13,6 +13,12 @@ enum class SLAM_MODE {
     RELOCALIZATION,  // 重定位模式
     NONE,            // 无模式
     TRACKING,        // 里程计跟踪模式
+};
+
+enum class UPDATE_SENSOR {
+    LIDAR,
+    ENCODER,
+    GNSS,
 };
 
 struct MeasureGroup {
@@ -45,8 +51,12 @@ struct Input {
 // 迭代是否合理的
 struct ESKFShareState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    // lidar的观测，主要对位姿和外参的雅可比矩阵
     M12D H_;  // Hessian矩阵，这里可以保持和state的维度是一致，不过是构造了很多0矩阵
     V12D b_;  // b矩阵
+    // 轮速计和gnss的观测海森矩阵
+    M33D H33_;
+    V33D b33_;
     double res;
     bool valid = false;
     size_t iter_num = 0;

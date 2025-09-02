@@ -29,7 +29,7 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([](const Vector23d &delta) { return delta.norm() < 1e-6; });
+    kf_ptr_->SetStopFunc([](const V33D &delta) { return delta.norm() < 1e-6; });
 
     residual_infos_.resize(10000);
 }
@@ -91,7 +91,7 @@ bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
         cov_lidar = calcBodyCov(pt_lidar, range_cov, angle_cov);
         residual_infos_[i].pcov = cov_lidar;
     }
-    kf_ptr_->Update();
+    kf_ptr_->UpdateLidar();
 
     // 更新地图
     M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;

@@ -7,25 +7,29 @@ namespace slam {
 struct State {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     static double GRAVITY;
-    V3D pos = V3D::Zero();      // i->wolrd
-    M3D rot = M3D::Identity();      // i->wolrd
-    M3D rot_ext = M3D::Identity();  // lidar->imu的旋转矩阵
-    V3D pos_ext = V3D::Zero();      // lidar->imu的平移向量
-    V3D vel = V3D::Zero();          // 速度
-    V3D bg = V3D::Zero();           // imu的bias
-    V3D ba = V3D::Zero();           // imu的bias
-    V3D g = V3D(0, 0, -9.81);       // 重力
+    V3D pos = V3D::Zero();           // i->wolrd
+    M3D rot = M3D::Identity();       // i->wolrd
+    M3D rot_ext = M3D::Identity();   // lidar->imu的旋转矩阵
+    V3D pos_ext = V3D::Zero();       // lidar->imu的平移向量
+    V3D vel = V3D::Zero();           // 速度
+    V3D bg = V3D::Zero();            // imu的bias
+    V3D ba = V3D::Zero();            // imu的bias
+    V3D g = V3D(0, 0, -9.81);        // 重力
+    M3D rot_R_IE = M3D::Identity();  // wheel到imu的旋转矩阵
+    V3D pos_t_IE = V3D::Zero();      // wheel到imu的平移向量
+    V1D wheel_scale = V1D::Zero();   // 轮速比例因子
+    M3D rot_R_IG = M3D::Identity();  // gnss到imu的旋转矩阵
 
     void InitGravityDir(const V3D& gravity_dir) {
         g = gravity_dir.normalized() * State::GRAVITY;
     }
 
     // 状态量的改变
-    void operator+=(const Vector23d& delta);
+    void operator+=(const V33D& delta);
 
-    void operator+=(const Vector24d& delta);
+    void operator+=(const V34D& delta);
 
-    Vector23d operator-(const State& other);
+    V33D operator-(const State& other);
 
     Matrix3x2d getBx() const;
 

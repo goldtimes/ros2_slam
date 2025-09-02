@@ -6,6 +6,7 @@ namespace slam {
 using Vec2i = Eigen::Vector2i;
 using Vec3i = Eigen::Vector3i;
 using Vec3b = Eigen::Matrix<char, 3, 1>;
+using V1D = Eigen::Matrix<double, 1, 1>;
 
 using Vec2d = Eigen::Vector2d;
 using Vec2f = Eigen::Vector2f;
@@ -22,6 +23,8 @@ using V12D = Eigen::Matrix<double, 12, 1>;
 using Vec15d = Eigen::Matrix<double, 15, 1>;
 using Vec18d = Eigen::Matrix<double, 18, 1>;
 using V21D = Eigen::Matrix<double, 21, 1>;
+using V33D = Eigen::Matrix<double, 33, 1>;
+using V34D = Eigen::Matrix<double, 34, 1>;
 
 using Mat1d = Eigen::Matrix<double, 1, 1>;
 using Mat2d = Eigen::Matrix<double, 2, 2>;
@@ -41,6 +44,7 @@ using M12D = Eigen::Matrix<double, 12, 12>;
 using Mat15d = Eigen::Matrix<double, 15, 15>;
 using Mat18d = Eigen::Matrix<double, 18, 18>;
 using M21D = Eigen::Matrix<double, 21, 21>;
+using M33D = Eigen::Matrix<double, 33, 33>;
 
 using VecXd = Eigen::Matrix<double, -1, 1>;
 using MatXd = Eigen::Matrix<double, -1, -1>;
@@ -55,6 +59,7 @@ using Matrix21d = Eigen::Matrix<double, 21, 21>;
 using Matrix12d = Eigen::Matrix<double, 12, 12>;
 using Matrix21x12d = Eigen::Matrix<double, 21, 12>;
 using Matrix23x12d = Eigen::Matrix<double, 23, 12>;
+using Matrix33x12d = Eigen::Matrix<double, 33, 12>;
 
 using Matrix23d = Eigen::Matrix<double, 23, 23>;
 using Vector23d = Eigen::Matrix<double, 23, 1>;

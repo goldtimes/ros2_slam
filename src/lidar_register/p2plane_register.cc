@@ -30,7 +30,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([&](const Vector23d &delta) -> bool {
+    kf_ptr_->SetStopFunc([&](const V33D &delta) -> bool {
         V3D rot_delta = delta.block<3, 1>(0, 0);
         V3D t_delta = delta.block<3, 1>(3, 0);
         return (rot_delta.norm() * 57.3 < 0.01) && (t_delta.norm() * 100 < 0.015);
@@ -179,7 +179,7 @@ bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> k
     // filter cloud
     current_lidar_ = cloud_lidar;
     TrimCloud();
-    kf_ptr_->Update();
+    kf_ptr_->UpdateLidar();
     if (updated_failed_num_ > 3) {
         return false;
     }

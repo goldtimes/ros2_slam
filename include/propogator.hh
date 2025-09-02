@@ -42,6 +42,10 @@ class Propogator {
     void UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out);
     NominalState GetNominalState() const;
 
+    void SetTransformWheelToImu(PoseTrans T_EI) {
+        T_EI_ = T_EI;
+    }
+
    private:
     // 静态初始化器
     std::shared_ptr<StaticImuInit> imu_init_ptr_;
@@ -71,5 +75,9 @@ class Propogator {
     V3D last_gyro_;
 
     PoseTrans T_IL_;
+    PoseTrans T_EI_;
+
+    bool use_wheel_ = false;
+    bool use_gnss_ = false;
 };
 }  // namespace slam

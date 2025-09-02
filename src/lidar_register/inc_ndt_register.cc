@@ -20,7 +20,7 @@ IncNdtRegister::IncNdtRegister(const std::shared_ptr<SystemConfig> &system_confi
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
-    kf_ptr_->SetStopFunc([](const Vector23d &delta) { return delta.norm() < 1e-6; });
+    kf_ptr_->SetStopFunc([](const V33D &delta) { return delta.norm() < 1e-6; });
 }
 
 IncNdtRegister::~IncNdtRegister() {
@@ -45,7 +45,7 @@ bool IncNdtRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf
     auto cloud_body = TransformLidarOMP(cloud_lidar, system_config_->lidar2imu_.R, system_config_->lidar2imu_.t);
     // 降采样
     ndt_ptr_->SetSource(cloud_body);
-    kf_ptr_->Update();
+    kf_ptr_->UpdateLidar();
     return true;
 }
 void IncNdtRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {

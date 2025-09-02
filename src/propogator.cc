@@ -14,6 +14,9 @@ Propogator::Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IE
     Q_.block<3, 3>(3, 3) = M3D::Identity() * system_config_ptr_->imu_config_.gyro_noise_std;
     Q_.block<3, 3>(6, 6) = M3D::Identity() * system_config_ptr_->imu_config_.acc_bias_noise_std;
     Q_.block<3, 3>(9, 9) = M3D::Identity() * system_config_ptr_->imu_config_.gyro_bias_noise_std;
+
+    use_wheel_ = config_->has_encoder_;
+    use_gnss_ = config_->has_gnss_;
 }
 Propogator::~Propogator() {
 }
@@ -146,6 +149,24 @@ void Propogator::PropogateState(MeasureGroup& meas) {
         input.acc = mid_acc;
         input.gyro = mid_gyro;
         kf_->Predict(input, dt, Q_);
+        // kf_->GetState().Print();
+        // 在这里去做轮速计的更新
+        if (use_wheel_ && !meas.encoders.empty()) {
+            double wheel_time = meas.encoders.front().timestamp_;
+            if (wheel_time < head.timestamp_) {
+                meas.encoders.pop_front();
+            } else {
+                if (wheel_time < tail.timestamp_) {
+                    // 轮速计的时间在两个imu之间，传入imu的速度值和当前轮速计的速度
+                    kf_->UpdateEncoder(meas.encoders.front(), input);
+                    // 删除轮速计
+                    meas.encoders.pop_front();
+                }
+            }
+        }
+        // LOG_INFO("after encoder update");
+        // kf_->GetState().Print();
+
         last_acc_ = kf_->GetState().rot * (mid_acc - kf_->GetState().ba) + kf_->GetState().g;
         last_gyro_ = mid_gyro - kf_->GetState().bg;
         double offset = tail.timestamp_ - cloud_begin_time;

@@ -7,7 +7,7 @@
 #include "pointcloud_utils.hh"
 #include "state.hh"
 #include "system_config.hh"
-#define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
+
 
 namespace slam {
 

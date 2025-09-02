@@ -6,7 +6,8 @@
 namespace slam {
 
 using lidar_loss_func = std::function<void(State&, ESKFShareState&)>;
-using stop_func = std::function<bool(const Vector23d& dx)>;
+using wheel_loss_func = std::function<void(const Encoder&, const Input&, State&, ESKFShareState&)>;
+using stop_func = std::function<bool(const V33D& dx)>;
 
 // 迭代卡尔曼滤波器
 class IESKF {
@@ -28,19 +29,27 @@ class IESKF {
         lidar_loss_func_ = loss_func;
     }
 
+    void SetWheelLossFunc(wheel_loss_func loss_func) {
+        wheel_loss_func_ = loss_func;
+    }
+
     void SetStopFunc(stop_func func) {
         stop_func_ = func;
     }
 
     void Predict(const Input& input, double dt, const M12D& Q);
 
-    void Update();
+    void UpdateLidar();
+
+    void UpdateEncoder(const Encoder& encoder, const Input& input);
+
+    void UpdateGnss();
 
     const State& GetState() const {
         return x_;
     }
 
-    const Matrix23d& GetCov() const {
+    const M33D& GetCov() const {
         return P_;
     }
 
@@ -48,7 +57,7 @@ class IESKF {
         return x_;
     }
 
-    Matrix23d& Cov() {
+    M33D& Cov() {
         return P_;
     }
 
@@ -56,20 +65,22 @@ class IESKF {
     // 状态量
     State x_;
     // 协方差
-    Matrix23d P_ = Matrix23d::Zero();
+    M33D P_ = M33D::Zero();
     // 最大迭代次数
     size_t max_iter_num_ = 10;
-    // 损失函数
+    // 激光损失函数
     lidar_loss_func lidar_loss_func_;
+    // 轮速计损失函数
+    wheel_loss_func wheel_loss_func_;
     // 停止函数
     stop_func stop_func_;
     // 预测矩阵
-    Matrix23d F_ = Matrix23d::Zero();
+    M33D F_ = M33D::Zero();
     // 输入矩阵
-    Eigen::Matrix<double, 23, 12> G_ = Eigen::Matrix<double, 23, 12>::Zero();
+    Eigen::Matrix<double, 33, 12> G_ = Eigen::Matrix<double, 33, 12>::Zero();
 
-    Matrix23d H_;
-    Vector23d b_;
+    M33D H_;
+    V33D b_;
     double current_time_;
 };
 }  // namespace slam
