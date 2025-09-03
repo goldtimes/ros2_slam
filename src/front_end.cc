@@ -201,11 +201,11 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             lidar_mean_scantime_ +=
                 (measures.lidar_end_time - measures.lidar_beg_time - lidar_mean_scantime_) / scan_count_;
         }
-        if (lidar_mean_scantime_ > 0.1) {
+        if (lidar_mean_scantime_ > 0.2) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        LOG_INFO("lidar cloud size is {}, begin time is {}, end time is {}, mean scan time is {}",
+        LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
                  measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
     }
     // 处理imu数据
@@ -215,9 +215,12 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         system_->imu_queue_.pop_front();
         imu_time = system_->imu_queue_.front().timestamp_;
     }
+
     // 打印这里居然会有程序崩溃 log的double问题
-    // LOG_INFO("imu size is {}, imu begin_time {}, imu_end_time {}", measures.imus.size(),
-    //          measures.imus.front().timestamp_, measures.imus.back().timestamp_);
+    if (!measures.imus.empty()) {
+        LOG_DEBUG("imu size is {}, imu begin_time {:03.3f}, imu_end_time {:03.3f}", measures.imus.size(),
+                  measures.imus.front().timestamp_, measures.imus.end()->timestamp_);
+    }
     // 处理encoder数据
     double encoder_time = system_->encoder_queue_.front().timestamp_;
     // for (const auto& encode : system_->encoder_queue_) {
@@ -230,8 +233,10 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             encoder_time = system_->encoder_queue_.front().timestamp_;
             // LOG_INFO("encoder time is {}", encoder_time);
         }
-        // LOG_INFO("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
-        //          measures.encoders.front().timestamp_, measures.encoders.back().timestamp_);
+        if (!measures.encoders.empty()) {
+            LOG_DEBUG("encoder size is {}, encoder begin_time {}, encoder_end_time {}", measures.encoders.size(),
+                      measures.encoders.front().timestamp_, measures.encoders.back().timestamp_);
+        }
     }
     // 处理gnss数据
     double gnss_time = system_->gnss_queue_.front().timestamp_;
@@ -241,8 +246,10 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             system_->gnss_queue_.pop_front();
             gnss_time = system_->gnss_queue_.front().timestamp_;
         }
-        LOG_INFO("gnss size is {}, gnss begin_time {}, gnss_end_time {}", measures.gnsss.size(),
-                 measures.gnsss.front().timestamp_, measures.gnsss.back().timestamp_);
+        if (!measures.gnsss.empty()) {
+            LOG_INFO("gnss size is {}, gnss begin_time {:03.3f}, gnss_end_time {:03.3f}", measures.gnsss.size(),
+                     measures.gnsss.front().timestamp_, measures.gnsss.back().timestamp_);
+        }
     }
 
     // 处理gnss数据
@@ -250,6 +257,7 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
     system_->lidar_time_queue_.pop_front();
     lidar_pushed_ = false;
     if (measures.imus.empty()) {
+        // LOG_INFO("imus is empty");
         return false;
     }
     return true;

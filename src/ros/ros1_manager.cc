@@ -211,7 +211,7 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
         gnss_frame_count_ = 0;
         last_record_gnss_time = curr_gnss_time;
     }
-    if (last_gnss_time_ != -1 && curr_gnss_time - last_gnss_time_ > 0.2) {
+    if (last_gnss_time_ != -1 && curr_gnss_time - last_gnss_time_ > 2) {
         LOG_ERROR("gnss data lost");
         LOG_ERROR("current_gnss_time:{}, last_gnss_time:{}", curr_gnss_time, last_gnss_time_);
     }

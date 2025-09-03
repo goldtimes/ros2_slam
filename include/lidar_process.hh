@@ -16,6 +16,7 @@ enum class LIDAR_MODE {
     RS16,        // rs16
     AIRY,        // airylidar
     VANJEE,      // vanjee
+    VELODYNE16,  // velodyne16
     VELODYNE32,  // velodyne32
     OUSTER64,    // ouster64
 };
@@ -37,6 +38,7 @@ class LidarProcess {
     bool rs16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
     bool airy_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
     bool vanjee_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
+    bool velodyne16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
     bool velodyne32_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
     bool ouster64_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud);
     // mid360的livox消息处理

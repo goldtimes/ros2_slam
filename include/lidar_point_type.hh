@@ -30,9 +30,8 @@ struct VelodynePointXYZIRT {
     PCL_ADD_POINT4D
 
     PCL_ADD_INTENSITY;
-    std::uint16_t ring;
     float time;
-
+    std::uint16_t ring;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
@@ -89,8 +88,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(slam::LsPointXYZIRT,
                                       std::uint16_t, ring, ring)(double, timestamp, timestamp));
 POINT_CLOUD_REGISTER_POINT_STRUCT(slam::VelodynePointXYZIRT,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity,
-                                                                          intensity)(std::uint16_t, ring,
-                                                                                     ring)(float, time, time));
+                                                                          intensity)(float, time, time)(std::uint16_t,
+                                                                                                        ring, ring));
 // mid360雷达
 POINT_CLOUD_REGISTER_POINT_STRUCT(slam::LivoxMid360PointXYZITLT,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(

@@ -12,7 +12,11 @@ LidarProcess::LidarProcess(const std::string& lidar_type, int use_livox_driver, 
       point_filter_num_(point_filter_num),
       keep_angle_ranges_(keep_angle_ranges),
       remove_ranges_(remove_ranges) {
+    LOG_INFO("Lidar Process Init: ");
+    LOG_INFO("  lidar type: {}, use_livox_driver: {}, min_range: {}, max_range: {}, point_filter_num: {}", lidar_type_,
+             use_livox_driver_, min_range_, max_range_, point_filter_num_);
     if (lidar_type_ == "mid360") {
+        // LOG_INFO("lidar type mid360");
         lidar_mode_ = LIDAR_MODE::MID360;
     } else if (lidar_type_ == "avia") {
         lidar_mode_ = LIDAR_MODE::AVIA;
@@ -24,17 +28,17 @@ LidarProcess::LidarProcess(const std::string& lidar_type, int use_livox_driver, 
         lidar_mode_ = LIDAR_MODE::AIRY;
     } else if (lidar_type_ == "vanjee") {
         lidar_mode_ = LIDAR_MODE::VANJEE;
+    } else if (lidar_type == "velodyne16") {
+        // LOG_INFO("lidar type velodyne16");
+        lidar_mode_ = LIDAR_MODE::VELODYNE16;
     } else if (lidar_type_ == "velodyne32") {
         lidar_mode_ = LIDAR_MODE::VELODYNE32;
     } else if (lidar_type_ == "ouster64") {
         lidar_mode_ = LIDAR_MODE::OUSTER64;
     } else {
         lidar_mode_ = LIDAR_MODE::MID360;
-        LOG_WARN("lidar type {} not support, use mid360 instead", lidar_type_);
+        LOG_INFO("lidar type {} not support, use mid360 instead", lidar_type_);
     }
-    LOG_INFO("Lidar Process Init: ");
-    LOG_INFO("  lidar type: {}, use_livox_driver: {}, min_range: {}, max_range: {}, point_filter_num: {}", lidar_type_,
-             use_livox_driver_, min_range_, max_range_, point_filter_num_);
     // 保存一对一对的角度
     if (!keep_angle_ranges.empty()) {
         for (int i = 0; i < keep_angle_ranges.size(); i += 2) {
@@ -54,6 +58,7 @@ LidarProcess::LidarProcess(const std::string& lidar_type, int use_livox_driver, 
 bool LidarProcess::Process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
     switch (lidar_mode_) {
         case LIDAR_MODE::MID360:
+            LOG_INFO("mid360_process");
             return mid360_process(cloud_msg, out_cloud);
         case LIDAR_MODE::AVIA:
             return avia_process(cloud_msg, out_cloud);
@@ -65,6 +70,8 @@ bool LidarProcess::Process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, 
             return airy_process(cloud_msg, out_cloud);
         case LIDAR_MODE::VANJEE:
             return vanjee_process(cloud_msg, out_cloud);
+        case LIDAR_MODE::VELODYNE16:
+            return velodyne16_process(cloud_msg, out_cloud);
         case LIDAR_MODE::VELODYNE32:
             return velodyne32_process(cloud_msg, out_cloud);
         case LIDAR_MODE::OUSTER64:
@@ -177,6 +184,66 @@ bool LidarProcess::airy_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_
 }
 bool LidarProcess::vanjee_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
     return false;
+}
+bool LidarProcess::velodyne16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
+    // LOG_INFO("velodyne16_process");
+    // 创建点云
+    pcl::PointCloud<slam::VelodynePointXYZIRT>::Ptr cloud(new pcl::PointCloud<slam::VelodynePointXYZIRT>);
+    // 转换点云
+    pcl::fromROSMsg(*cloud_msg, *cloud);
+    int points_num = cloud->points.size();
+    double cloud_start_time = cloud_msg->header.stamp.toSec();
+    // LOG_INFO("cloud_start_time:{}", cloud_start_time);
+    // 角度过滤点云，距离过滤点云，以及降采样
+    PointCloudPtr filtered_cloud(new PointCloudType);
+    filtered_cloud->reserve(points_num);
+    int valid_num = 0;
+    for (int i = 0; i < points_num; ++i) {
+        valid_num++;
+        if (valid_num % point_filter_num_ != 0) {
+            continue;
+        }
+        auto pt = cloud->points[i];
+        // 过滤nan点
+        if (std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z)) {
+            continue;
+        }
+
+        double dist = std::sqrt(pt.x * pt.x + pt.y * pt.y + pt.z * pt.z);
+        // 范围过滤
+        if (dist < min_range_ * min_range_ || dist > max_range_ * max_range_) {
+            continue;
+        }
+
+        // 角度过滤
+        // double point_angle = std::atan2(pt.y, pt.x);
+        // for (const auto& angle_range : keep_angles) {
+        //     const double start_rad = normalizedAngle(angle_range.first) * M_PI / 180.0;
+        //     const double end_rad = normalizedAngle(angle_range.second) * M_PI / 180.0;
+        //     bool keep_point = false;
+        //     if (start_rad <= end_rad) {
+        //         // -135°-135°
+        //         keep_point = (point_angle >= start_rad && point_angle <= end_rad);
+        //     } else {
+        //         // case (e.g., 135° to -135°)
+        //         keep_point = (point_angle >= start_rad || point_angle <= end_rad);
+        //     }
+        //     if (keep_point) {
+        PointType p;
+        p.x = pt.x;
+        p.y = pt.y;
+        p.z = pt.z;
+        p.intensity = pt.intensity;
+        // ns -> s
+        p.time = cloud_start_time + cloud->points[i].time;
+        // std::cout << std::fixed << "pt time:" << p.time << std::endl;
+        p.ring = pt.ring;
+        filtered_cloud->push_back(p);
+        // }
+        // }
+    };
+    out_cloud = filtered_cloud;
+    return true;
 }
 bool LidarProcess::velodyne32_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
     return false;
