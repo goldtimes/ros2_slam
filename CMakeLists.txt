@@ -82,6 +82,17 @@ include_directories(
  ${spdlog_INCLUDE_DIRS}
 )
 
+# geo_graphic库
+file(GLOB GEO_GRAPHIC_SRC 
+    thirdparty/geo_graphic/*.cpp
+)
+file(GLOB GEO_GRAPHIC_HEAD
+    thirdparty/geo_graphic/*.h
+    thirdparty/geo_graphic/*.hpp
+)
+add_library(geo_graphic ${GEO_GRAPHIC_SRC} ${GEO_GRAPHIC_HEAD})
+
+
 list(APPEND thirdparty_libs
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
@@ -91,6 +102,7 @@ list(APPEND thirdparty_libs
     gtsam
     yaml-cpp
     spdlog::spdlog
+    geo_graphic
 )
 
 add_executable(slam_node 
@@ -112,6 +124,7 @@ add_executable(slam_node
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
     src/encoder_process.cc
+    src/gnss_process.cc
 )
 
 target_link_libraries(slam_node 

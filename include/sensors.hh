@@ -43,10 +43,12 @@ using EncoderPtr = std::shared_ptr<Encoder>;
 // GPS数据
 struct GNSS {
     double timestamp_ = 0.0;
-    V3D lla = V3D::Zero();
-
+    V3D enu_ = V3D::Zero();
+    double yaw_ = 0.0;
+    bool heading_valid_ = false;
     GNSS() = default;
-    GNSS(double timestamp, const V3D& lla) : timestamp_(timestamp), lla(lla) {
+    GNSS(double timestamp, const V3D& enu, double yaw = 0.0, bool heading_valid = false)
+        : timestamp_(timestamp), enu_(enu), yaw_(yaw), heading_valid_(heading_valid) {
     }
 };
 }  // namespace slam

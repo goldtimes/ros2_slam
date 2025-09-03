@@ -13,7 +13,9 @@ ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> syst
 
     has_encoder_ = system_ptr_->GetSystemConfig()->has_encoder_;
     has_gnss_ = system_ptr_->GetSystemConfig()->has_gnss_;
-
+    if (has_gnss_) {
+        gnss_process_ = std::make_shared<GnssProcess>();
+    }
     InitPub();
     InitSub();
     InitService();
@@ -217,9 +219,16 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
     gnss_frame_count_++;
     V3D lla;
     lla << gnss_msg->latitude, gnss_msg->longitude, gnss_msg->altitude;
-    GNSS gnss(curr_gnss_time, lla);
-    // push to system
-    system_ptr_->AddGNSS(gnss);
+    if (!gnss_init_) {
+        gnss_process_->InitOrigin(lla);
+        gnss_init_ = true;
+    } else {
+        gnss_process_->UpdateXYZYaw(lla);
+        V3D enu = gnss_process_->enu_;
+        GNSS gnss(curr_gnss_time, enu);
+        // pub gnss path
+        system_ptr_->AddGNSS(gnss);
+    }
 }
 
 void ROS1Manager::Visualize() {

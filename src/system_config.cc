@@ -6,7 +6,6 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
     try {
         YAML::Node config = YAML::LoadFile(config_path);
         // 加载雷达相关的配置
-        lidar_config_.lidar_topic = config["lidar"]["lidar_topic"].as<std::string>();
         lidar_config_.lidar_type = config["lidar"]["lidar_type"].as<std::string>();
         lidar_config_.is_tms_head = config["lidar"]["is_tms_head"].as<bool>();
         lidar_config_.use_livox_driver = config["lidar"]["use_livox_driver"].as<int>();
@@ -16,6 +15,14 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         lidar_config_.lidar_position_noise_std = config["lidar"]["lidar_position_noise_std"].as<double>();
         lidar_config_.lidar_rotation_noise_std = config["lidar"]["lidar_rotation_noise_std"].as<double>();
         lidar_config_.lidar_noise_std = config["lidar"]["lidar_noise_std"].as<double>();
+        lidar_config_.use_multi_lidar = config["lidar"]["use_multi_lidar"].as<int>();
+        // 雷达数量加载对应的top
+        if (lidar_config_.use_multi_lidar > 1) {
+            lidar_config_.lidar_left_topic = config["lidar"]["lidar_left_topic"].as<std::string>();
+            lidar_config_.lidar_right_topic = config["lidar"]["lidar_right_topic"].as<std::string>();
+        } else {
+            lidar_config_.lidar_topic = config["lidar"]["lidar_topic"].as<std::string>();
+        }
         lidar_config_.print();
         // 加载IMU相关的配置
         imu_config_.imu_topic = config["imu"]["imu_topic"].as<std::string>();
@@ -35,6 +42,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         gnss_config_.gnss_topic = config["gnss"]["gnss_topic"].as<std::string>();
         gnss_config_.gnss_position_noise_std = config["gnss"]["gnss_position_noise_std"].as<double>();
         gnss_config_.gnss_rotation_noise_std = config["gnss"]["gnss_rotation_noise_std"].as<double>();
+        // 双天线的方案
         gnss_config_.has_orientation = config["gnss"]["has_orientation"].as<bool>();
         gnss_config_.print();
 
@@ -56,26 +64,17 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         LOG_INFO("use_voxel: {}", use_voxel_);
         LOG_INFO("use_ndt: {}", use_ndt_);
         LOG_INFO("GRAVIRT: {}", GRAVIRT_);
-        // 加载外参文件
-        auto lidar2robot_vec = config["T_lidar2robot"].as<std::vector<double>>();
-        Eigen::Matrix4d T_lidar2robot =
-            Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(lidar2robot_vec.data());
-        auto lidar2imu_vec = config["T_lidar2imu"].as<std::vector<double>>();
-        Eigen::Matrix4d T_lidar2imu = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(lidar2imu_vec.data());
-        auto imu2enc_vec = config["T_imu2encoder"].as<std::vector<double>>();
-        Eigen::Matrix4d T_imu2enc = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(imu2enc_vec.data());
-        // 先转换成四元素的目的是防止旋转矩阵不是正交的
-        lidar2imu_ = PoseTrans(Eigen::Quaterniond(T_lidar2imu.block<3, 3>(0, 0)).toRotationMatrix(),
-                               T_lidar2imu.block<3, 1>(0, 3));
-        imu2encoder_ =
-            PoseTrans(Eigen::Quaterniond(T_imu2enc.block<3, 3>(0, 0)).toRotationMatrix(), T_imu2enc.block<3, 1>(0, 3));
-        lidar2robot_ = PoseTrans(Eigen::Quaterniond(T_lidar2robot.block<3, 3>(0, 0)).toRotationMatrix(),
-                                 T_lidar2robot.block<3, 1>(0, 3));
-        imu2encoder_ = lidar2robot_ * lidar2imu_.inverse();
+        // 加载雷达到机器人的外参文件
 
-        print_matrix(T_lidar2imu, std::string("T_lidar2imu"));
-        print_matrix(T_lidar2robot, std::string("T_lidar2robot"));
-        print_matrix(imu2encoder_.matrix(), std::string("T_imu2enc"));
+        if (lidar_config_.use_multi_lidar > 1) {
+            LoadTransformAndPrint(config, "T_Rlidar2imu");
+            LoadTransformAndPrint(config, "T_Llidar2imu");
+        } else {
+            LoadTransformAndPrint(config, "T_lidar2imu");
+        }
+
+        LoadTransformAndPrint(config, "T_imu2encoder");
+        LoadTransformAndPrint(config, "T_lidar2robot");
 
         frontend_config_.keep_angle_ranges = config["front_end"]["keep_angle_ranges"].as<std::vector<double>>();
         frontend_config_.remove_ranges = config["front_end"]["remove_ranges"].as<std::vector<double>>();
@@ -154,4 +153,17 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
     }
     return true;
 }
+
+PoseTrans SystemConfig::LoadTransformAndPrint(const YAML::Node& node, const std::string& name) {
+    std::vector<double> values = node[name].as<std::vector<double>>();
+    // Llidar2imu_vec = config["T_Llidat2imu"].as<std::vector<double>>();
+    Eigen::Matrix4d eigen_tf = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(values.data());
+    // 先转换成四元素的目的是防止旋转矩阵不是正交的
+    PoseTrans transform =
+        PoseTrans(Eigen::Quaterniond(eigen_tf.block<3, 3>(0, 0)).toRotationMatrix(), eigen_tf.block<3, 1>(0, 3));
+
+    print_matrix(eigen_tf, name);
+    return transform;
+}
+
 }  // namespace slam

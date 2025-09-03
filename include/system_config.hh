@@ -17,6 +17,9 @@ struct LidarConfig {
     double lidar_rotation_noise_std;
     bool is_tms_head;
     double lidar_noise_std;
+    int use_multi_lidar;
+    std::string lidar_left_topic;
+    std::string lidar_right_topic;
     // 重载print函数
     void print() const {
         LOG_INFO("LidarConfig:");
@@ -30,6 +33,11 @@ struct LidarConfig {
         LOG_INFO("  lidar_position_noise_std: {:03.3f}", lidar_position_noise_std);
         LOG_INFO("  lidar_rotation_noise_std: {:03.3f}", lidar_rotation_noise_std);
         LOG_INFO("  lidar_noise_std: {:03.3f}", lidar_noise_std);
+        LOG_INFO("  use_multi_lidar: {}", use_multi_lidar);
+        if (use_multi_lidar > 1) {
+            LOG_INFO("  lidar_left_topic: {}", lidar_left_topic);
+            LOG_INFO("  lidar_right_topic: {}", lidar_right_topic);
+        }
     }
 };
 struct IMUConfig {
@@ -184,6 +192,8 @@ class SystemConfig {
 
     bool LoadAndPrintConfig(const std::string& config_path);
 
+    PoseTrans LoadTransformAndPrint(const YAML::Node& node, const std::string& name);
+
    public:
     LidarConfig lidar_config_;
     IMUConfig imu_config_;
@@ -204,5 +214,7 @@ class SystemConfig {
     PoseTrans lidar2imu_;
     PoseTrans imu2encoder_;
     PoseTrans lidar2robot_;
+    PoseTrans Rlidar2imu_;
+    PoseTrans Llidar2imu_;
 };
 }  // namespace slam

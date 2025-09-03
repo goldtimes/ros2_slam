@@ -12,8 +12,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <thread>
 #include "commons.hh"
+#include "gnss_process.hh"
 #include "logger.hh"
-#include "ros/publisher.h"
 
 namespace slam {
 
@@ -110,5 +110,7 @@ class ROS1Manager {
 
     double last_visualize_time_ = -1;
     std::thread visualize_thread_;
+    std::shared_ptr<GnssProcess> gnss_process_;
+    bool gnss_init_ = false;
 };
 }  // namespace slam
