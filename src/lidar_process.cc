@@ -215,27 +215,14 @@ bool LidarProcess::velodyne16_process(const sensor_msgs::PointCloud2::ConstPtr& 
             continue;
         }
 
-        // 角度过滤
-        // double point_angle = std::atan2(pt.y, pt.x);
-        // for (const auto& angle_range : keep_angles) {
-        //     const double start_rad = normalizedAngle(angle_range.first) * M_PI / 180.0;
-        //     const double end_rad = normalizedAngle(angle_range.second) * M_PI / 180.0;
-        //     bool keep_point = false;
-        //     if (start_rad <= end_rad) {
-        //         // -135°-135°
-        //         keep_point = (point_angle >= start_rad && point_angle <= end_rad);
-        //     } else {
-        //         // case (e.g., 135° to -135°)
-        //         keep_point = (point_angle >= start_rad || point_angle <= end_rad);
-        //     }
-        //     if (keep_point) {
         PointType p;
         p.x = pt.x;
         p.y = pt.y;
         p.z = pt.z;
         p.intensity = pt.intensity;
-        // ns -> s
-        p.time = cloud_start_time + cloud->points[i].time;
+        // std::cout << std::fixed << "point time:" << cloud->points[i].time << std::endl;
+
+        p.time = cloud_start_time + cloud->points[i].time / 1e6;
         // std::cout << std::fixed << "pt time:" << p.time << std::endl;
         p.ring = pt.ring;
         filtered_cloud->push_back(p);

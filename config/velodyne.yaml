@@ -1,0 +1,113 @@
+# d02的配置文件
+lidar: 
+  lidar_type: "velodyne16" # rs16, ls16, tw, vanjee, airy
+  use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
+  lidar_topic: "/points_raw"
+  point_filter_num: 6 # 点云滤波次数
+  lidar_min_range: 2 # 雷达最小范围
+  lidar_max_range: 20 # 雷达最大范围
+  lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
+  lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
+  is_tms_head: true # 雷达的时间戳是否为帧首
+  lidar_noise_std: 0.001 # 雷达点云噪声标准差
+  use_multi_lidar: 1
+  lidar_left_topic: ""
+  lidar_right_topic: ""
+
+imu:
+  imu_topic: "/imu_raw"
+  imu_scale: 1 # livoximu的输出需要缩放
+  acc_noise_std: 0.01 # 加速度噪声标准差
+  gyro_noise_std: 0.01 #螺仪噪声标准差
+  acc_bias_noise_std: 0.0001 # 加速度 bias 噪声标准差
+  gyro_bias_noise_std: 0.0001 # 陀螺仪 bias 噪声标准差
+
+encoder:
+  encoder_topic: "/odom"
+  encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
+  encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
+
+gnss:
+  gnss_topic: "/gnss"
+  gnss_position_noise_std: 1e-3 #  GNSS 位置噪声标准差
+  gnss_rotation_noise_std: 1e-3 #  GNSS 方向噪声标准差
+  has_orientation: false
+
+# robot_link和encoder是重合的
+# lidar->robot的外参，雷达绕y轴旋转了25°
+T_lidar2robot: [1.0000000,  0.0000000,  0.0000000, 0.0000000, 
+                0.0000000,  1.0000000,  0.0000000, 0.0000000, 
+                0.0000000,  0.0000000,  1.0000000, 0.0000000,
+                0.0000000,  0.0000000,  0.0000000, 1.0000000]
+# lidar->imu的外参
+T_lidar2imu: [1.000000,  0.0000000, 0.0000000, 0.0000000,
+              0.0000000, 1.0000000, 0.0000000, 0.0000000,
+              0.0000000, 0.0000000, 1.0000000, 0.2800000, 
+              0.0000000, 0.0000000, 0.0000000, 1.0000000]
+# imu->encoder的外参
+T_imu2encoder: [1.000000,   0.0000000,  0.0000000, 0.0000000,
+                0.0000000,  1.0000000,  0.0000000, 0.0000000,
+                0.0000000,  0.0000000,   1.000000, 0.0000000,
+                0.0000000,  0.0000000,  0.0000000, 1.0000000]
+
+gravity: 9.81 # 重力加速度
+
+use_p2plane: true
+use_voxel: false
+use_ndt: false
+
+has_encoder: false
+has_gnss: false
+has_camera: false
+
+front_end:
+  # 里程计前端的通用参数
+  calib_lidar2imu: false # 是否标定外参
+  keep_angle_ranges: [-180, 180] # 保留的角度范围
+  remove_ranges: [-0.15, 0.15, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
+  max_iteration: 4 # 最大迭代次数
+
+  use_p2plane: 
+    keyframe_size: 15
+    p2plane_thresh: 0.01 # 平面阈值
+    keyframe_distance: 0.5 # 关键帧距离
+    keyframe_angle_distance: 0.2 # 关键帧角度 rads
+    use_angle_keyframe: false  # 是否使用角度关键帧
+    downsample: 0.2 # 降采样
+    map_resolution: 0.3 # 地图分辨率
+    cube_len: 300 # 立方体长度
+    det_range: 60 # 检测范围
+    move_thresh: 1.5 # 移动阈值
+
+  use_voxel_map: 
+    voxle_size: 0.5
+    max_layer: 2 #  # 4 layer, 0, 1, 2, 3
+    layer_point_size: [5, 5] # 每层开始估计平面的阈值
+    plannar_threshold: 0.01 # 平面阈值
+    max_points_size: 100 # 每个voxel最大的点云数量
+    max_cov_points_size: 100 # 每个voxel最大的协方差点云数量
+    max_capacity: 100000 # 整体的voxel个数
+    update_omp: false # 更新voxel地图时使用omp加速
+    sigma_num: 3
+
+    pub_voxel_map: true # 发布voxel地图
+    pub_max_voxel_layer: 1 # 发布层数
+    pub_point_cloud: true # 发布点云
+    dense_map_enable: false # 是否发布稠密地图
+    pub_point_cloud_skip: 5             # publish one points per five points
+    ranging_cov: 0.04 #点云范围噪声
+    angle_cov: 0.1 #点云角度噪声
+
+
+  use_ndt: # 增量的ndt配准算法
+    voxel_size: 1.0
+    near_search: true # 默认的临近搜索的6
+    max_capacity: 100000
+    min_effective_pts: 10
+    min_pts_in_voxel: 5
+    max_pts_in_voxel: 50
+    res_outlier_thresh: 5.0
+    eps: 0.001
+
+
+
