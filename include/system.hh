@@ -74,6 +74,7 @@ class System {
     //     return front_end_ptr_->GetVoxelMap();
     // }
     const M33D GetCov() const;
+    const M3D GetGnssHeading() const;
 
    public:
     std::condition_variable m_buff_cv_;

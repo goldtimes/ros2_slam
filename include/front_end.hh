@@ -56,6 +56,8 @@ class FrontEnd {
 
     bool InitializeImu(std::deque<IMU>& imus);
 
+    const M3D GetGnssHeading() const;
+
    private:
     bool GetMeasureGroup(MeasureGroup& measures);
     void AllocateMemory();

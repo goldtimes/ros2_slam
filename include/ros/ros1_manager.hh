@@ -14,6 +14,7 @@
 #include "commons.hh"
 #include "gnss_process.hh"
 #include "logger.hh"
+#include "sensor_msgs/NavSatStatus.h"
 
 namespace slam {
 
@@ -76,6 +77,8 @@ class ROS1Manager {
     ros::Publisher cloud_lidar_pub_;
     ros::Publisher cloud_robot_pub_;
     ros::Publisher cloud_odom_pub_;
+
+    ros::Publisher gnss_odom_pub_;
 
     ros::Publisher lio_path_pub_;
     ros::Publisher encoder_path_pub_;

@@ -184,6 +184,25 @@ void Propogator::PropogateState(MeasureGroup& meas) {
     last_propagate_time_ = propogate_end_time;
     // // 去畸变
     // UndistortLidar(meas, out_cloud);
+    // 这里对gnss的heading初始化
+    if (system_config_ptr_->has_gnss_ && !gnss_heading_init) {
+        // 这里对gnss的heading初始化
+        if (!meas.gnsss.empty()) {
+            V3D gnss_pose = meas.gnsss.back().enu_;
+            gnss_pose[2] = 0.0;
+            if (gnss_pose.norm() > 5.0) {
+                auto current_state = kf_->GetState();
+                Eigen::Vector3d tmp_vec(current_state.pos.x(), current_state.pos.y(), 0.0);
+                Gnss_heading_ = Eigen::Quaterniond::FromTwoVectors(gnss_pose, tmp_vec).toRotationMatrix();
+                // SO3 so3(Gnss_heading_);
+                // V3D euler = SO3ToEuler(so3);
+                // ROS_WARN_STREAM("INITIAL GNSS HEADING " << euler.transpose());
+                LOG_INFO("GNSS HEADING:{}", Gnss_heading_.eulerAngles(2, 1, 0).transpose());
+                current_state.rot_R_IG = Gnss_heading_;
+                gnss_heading_init = true;
+            }
+        }
+    }
 }
 
 // void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {

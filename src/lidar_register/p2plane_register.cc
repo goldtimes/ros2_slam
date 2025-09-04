@@ -27,6 +27,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     LOG_INFO("map resolution: {}, cube_len:{}, det_range:{}, move_thresh:{}", map_resolution, cube_len, det_range,
              move_thresh);
     // 设置雷达损失函数
+    kf_ptr_->SetMaxIterNum(system_config_->frontend_config_.max_iteration);
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
     // 设置迭代停止的条件
@@ -178,7 +179,11 @@ void P2PlaneRegister::IncreMap() {
 bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // filter cloud
     current_lidar_ = cloud_lidar;
+    auto t1 = std::chrono::high_resolution_clock::now();
     TrimCloud();
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto trim_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    LOG_INFO("trim time:{}", trim_time * 1e3);
     kf_ptr_->UpdateLidar();
     if (updated_failed_num_ > 3) {
         return false;

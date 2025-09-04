@@ -216,5 +216,6 @@ class SystemConfig {
     PoseTrans lidar2robot_;
     PoseTrans Rlidar2imu_;
     PoseTrans Llidar2imu_;
+    PoseTrans gnss2imu_;
 };
 }  // namespace slam

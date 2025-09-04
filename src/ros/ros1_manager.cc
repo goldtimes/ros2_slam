@@ -51,6 +51,7 @@ void ROS1Manager::InitPub() {
     }
     if (has_gnss_) {
         gnss_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/gnss_path", 10);
+        gnss_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/gnss_odom", 10);
     }
 }
 
@@ -203,6 +204,7 @@ void ROS1Manager::EncoderCallback(const nav_msgs::Odometry::ConstPtr& encoder_ms
 }
 // void AddLidar(const Lidar& lidar);
 void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg) {
+    // LOG_INFO("gnss");
     static double last_record_gnss_time = gnss_msg->header.stamp.toSec();
     double curr_gnss_time = gnss_msg->header.stamp.toSec();
     if (curr_gnss_time - last_record_gnss_time >= 5.0) {
@@ -217,6 +219,12 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
     }
     last_gnss_time_ = curr_gnss_time;
     gnss_frame_count_++;
+
+    // 不是固定解，返回
+    // if (gnss_msg->status.status != sensor_msgs::NavSatStatus::STATUS_FIX) {
+    //     return;
+    // }
+
     V3D lla;
     lla << gnss_msg->latitude, gnss_msg->longitude, gnss_msg->altitude;
     if (!gnss_init_) {
@@ -225,9 +233,33 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
     } else {
         gnss_process_->UpdateXYZYaw(lla);
         V3D enu = gnss_process_->enu_;
-        GNSS gnss(curr_gnss_time, enu);
+        V3D pos_cov =
+            V3D(gnss_msg->position_covariance[0], gnss_msg->position_covariance[4], gnss_msg->position_covariance[8]);
+        GNSS gnss(curr_gnss_time, enu, pos_cov);
         // pub gnss path
         system_ptr_->AddGNSS(gnss);
+        // 将gnss转到imu坐标系
+        V3D gnss_in_imu = system_ptr_->GetSystemConfig()->gnss2imu_ * enu;
+        // 发布gnss odom
+        nav_msgs::Odometry gnss_odom;
+        gnss_odom.header.stamp = ros::Time(curr_gnss_time);
+        gnss_odom.header.frame_id = "odom";
+        gnss_odom.child_frame_id = "gnss";
+        gnss_odom.pose.pose.position.x = gnss_in_imu(0);
+        gnss_odom.pose.pose.position.y = gnss_in_imu(1);
+        gnss_odom.pose.pose.position.z = gnss_in_imu(2);
+        Eigen::Quaterniond q(system_ptr_->GetCurentNavState().rot);
+        q.normalize();
+        gnss_odom.pose.pose.orientation.x = q.x();
+        gnss_odom.pose.pose.orientation.y = q.y();
+        gnss_odom.pose.pose.orientation.z = q.z();
+        gnss_odom.pose.pose.orientation.w = q.w();
+        if (gnss_odom_pub_.getNumSubscribers() != 0) {
+            gnss_odom_pub_.publish(gnss_odom);
+        }
+        enu = system_ptr_->GetGnssHeading() * enu;
+        PoseTrans T_WG(M3D::Identity(), enu);
+        PublishPath(gnss_path_pub_, gnss_path_, "odom", curr_gnss_time, T_WG);
     }
 }
 

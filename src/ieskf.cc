@@ -45,7 +45,11 @@ void IESKF::UpdateLidar() {
     // 高斯牛顿的求解,H矩阵和b矩阵
     for (size_t i = 0; i < max_iter_num_; i++) {
         // 构建点面的残差
+        auto t1 = std::chrono::high_resolution_clock::now();
         lidar_loss_func_(predict_x, shared_state);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+        LOG_INFO("lidar loss time:{}", time * 1e3);
         if (shared_state.valid == false) {
             break;
         }

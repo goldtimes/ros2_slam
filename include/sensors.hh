@@ -46,9 +46,11 @@ struct GNSS {
     V3D enu_ = V3D::Zero();
     double yaw_ = 0.0;
     bool heading_valid_ = false;
+    V3D pos_cov_ = V3D::Zero();
     GNSS() = default;
-    GNSS(double timestamp, const V3D& enu, double yaw = 0.0, bool heading_valid = false)
-        : timestamp_(timestamp), enu_(enu), yaw_(yaw), heading_valid_(heading_valid) {
+    GNSS(double timestamp, const V3D& enu, const V3D& pos_cov = V3D::Zero(), double yaw = 0.0,
+         bool heading_valid = false)
+        : timestamp_(timestamp), enu_(enu), pos_cov_(pos_cov), yaw_(yaw), heading_valid_(heading_valid) {
     }
 };
 }  // namespace slam

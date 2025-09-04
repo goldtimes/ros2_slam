@@ -270,6 +270,10 @@ State FrontEnd::GetCurentNavState() {
     return kf_ptr_->GetState();
 }
 
+const M3D FrontEnd::GetGnssHeading() const {
+    return propogator_ptr_->GetGnssHeading();
+}
+
 // lidar坐标系原始数据
 const PointCloudPtr FrontEnd::GetCloudInLidarLink() const {
     return undistort_cloud_lidar_;

@@ -67,15 +67,17 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         // 加载雷达到机器人的外参文件
 
         if (lidar_config_.use_multi_lidar > 1) {
-            LoadTransformAndPrint(config, "T_Rlidar2imu");
-            LoadTransformAndPrint(config, "T_Llidar2imu");
+            Rlidar2imu_ = LoadTransformAndPrint(config, "T_Rlidar2imu");
+            Llidar2imu_ = LoadTransformAndPrint(config, "T_Llidar2imu");
         } else {
-            LoadTransformAndPrint(config, "T_lidar2imu");
+            lidar2imu_ = LoadTransformAndPrint(config, "T_lidar2imu");
         }
 
-        LoadTransformAndPrint(config, "T_imu2encoder");
-        LoadTransformAndPrint(config, "T_lidar2robot");
-
+        imu2encoder_ = LoadTransformAndPrint(config, "T_imu2encoder");
+        lidar2robot_ = LoadTransformAndPrint(config, "T_lidar2robot");
+        if (has_gnss_) {
+            gnss2imu_ = LoadTransformAndPrint(config, "T_gnss2imu");
+        }
         frontend_config_.keep_angle_ranges = config["front_end"]["keep_angle_ranges"].as<std::vector<double>>();
         frontend_config_.remove_ranges = config["front_end"]["remove_ranges"].as<std::vector<double>>();
         frontend_config_.calib_lidar2imu = config["front_end"]["calib_lidar2imu"].as<bool>();

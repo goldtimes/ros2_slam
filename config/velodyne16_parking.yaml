@@ -9,7 +9,7 @@ lidar:
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
   is_tms_head: true # 雷达的时间戳是否为帧首
-  lidar_noise_std: 0.1 # 雷达点云噪声标准差
+  lidar_noise_std: 0.01 # 雷达点云噪声标准差
   use_multi_lidar: 1
   lidar_left_topic: ""
   lidar_right_topic: ""
@@ -49,6 +49,11 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
                 0.0000000,  1.0000000,  0.0000000, 0.0230,
                 -0.4183246, 0.0000000,  0.9082976, 0.3230,
                 0.0000000,  0.0000000,  0.0000000, 1.0000]
+                
+T_gnss2imu: [1.0000000, 0.0000000, 0.0000000, 0.0000000,
+             0.0000000, 1.0000000, 0.0000000, 0.0000000,
+             0.0000000, 0.0000000, 1.0000000, 0.0000000,
+             0.0000000, 0.0000000, 0.0000000, 1.0000000]
 
 gravity: 9.81 # 重力加速度
 
@@ -65,7 +70,7 @@ front_end:
   calib_lidar2imu: false # 是否标定外参
   keep_angle_ranges: [-180, 180] # 保留的角度范围
   remove_ranges: [0.05, -0.15, 0.2, -0.2] # [x, -x, y, -y] 前左右的正方向上
-  max_iteration: 10 # 最大迭代次数
+  max_iteration: 3 # 最大迭代次数
 
   use_p2plane: 
     keyframe_size: 15

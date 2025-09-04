@@ -46,6 +46,10 @@ class Propogator {
         T_EI_ = T_EI;
     }
 
+    const M3D GetGnssHeading() const {
+        return Gnss_heading_;
+    }
+
    private:
     // 静态初始化器
     std::shared_ptr<StaticImuInit> imu_init_ptr_;
@@ -79,5 +83,7 @@ class Propogator {
 
     bool use_wheel_ = false;
     bool use_gnss_ = false;
+    bool gnss_heading_init = false;
+    M3D Gnss_heading_;
 };
 }  // namespace slam
