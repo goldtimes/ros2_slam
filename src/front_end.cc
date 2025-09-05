@@ -38,6 +38,8 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
     }
 
     if (use_gnss_) {
+        kf_ptr_->SetGnssLossFunc(
+            [&](const GNSS& gnss, State& x, ESKFShareState& share_state) { UpdateGnss(gnss, x, share_state); });
     }
 
     // propogator
@@ -106,8 +108,8 @@ void FrontEnd::Run() {
                 evaluate_and_call([&]() { propogator_ptr_->PropogateState(meas); }, "propogate_and_undistort", false);
                 PoseTrans end_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
                 PoseTrans state_delta_pose = end_pose * start_pose.inverse();
-                LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
-                         state_delta_pose.RPY().norm());
+                // LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
+                //          state_delta_pose.RPY().norm());
                 // 对轮速计进行积分，对首尾进行插值
                 if (use_encoder_) {
                     encoder_processor_ptr_->AddEncoder(measure_group_.encoders);
@@ -115,8 +117,8 @@ void FrontEnd::Run() {
                     auto res = encoder_processor_ptr_->Propagation(encoder_delta_pose, measure_group_.lidar_beg_time,
                                                                    measure_group_.lidar_end_time);
                     if (res) {
-                        LOG_INFO("encoder_delta_pose t_norm: {}, rotation_norm:{}", encoder_delta_pose.t.norm(),
-                                 encoder_delta_pose.RPY().norm());
+                        // LOG_INFO("encoder_delta_pose t_norm: {}, rotation_norm:{}", encoder_delta_pose.t.norm(),
+                        //          encoder_delta_pose.RPY().norm());
                     }
                     // 更新TWE
                     T_WE = T_WE * encoder_delta_pose;
@@ -151,9 +153,9 @@ void FrontEnd::Run() {
                         lidar_register_ptr_->UpdateMap();
                         // LOG_INFO("after state: \n");
                         // kf_ptr_->GetState().Print();
-                        auto t3 = std::chrono::high_resolution_clock::now();
-                        auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2).count();
-                        LOG_INFO("Update Map used time: {} ms", total_time * 1e3);
+                        // auto t3 = std::chrono::high_resolution_clock::now();
+                        // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2).count();
+                        // LOG_INFO("Update Map used time: {} ms", total_time * 1e3);
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }
@@ -208,8 +210,9 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
-                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
+        // LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
+        //          measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
+        //          lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -264,6 +267,51 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         return false;
     }
     return true;
+}
+
+void FrontEnd::UpdateGnss(const GNSS& gnss, State& state, ESKFShareState& share_state) {
+    V3D z = V3D::Zero();
+    Eigen::Matrix<double, 3, 33> H = Eigen::Matrix<double, 3, 33>::Zero();
+    M3D R = M3D::Zero();
+    V3D gnss_pos_in_imu(gnss.enu_[0], gnss.enu_[1], gnss.enu_[2]);
+    // 计算残差
+    V3D res = state.rot_R_IG * gnss_pos_in_imu - state.pos;
+    LOG_INFO("gnss res:{}", res.transpose());
+    // 计算雅可比矩阵
+    Eigen::Matrix<double, 3, 33> J;
+    J.setZero();
+    // 对位置pos的雅可比矩阵
+    J.block<3, 3>(0, 0) = -M3D::Identity();
+    // 不对旋转求雅可比矩
+    // 对rot_R_IG
+    // 根据当前的协方差状态来判断是否要估计rot_R_IG
+    M3D crossmat;
+    crossmat << SKEW_SYM_MATRX(gnss_pos_in_imu);
+    auto P = kf_ptr_->GetCov();
+    if (sqrt(P(32, 32)) > 1e-4) {
+        J.block<3, 3>(30, 30) = -state.rot_R_IG * crossmat;
+    }
+    M3D gnss_cov = M3D::Zero();
+    gnss_cov(0, 0) = gnss.pos_cov_[0];
+    gnss_cov(1, 1) = gnss.pos_cov_[7];
+    gnss_cov(2, 2) = gnss.pos_cov_[14];
+    M3D info_matrix = gnss_cov.inverse();
+    // 方法2: 使用 SVD 伪逆（更稳定但更耗时）
+    // Eigen::JacobiSVD<Eigen::MatrixXd> svd(gnss_cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    // double tolerance = 1e-6;  // 奇异值阈值
+    // Eigen::MatrixXd info_matrix = svd.matrixV() *
+    //                               (svd.singularValues().array().abs() > tolerance)
+    //                                   .select(svd.singularValues().array().inverse(), 0)
+    //                                   .matrix()
+    //                                   .asDiagonal() *
+    //                               svd.matrixU().adjoint();
+
+    share_state.valid = true;
+    share_state.H33_.setZero();
+    share_state.b33_.setZero();
+    share_state.H33_ = J.transpose() * 10 * J;
+    share_state.b33_ = J.transpose() * 10 * res;
+    LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 
 State FrontEnd::GetCurentNavState() {

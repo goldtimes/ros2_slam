@@ -179,11 +179,11 @@ void P2PlaneRegister::IncreMap() {
 bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // filter cloud
     current_lidar_ = cloud_lidar;
-    auto t1 = std::chrono::high_resolution_clock::now();
+    // auto t1 = std::chrono::high_resolution_clock::now();
     TrimCloud();
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto trim_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
-    LOG_INFO("trim time:{}", trim_time * 1e3);
+    // auto t2 = std::chrono::high_resolution_clock::now();
+    // auto trim_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    // LOG_INFO("trim time:{}", trim_time * 1e3);
     kf_ptr_->UpdateLidar();
     if (updated_failed_num_ > 3) {
         return false;

@@ -235,11 +235,13 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
         V3D enu = gnss_process_->enu_;
         V3D pos_cov =
             V3D(gnss_msg->position_covariance[0], gnss_msg->position_covariance[4], gnss_msg->position_covariance[8]);
-        GNSS gnss(curr_gnss_time, enu, pos_cov);
         // pub gnss path
-        system_ptr_->AddGNSS(gnss);
         // 将gnss转到imu坐标系
         V3D gnss_in_imu = system_ptr_->GetSystemConfig()->gnss2imu_ * enu;
+        GNSS gnss(curr_gnss_time, gnss_in_imu, pos_cov);
+
+        system_ptr_->AddGNSS(gnss);
+
         // 发布gnss odom
         nav_msgs::Odometry gnss_odom;
         gnss_odom.header.stamp = ros::Time(curr_gnss_time);

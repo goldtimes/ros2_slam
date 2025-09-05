@@ -1,3 +1,12 @@
+/*
+ * @Author: lihang lihang@kilox.cn
+ * @Date: 2025-08-29 14:15:00
+ * @LastEditors: lihang lihang@kilox.cn
+ * @LastEditTime: 2025-09-05 14:02:41
+ * @FilePath: /fast_lvio_ws/src/open_slam/include/ieskf.hh
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
+ * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #pragma once
 #include "commons.hh"
 #include "logger.hh"
@@ -7,6 +16,7 @@ namespace slam {
 
 using lidar_loss_func = std::function<void(State&, ESKFShareState&)>;
 using wheel_loss_func = std::function<void(const Encoder&, const Input&, State&, ESKFShareState&)>;
+using gnss_loss_func = std::function<void(const GNSS&, State&, ESKFShareState&)>;
 using stop_func = std::function<bool(const V33D& dx)>;
 
 // 迭代卡尔曼滤波器
@@ -33,6 +43,10 @@ class IESKF {
         wheel_loss_func_ = loss_func;
     }
 
+    void SetGnssLossFunc(gnss_loss_func loss_func) {
+        gnss_loss_func_ = loss_func;
+    }
+
     void SetStopFunc(stop_func func) {
         stop_func_ = func;
     }
@@ -43,7 +57,7 @@ class IESKF {
 
     void UpdateEncoder(const Encoder& encoder, const Input& input);
 
-    void UpdateGnss();
+    void UpdateGnss(const GNSS& gnss);
 
     const State& GetState() const {
         return x_;
@@ -72,6 +86,8 @@ class IESKF {
     lidar_loss_func lidar_loss_func_;
     // 轮速计损失函数
     wheel_loss_func wheel_loss_func_;
+    // gnss损失函数
+    gnss_loss_func gnss_loss_func_;
     // 停止函数
     stop_func stop_func_;
     // 预测矩阵

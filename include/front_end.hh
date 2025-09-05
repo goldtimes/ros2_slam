@@ -62,6 +62,8 @@ class FrontEnd {
     bool GetMeasureGroup(MeasureGroup& measures);
     void AllocateMemory();
 
+    void UpdateGnss(const GNSS& gnss, State& state, ESKFShareState& share_state);
+
    private:
     System* system_;
     MeasureGroup measure_group_;

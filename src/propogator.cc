@@ -164,6 +164,26 @@ void Propogator::PropogateState(MeasureGroup& meas) {
                 }
             }
         }
+        if (use_gnss_ && !meas.gnsss.empty()) {
+            double gnss_time = meas.gnsss.front().timestamp_;
+            if (gnss_time < head.timestamp_) {
+                meas.gnsss.pop_front();
+            } else {
+                if (gnss_time < tail.timestamp_) {
+                    if (gnss_heading_init) {
+                        if (meas.gnsss.front().pos_cov_[0] < 200) {
+                            // 时间在两个imu之间
+                            LOG_INFO("update gnss");
+                            kf_->UpdateGnss(meas.gnsss.front());
+                            // 删除轮速计
+                            meas.gnsss.pop_front();
+                        }
+                    }
+                }
+            }
+            // kf_->UpdateGnss(meas.gnsss.front());
+            // meas.gnsss.pop_front();
+        }
         // LOG_INFO("after encoder update");
         // kf_->GetState().Print();
 
