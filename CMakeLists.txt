@@ -28,6 +28,7 @@ set(
     cv_bridge
     pcl_conversions
     message_generation
+    robot_manager
 )
 
 # catkin with ros
@@ -125,8 +126,9 @@ add_executable(slam_node
     src/lidar_register/inc_ndt.cc
     src/encoder_process.cc
     src/gnss_process.cc
+    src/localizer/localizer.cc
 )
-
+add_dependencies(slam_node robot_manager_generate_messages_cpp)
 target_link_libraries(slam_node 
 ${thirdparty_libs}
 )

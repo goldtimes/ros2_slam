@@ -109,4 +109,8 @@ front_end:
     res_outlier_thresh: 10
     eps: 0.001
 
+localizer:
+  use_meta_maps: true # 使用图元地图
+  global_map_filter_size: 0.3 # 对全局地图的降采样
+
 

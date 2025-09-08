@@ -19,6 +19,8 @@ class SystemConfig;
 // lidar process
 class LidarProcess;
 class FrontEnd;
+class Localizer;
+struct MetaInfo;
 
 class System {
    public:
@@ -49,6 +51,10 @@ class System {
     void SetSystemInit(bool init) {
         system_init_.store(init);
     }
+
+    const std::shared_ptr<Localizer> GetLocalizer();
+    void SetInitPose(const PoseTrans& init_pose, int level = 0, const std::string& map_id = "");
+    void SetMetaInfo(const std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>>& meta_maps);
 
     const PoseTrans GetTransformEncodeToWorld() const;
 
@@ -96,6 +102,8 @@ class System {
     // 前端类和前端线程
     FrontEnd* front_end_ptr_ = nullptr;
     std::thread* front_end_thread_ptr_ = nullptr;
+
+    std::shared_ptr<Localizer> localizer_ptr_;
 
     std::atomic<bool> system_init_;
 

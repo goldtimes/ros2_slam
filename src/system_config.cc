@@ -146,6 +146,11 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
             frontend_config_.ndt_config.eps = config["front_end"]["use_ndt"]["eps"].as<double>();
             frontend_config_.ndt_config.print();
         }
+
+        // 加载定位配置
+        localizer_config_.use_meta_maps = config["localizer"]["use_meta_maps"].as<bool>();
+        localizer_config_.global_map_filter_size = config["localizer"]["global_map_filter_size"].as<double>();
+        localizer_config_.print();
     } catch (const YAML::BadFile& e) {
         LOG_ERROR("config file not found: {}", config_path);
         return false;

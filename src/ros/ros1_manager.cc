@@ -1,10 +1,12 @@
 #include "ros/ros1_manager.hh"
 #include "geometry_msgs/PoseStamped.h"
 #include "lidar_register/voxel_map.hh"
+#include "localizer/localizer.hh"
 #include "ros/time.h"
 #include "system.hh"
 #include "system_config.hh"
 #include "utils.hh"
+#include "pointcloud_utils.hh"
 namespace slam {
 
 ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr)
@@ -83,6 +85,13 @@ void ROS1Manager::InitSub() {
         gnss_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->gnss_config_.gnss_topic, 100,
                                   &ROS1Manager::GNSSCallback, this, ros::TransportHints().tcpNoDelay());
     }
+
+    if (system_ptr_->GetSystemConfig()->localizer_config_.use_meta_maps) {
+        metamaps_sub_ = nh_.subscribe("metaset_info", 1, &ROS1Manager::MetamapsCallback, this);
+    }
+
+    ros_init_pose_sub_ = nh_.subscribe("/initialpose", 1, &ROS1Manager::InitPoseCallback, this);
+    init_pose_sub_ = nh_.subscribe("/init_pose", 1, &ROS1Manager::InitPoseCallback, this);
 }
 void ROS1Manager::InitService() {
 }
@@ -372,6 +381,19 @@ void ROS1Manager::PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometr
     pose_msg.pose.orientation.z = pose_trans.eigen_q().z();
     pose_msg.pose.orientation.w = pose_trans.eigen_q().w();
 }
+
+void ROS1Manager::RosPoseToPoseTrans(const geometry_msgs::Pose& pose_msg, PoseTrans& pose_trans) {
+    pose_trans.t.x() = pose_msg.position.x;
+    pose_trans.t.y() = pose_msg.position.y;
+    pose_trans.t.z() = pose_msg.position.z;
+    Eigen::Quaterniond q;
+    q.x() = pose_msg.orientation.x;
+    q.y() = pose_msg.orientation.y;
+    q.z() = pose_msg.orientation.z;
+    q.w() = pose_msg.orientation.w;
+    q.normalize();
+    pose_trans.R = q.toRotationMatrix();
+}
 void ROS1Manager::PoseTransToOdomMsg(const PoseTrans& pose_trans, nav_msgs::Odometry& odom_msg) {
     odom_msg.pose.pose.position.x = pose_trans.t.x();
     odom_msg.pose.pose.position.y = pose_trans.t.y();
@@ -430,4 +452,137 @@ void ROS1Manager::PublishPath(const ros::Publisher pub, nav_msgs::Path& path, co
         }
     }
 }
+
+void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& metamaps_msg) {
+    LOG_INFO("receive metaset_info label size: {} leaf map size: {}", metamaps_msg->labels.size(),
+             metamaps_msg->v_name.size());
+
+    int success_cnt = 0;
+    PointCloudXYZI::Ptr traj_cloud(new PointCloudXYZI);
+    // 存储地图信息
+    std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>> ids_metamap_map;
+    // 根据叶子地图的id遍历图元列表
+    std::vector<std::string> meta_maps;
+    // 叶子地图集合
+    std::unordered_map<std::string, std::vector<std::string>> leaf_maps;
+    // 加载叶子地图和对应的图元文件
+    for (auto& leaf_map : metamaps_msg->v_name) {
+        LOG_INFO("leaf_map:{}", leaf_map);
+        if (leaf_map == "") {
+            // 过滤空字符
+            continue;
+        }
+        std::stringstream ss;
+        ss << "/home/kilox/maps"
+           << "/" << leaf_map;
+        auto leaf_node_path = ss.str();
+        if (!boost::filesystem::exists(boost::filesystem::path(leaf_node_path))) {
+            LOG_ERROR("[LOC_MATCHER] map_node_id:{} no exists", leaf_node_path);
+            return;
+        }
+        for (const auto& iter : boost::filesystem::directory_iterator(boost::filesystem::path(leaf_node_path))) {
+            // 跳过不是目录的文件
+            if (!boost::filesystem::is_directory(iter)) {
+                continue;
+            }
+            // 以META开头的目录
+            auto metamap_name = iter.path().filename().string();
+            if (metamap_name.substr(0, 4) == "META") {
+                meta_maps.push_back(metamap_name);
+            }
+        }
+        leaf_maps.insert({leaf_map, meta_maps});
+    }
+    // 遍历每个叶子地图
+    for (auto& leaf_map : leaf_maps) {
+        for (auto metamap : leaf_map.second) {
+            std::stringstream ss;
+            ss << "/home/kilox/maps"
+               << "/" << leaf_map.first << "/" << metamap << "/data.yaml";
+            LOG_INFO("load file {} \n", ss.str().c_str());
+            if (!boost::filesystem::exists(ss.str())) {
+                LOG_INFO("config file {} not exist, SKIP", ss.str());
+                continue;
+            }
+            try {
+                YAML::Node config = YAML::LoadFile(ss.str());
+
+                // 解析楼层
+                int level = config["floor"].as<int>();
+                std::string identity = config["identity"].as<std::string>();
+                // 解析变换::
+                std::vector<double> data = config["T"].as<std::vector<double>>();
+                PoseTrans T(Eigen::Quaterniond(data[6], data[3], data[4], data[5]).toRotationMatrix(),
+                            Eigen::Vector3d(data[0], data[1], data[2]));
+                // 如果不存在该叶子地图
+                if (ids_metamap_map.find(identity) == ids_metamap_map.end()) {
+                    ids_metamap_map[identity] = std::vector<std::shared_ptr<MetaInfo>>();
+                }
+
+                ids_metamap_map[identity].push_back(std::make_shared<MetaInfo>());
+                auto& meta_info = ids_metamap_map[identity].back();
+                meta_info->level = level, meta_info->x = T.t[0], meta_info->y = T.t[1], meta_info->name = metamap;
+                meta_info->map_pcd.reset(new PointCloudXYZI);
+                meta_info->T = T;
+                meta_info->identity = identity;
+                success_cnt++;
+
+                std::stringstream ss1;
+                ss1 << "/home/kilox/maps"
+                    << "/" << leaf_map.first << "/" << metamap << "/data_trajectory.pcd";
+                // ss1 << map_dir << "/" << name << "/data_trajectory.pcd";
+                if (boost::filesystem::exists(ss1.str())) {
+                    PointCloudXYZI::Ptr tmp_cloud(new PointCloudXYZI);
+                    pcl::io::loadPCDFile<PointXYZI>(ss1.str(), *tmp_cloud);
+                    PointCloudXYZI::Ptr out_cloud(new PointCloudXYZI);
+                    TransformCloud<PointCloudXYZI::Ptr>(tmp_cloud, out_cloud, T.R, T.t);
+                    *traj_cloud += *out_cloud;
+                }
+            } catch (std::exception& e) {
+                LOG_ERROR("parse level of meta name {} fail", metamap);
+                continue;
+            }
+        }
+    }
+
+    // get_meta_label = true;
+
+    if (!traj_cloud->empty()) {
+        system_ptr_->GetLocalizer()->SetTrajCloud(traj_cloud);
+    }
+    LOG_INFO("load meta finish [success: {}/ total: {}]", success_cnt, metamaps_msg->v_name.size());
+}
+
+void ROS1Manager::InitPoseCallback(const robot_manager::slam_pose::ConstPtr& init_pose_msg) {
+    LOG_INFO("get init pose \n");
+    bool opt_init_pose = true;
+    bool has_level = true;
+    geometry_msgs::Pose init_pose;
+    init_pose.position.x = init_pose_msg->x;
+    init_pose.position.y = init_pose_msg->y;
+    init_pose.position.z = init_pose_msg->z;
+    Eigen::Vector3d rpy;
+    rpy << init_pose_msg->roll, init_pose_msg->pitch, init_pose_msg->yaw;
+    Eigen::Quaterniond q(Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
+                         Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+                         Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()));
+    q.normalized();
+    init_pose.orientation.x = q.x();
+    init_pose.orientation.y = q.y();
+    init_pose.orientation.z = q.z();
+    init_pose.orientation.w = q.w();
+    PoseTrans pose;
+    RosPoseToPoseTrans(init_pose, pose);
+    system_ptr_->SetInitPose(pose, init_pose_msg->level, init_pose_msg->name);
+}
+
+void ROS1Manager::RosInitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose_msg) {
+    LOG_INFO("get init pose \n");
+    // _app->set_init_pose(pose_convert(pose_msg->pose.pose), true, false, 1, _app->loc_matcher_->map_name);
+    PoseTrans pose;
+    RosPoseToPoseTrans(pose_msg->pose.pose, pose);
+    auto current_map = system_ptr_->GetLocalizer()->GetCurrMetaInfo();
+    system_ptr_->SetInitPose(pose, current_map.level, current_map.name);
+}
+
 }  // namespace slam

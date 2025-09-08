@@ -4,6 +4,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
+#include <pcl/search/kdtree.h>
 #include "eigen_type.hh"
 #include "lidar_point_type.hh"
 #include "logger.hh"
@@ -13,6 +14,10 @@ using PointType = PointXYZIRT;
 using PointCloudType = pcl::PointCloud<PointType>;
 using PointCloudPtr = PointCloudType::Ptr;
 using PointVec = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
+
+using PointXYZI = pcl::PointXYZI;
+using PointCloudXYZI = pcl::PointCloud<PointXYZI>;
+using PointXYZITree = pcl::search::KdTree<PointXYZI>;
 
 template <typename T>
 inline V3D ToV3D(const T& point) {
@@ -32,4 +37,11 @@ PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform
 PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
 PointCloudPtr TransformLidar(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
 
+template <typename T>
+void TransformCloud(const T& cloud, T& out_cloud, const M3D& R, const V3D& t) {
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform.block<3, 3>(0, 0) = R.cast<float>();
+    transform.block<3, 1>(0, 3) = t.cast<float>();
+    pcl::transformPointCloud(*cloud, *out_cloud, transform);
+}
 }  // namespace slam

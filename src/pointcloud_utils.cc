@@ -1,3 +1,12 @@
+/*
+ * @Author: lihang lihang@kilox.cn
+ * @Date: 2025-08-29 14:15:00
+ * @LastEditors: lihang lihang@kilox.cn
+ * @LastEditTime: 2025-09-08 17:58:20
+ * @FilePath: /fast_lvio_ws/src/open_slam/src/pointcloud_utils.cc
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
+ * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include "pointcloud_utils.hh"
 
 namespace slam {
@@ -48,5 +57,7 @@ PointCloudPtr TransformLidar(const PointCloudPtr& cloud, const M3D& r, const V3D
     pcl::transformPointCloud(*cloud, *ret, transform);
     return ret;
 }
+
+
 
 }  // namespace slam

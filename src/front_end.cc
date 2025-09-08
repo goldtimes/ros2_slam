@@ -156,6 +156,7 @@ void FrontEnd::Run() {
                         // auto t3 = std::chrono::high_resolution_clock::now();
                         // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2).count();
                         // LOG_INFO("Update Map used time: {} ms", total_time * 1e3);
+                        // 通知配准线程
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }

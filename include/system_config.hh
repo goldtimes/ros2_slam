@@ -185,6 +185,17 @@ struct FrontendConfig {
     NDTConfig ndt_config;
 };
 
+struct LocalizerConfig {
+    bool use_meta_maps;
+    double global_map_filter_size;
+
+    void print() const {
+        LOG_INFO("LocalizerConfig:");
+        LOG_INFO("  use_meta_maps: {}", use_meta_maps);
+        LOG_INFO("  global_map_filter_size: {:03.3f}", global_map_filter_size);
+    }
+};
+
 class SystemConfig {
    public:
     SystemConfig() = default;
@@ -200,6 +211,7 @@ class SystemConfig {
     EncoderConfig encoder_config_;
     GNSSConfig gnss_config_;
     FrontendConfig frontend_config_;
+    LocalizerConfig localizer_config_;
 
     double GRAVIRT_;
 

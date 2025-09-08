@@ -1,3 +1,4 @@
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <livox_ros_driver/CustomMsg.h>
 #include <livox_ros_driver2/CustomMsg.h>
@@ -14,6 +15,8 @@
 #include "commons.hh"
 #include "gnss_process.hh"
 #include "logger.hh"
+#include "robot_manager/metaset_info.h"
+#include "robot_manager/slam_pose.h"
 #include "sensor_msgs/NavSatStatus.h"
 
 namespace slam {
@@ -61,9 +64,16 @@ class ROS1Manager {
 
     void PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg);
     void PoseTransToOdomMsg(const PoseTrans& pose_trans, nav_msgs::Odometry& odom_msg);
+    void RosPoseToPoseTrans(const geometry_msgs::Pose& pose_msg, PoseTrans& pose_trans);
 
     void PublishPath(const ros::Publisher pub, nav_msgs::Path& path, const std::string& frame_id, double sensor_time,
                      const PoseTrans& pose_trans);
+
+    void MetamapsCallback(const robot_manager::metaset_info::ConstPtr& metamaps_msg);
+
+    void InitPoseCallback(const robot_manager::slam_pose::ConstPtr& init_pose_msg);
+
+    void RosInitPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose_msg);
 
    private:
     ros::NodeHandle nh_;
@@ -72,6 +82,11 @@ class ROS1Manager {
     ros::Subscriber gnss_sub_;
     ros::Subscriber lidar_sub_;
     ros::Subscriber encoder_sub_;
+
+    ros::Subscriber metamaps_sub_;
+    ros::Subscriber ros_init_pose_sub_;
+    ros::Subscriber init_pose_sub_;
+
     std::shared_ptr<System> system_ptr_;
 
     ros::Publisher cloud_lidar_pub_;
