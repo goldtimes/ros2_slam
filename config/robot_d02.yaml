@@ -116,6 +116,13 @@ localizer:
   register_method: "gicp" # "ceres", "LM" 
   point_to_plane: 0.01 # 点到平面的距离
   dist_to_robot: 50  # 图元中心到机器人的距离
+  num_trans: 1
+  num_rot: 1
+  delta_trans: 1  # [-1, 0，1]
+  delta_rot: 0.3  # [-0.3, 0, 0.3]
+  init_icp_score: 0.10
+  icp_dist_thresh: 1.0 # 最邻近搜索的阈值，小于1m的点都计算进来
+
 
 
 

@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 17:38:58
+ * @LastEditTime: 2025-09-09 19:45:28
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -114,6 +114,12 @@ class Localizer {
     void CheckInitializationStatus();
 
     void AllocateMemory();
+
+    std::vector<PoseTrans> GeneratorSearchGrids(const PoseTrans& init_pose, int num_trans, int num_rot,
+                                                double delta_trans, double delta_rot);
+
+    double CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& input_cloud, const PointTree::Ptr& targer_tree,
+                             double dist_thresh);
 
    private:
     std::shared_ptr<SystemConfig> system_config_ptr_;

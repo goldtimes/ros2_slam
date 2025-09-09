@@ -192,6 +192,12 @@ struct LocalizerConfig {
     std::string register_method;
     double point_to_plane;
     double dist_to_robot;
+    int num_trans;
+    int num_rot;
+    double delta_trans;
+    double delta_rot;
+    double init_icp_score;
+    double icp_dist_thresh;
 
     void print() const {
         LOG_INFO("LocalizerConfig:");
@@ -201,6 +207,12 @@ struct LocalizerConfig {
         LOG_INFO("  register_method: {}", register_method);
         LOG_INFO("  point_to_plane: {:03.3f}", point_to_plane);
         LOG_INFO("  dist_to_robot: {:03.3f}", dist_to_robot);
+        LOG_INFO("  num_trans: {}", num_trans);
+        LOG_INFO("  num_rot: {}", num_rot);
+        LOG_INFO("  delta_trans: {:03.3f}", delta_trans);
+        LOG_INFO("  delta_rot: {:03.3f}", delta_rot);
+        LOG_INFO("  init_icp_score: {:03.3f}", init_icp_score);
+        LOG_INFO("  icp_dist_thresh: {:03.3f}", icp_dist_thresh);
     }
 };
 

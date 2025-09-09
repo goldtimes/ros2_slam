@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 17:36:53
+ * @LastEditTime: 2025-09-09 20:24:36
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -220,6 +220,60 @@ void Localizer::CancelInit() {
 bool Localizer::InitSearch() {
     bool success = false;
     // 需要检查cancel_init_标志位
+    int num_trans = system_config_ptr_->localizer_config_.num_trans;
+    int num_rot = system_config_ptr_->localizer_config_.num_rot;
+    double delta_trans = system_config_ptr_->localizer_config_.delta_trans;
+    double delta_rot = system_config_ptr_->localizer_config_.delta_rot;
+    std::vector<PoseTrans> search_poses = GeneratorSearchGrids(guess_pose_, num_trans, num_rot, delta_trans, delta_rot);
+    double min_score = 1e4;
+    PoseTrans best_guess_pose;
+    for (size_t i = 0; i < search_poses.size(); i++) {
+        if (cancel_init_) {
+            break;
+        }
+        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud_, global_map_tree_,
+                                         system_config_ptr_->localizer_config_.icp_dist_thresh);
+        if (score < min_score) {
+            min_score = score;
+            best_guess_pose = search_poses[i];
+        }
+    }
+    LOG_INFO("After Search, min_score:{}", min_score);
+    LOG_INFO("best_guess_pose Position:{}, Rotation:{}", best_guess_pose.t.transpose(),
+             best_guess_pose.RPY().transpose());
+
+    // 更新num_trans以及其他参数
+    delta_rot = 0.1;
+    delta_trans = 0.1;
+    search_poses.clear();
+    search_poses = GeneratorSearchGrids(best_guess_pose, num_trans, num_rot, delta_trans, delta_rot);
+    int fail_cnt = 0;
+    double init_icp_score = system_config_ptr_->localizer_config_.init_icp_score;
+    for (size_t i = 0; i < search_poses.size(); i++) {
+        if (cancel_init_) {
+            break;
+        }
+        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud_, global_map_tree_,
+                                         system_config_ptr_->localizer_config_.icp_dist_thresh);
+        LOG_INFO("try times {}, score:{}", i, score);
+        if (score > 0 && score < init_icp_score) {
+            init_icp_score = score;
+            T_OtoM_ = search_poses[i];
+            success = true;
+
+            if (score < system_config_ptr_->localizer_config_.init_icp_score / 2) {
+                success = true;
+                T_OtoM_ = search_poses[i];
+                break;
+            }
+        } else if (score > init_icp_score) {
+            fail_cnt++;
+        }
+        if (fail_cnt > search_poses.size() / 2) {
+            LOG_INFO("try many times, can't get a good match score");
+            return false;
+        }
+    }
     return success;
 }
 
@@ -312,5 +366,59 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
         local_state_ = LOCAL_STATE::NOT_INIT;
     }
     return true;
+}
+
+std::vector<PoseTrans> Localizer::GeneratorSearchGrids(const PoseTrans& init_pose, int num_trans, int num_rot,
+                                                       double delta_trans, double delta_rot) {
+    // 假设平移步长为0.1,旋转步长为0.1
+    // num_trans_x[-3,3],num_trans_y[-3,3],num_rot:[-3,3] -3,-2,-1,0,1,2,3,搜索的次数比较多了
+    std::vector<PoseTrans> search_poses;
+    int total_try = (num_trans * 2 + 1) * (num_trans * 2 + 1) * (num_rot * 2 + 1);
+    LOG_INFO("[Search Near Pose] min_trans:{:03.3f}, max_trans:{:03.3f}", -num_trans * delta_trans,
+             num_trans * delta_trans);
+    LOG_INFO("[Search Near Pose] min_yaw:{:03.3f},max_yaw:{:03.3f}", num_rot * delta_rot, num_rot * delta_rot);
+    for (int dx = -num_trans; dx <= num_trans; ++dx) {
+        for (int dy = -num_trans; dy <= num_trans; ++dy) {
+            Eigen::Vector3d trans_offset = Eigen::Vector3d(dx * delta_trans, dy * delta_trans, 0.0);
+            // 只在yaw角做搜索
+            for (int dr = -num_rot; dr <= num_rot; ++dr) {
+                Eigen::Matrix3d rot_offset =
+                    Eigen::AngleAxisd(dr * delta_rot, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+                PoseTrans pose_offset(rot_offset, trans_offset);
+                PoseTrans search_pose = init_pose * pose_offset;
+                search_poses.push_back(search_pose);
+            }
+        }
+    }
+    return search_poses;
+}
+
+double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& input_cloud,
+                                    const PointTree::Ptr& targer_tree, double dist_thresh) {
+    if (input_cloud->points.size() < 100) {
+        LOG_ERROR("input cloud size is too small < 100");
+        return -1;
+    }
+    PointCloudPtr trans_cloud(new PointCloudType);
+    TransformCloud(*input_cloud, *trans_cloud, pose.R, pose.t);
+
+    std::vector<int> nn_indices;
+    std::vector<float> nn_dists;
+    int effect_num = 0;
+    double fitness_score = 0;
+    for (size_t i = 0; i < trans_cloud->points.size(); ++i) {
+        if (targer_tree->nearestKSearch(trans_cloud->points[i], 1, nn_indices, nn_dists) > 0) {
+            if (!nn_indices.empty() && nn_dists[0] <= dist_thresh) {
+                fitness_score += nn_dists[0];
+                effect_num++;
+            }
+        }
+    }
+    if (effect_num > 0) {
+        double score = fitness_score / effect_num + (1 - 1.0 * effect_num / trans_cloud->size()) * 0.5;
+        LOG_INFO("effect_num:{}, dist:{}, p2p_score:{}", effect_num, fitness_score, score);
+        return score;
+    }
+    return -1;
 }
 }  // namespace slam
