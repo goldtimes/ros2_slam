@@ -1,3 +1,12 @@
+/*
+ * @Author: lihang lihang@kilox.cn
+ * @Date: 2025-09-04 17:38:22
+ * @LastEditors: lihang lihang@kilox.cn
+ * @LastEditTime: 2025-09-09 09:22:53
+ * @FilePath: /fast_lvio_ws/src/open_slam/include/lidar_register/inc_ndt_register.hh
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
+ * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #pragma once
 #include "inc_ndt.hh"
 #include "lidar_register.hh"
@@ -13,6 +22,7 @@ class IncNdtRegister : public LidarRegister {
     virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
+    virtual PointCloudPtr GetSubmap() override;
 
    private:
     double voxel_size_;

@@ -1,3 +1,12 @@
+/*
+ * @Author: lihang lihang@kilox.cn
+ * @Date: 2025-09-04 17:38:22
+ * @LastEditors: lihang lihang@kilox.cn
+ * @LastEditTime: 2025-09-09 09:28:31
+ * @FilePath: /fast_lvio_ws/src/open_slam/src/lidar_register/inc_ndt_register.cc
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
+ * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include "lidar_register/inc_ndt_register.hh"
 
 namespace slam {
@@ -61,5 +70,11 @@ void IncNdtRegister::UpdateMap() {
         ndt_ptr_->AddCloud(cloud_world);
         last_pose_ = current_pose;
     }
+}
+
+PointCloudPtr IncNdtRegister::GetSubmap() {
+    PointCloudPtr cloud(new PointCloudType);
+
+    return cloud;
 }
 }  // namespace slam

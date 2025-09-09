@@ -144,6 +144,7 @@ void FrontEnd::Run() {
                 if (front_end_status_ == FrontEndStatus::MAPPING) {
                     // LOG_INFO("befor state: \n");
                     // kf_ptr_->GetState().Print();
+                    static int frame_id = 0;
                     auto t1 = std::chrono::high_resolution_clock::now();
                     if (lidar_register_ptr_->Align(undistort_cloud_lidar_, kf_ptr_)) {
                         auto t2 = std::chrono::high_resolution_clock::now();
@@ -151,12 +152,29 @@ void FrontEnd::Run() {
                         LOG_INFO("Align used time: {} ms", align_time * 1e3);
                         // LOG_INFO("Align Success");
                         lidar_register_ptr_->UpdateMap();
+                        // get current cloud
+                        PointCloudPtr world_cloud(new PointCloudType);
+                        // auto t3 = std::chrono::high_resolution_clock::now();
+                        world_cloud = lidar_register_ptr_->GetSubmap();
+                        // pcl::io::savePCDFileASCII("/home/kilox/fast_lvio_ws/src/open_slam/PCD/world_cloud_" +
+                        //                               std::to_string(frame_id) + ".pcd",
+                        //                           *world_cloud);
+                        frame_id++;
+                        // 根据关键帧的生成来通知后台配准线程
+                        if (lidar_register_ptr_->IsKeyFrame()) {
+                            LOG_INFO("KeyFrame");
+                            // set submap to localizer
+                        }
+                        // set lidar to localizer
+                        // auto t4 = std::chrono::high_resolution_clock::now();
+                        // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3).count();
+                        // LOG_INFO("Get Map used time: {} ms", total_time * 1e3);
+
                         // LOG_INFO("after state: \n");
                         // kf_ptr_->GetState().Print();
                         // auto t3 = std::chrono::high_resolution_clock::now();
                         // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2).count();
                         // LOG_INFO("Update Map used time: {} ms", total_time * 1e3);
-                        // 通知配准线程
                     } else {
                         front_end_status_ = FrontEndStatus::LOST;
                     }
@@ -192,18 +210,18 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         measures.lidar_beg_time = system_->lidar_time_queue_.front();
         // sort cloud
         std::sort(measures.curent_cloud->points.begin(), measures.curent_cloud->points.end(),
-                  [](const PointType& a, const PointType& b) { return a.time < b.time; });
+                  [](const PointType& a, const PointType& b) { return a.curvature < b.curvature; });
         if (measures.curent_cloud->size() < 1) {
             measures.lidar_end_time = measures.lidar_beg_time + lidar_mean_scantime_;
             LOG_ERROR("lidar cloud size is 0, begin time is {}, end time is {}", measures.lidar_beg_time,
                       measures.lidar_end_time);
-        } else if (measures.curent_cloud->points.back().time < 0.5 * lidar_mean_scantime_) {
+        } else if (measures.curent_cloud->points.back().curvature < 0.5 * lidar_mean_scantime_) {
             measures.lidar_end_time = measures.lidar_beg_time + lidar_mean_scantime_;
             LOG_ERROR("lidar cloud end time is too small, begin time is {}, end time is {}", measures.lidar_beg_time,
                       measures.lidar_end_time);
         } else {
             scan_count_++;
-            measures.lidar_end_time = measures.curent_cloud->points.back().time;
+            measures.lidar_end_time = measures.curent_cloud->points.back().curvature;
             lidar_mean_scantime_ +=
                 (measures.lidar_end_time - measures.lidar_beg_time - lidar_mean_scantime_) / scan_count_;
         }

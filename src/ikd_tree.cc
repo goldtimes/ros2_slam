@@ -1434,4 +1434,3 @@ void KD_TREE<PointType>::ClearTree() {
 template class KD_TREE<pcl::PointXYZ>;
 template class KD_TREE<pcl::PointXYZI>;
 template class KD_TREE<pcl::PointXYZINormal>;
-template class KD_TREE<slam::PointXYZIRT>;

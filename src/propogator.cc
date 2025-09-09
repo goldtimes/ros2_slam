@@ -273,7 +273,7 @@ void Propogator::UndistortLidar(MeasureGroup& meas, PointCloudPtr& cloud_out) {
         SE3 Ti = T_end;
         NominalState best_mathc;
         InterpolatePose<NominalState>(
-            point.time, imu_states_, [](const NominalState& state) { return state.timestamp_; },
+            point.curvature, imu_states_, [](const NominalState& state) { return state.timestamp_; },
             [](const NominalState& state) { return SE3(state.R_, state.p_); }, Ti, best_mathc);
         V3D pt_eigen = point.getVector3fMap().cast<double>();
         V3D pt_compensate = T_IL.inverse() * T_end.inverse() * Ti * T_IL * pt_eigen;

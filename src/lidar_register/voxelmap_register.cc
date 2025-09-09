@@ -251,4 +251,10 @@ M3D VoxelMapRegister::calcBodyCov(Eigen::Vector3d &pb, const float range_inc, co
 //                                 t_var;
 //     return cov_world;
 // }
+
+PointCloudPtr VoxelMapRegister::GetSubmap() {
+    PointCloudPtr cloud(new PointCloudType);
+
+    return cloud;
+}
 }  // namespace slam

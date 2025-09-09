@@ -14,6 +14,7 @@ class VoxelMapRegister : public LidarRegister {
     virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
+    virtual PointCloudPtr GetSubmap() override;
 
    private:
     // M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,

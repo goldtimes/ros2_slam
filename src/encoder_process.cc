@@ -60,7 +60,7 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
     if (selected_data.size() <= 2) {
         return false;
     }
-    LOG_INFO("EncoderProcessor::Propagation: selected_data.size() = {}", selected_data.size());
+    // LOG_INFO("EncoderProcessor::Propagation: selected_data.size() = {}", selected_data.size());
     // 积分
     PoseTrans ret_pose;
     for (int i = 1; i < selected_data.size(); ++i) {
@@ -154,7 +154,7 @@ void EncoderProcessor::UpdateEncoder(const Encoder& encoder, const Input& input,
     share_state.b33_.setZero();
     share_state.H33_ = J.transpose() * 10000 * J;
     share_state.b33_ = J.transpose() * 10000 * res;
-    LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
+    // LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 
 }  // namespace slam

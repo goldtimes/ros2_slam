@@ -10,10 +10,11 @@
 #include "logger.hh"
 
 namespace slam {
-using PointType = PointXYZIRT;
+using PointType = pcl::PointXYZINormal;
 using PointCloudType = pcl::PointCloud<PointType>;
 using PointCloudPtr = PointCloudType::Ptr;
 using PointVec = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
+using PointTree = pcl::search::KdTree<PointType>;
 
 using PointXYZI = pcl::PointXYZI;
 using PointCloudXYZI = pcl::PointCloud<PointXYZI>;

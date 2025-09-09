@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-08 20:34:14
+ * @LastEditTime: 2025-09-09 13:52:22
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -86,7 +86,9 @@ class Localizer {
     void SetMaps(const std::string& pcd_path);
     void SetInitPose(const PoseTrans& init_pose, int level = 0, const std::string& map_id = "");
 
-    void SetTrajCloud(const PointCloudXYZI::Ptr& traj_cloud);
+    void SetTrajCloud(const PointCloudPtr& traj_cloud);
+
+    // void SetLidarCloud(const PointCloudXYZI::Ptr& lidar_cloud);
 
    private:
     bool LoadMapByPose(const PoseTrans& init_pose = PoseTrans());
@@ -106,17 +108,17 @@ class Localizer {
     bool use_meta_maps_ = false;
     std::shared_ptr<std::thread> map_update_thread_;
     std::shared_ptr<std::thread> map_register_thread_;
-    pcl::VoxelGrid<PointXYZI> global_map_filter_;
+    pcl::VoxelGrid<PointType> global_map_filter_;
 
     // 全局地图
-    PointCloudXYZI::Ptr global_map_;
+    PointCloudPtr global_map_;
     // 全局地图的kd树
-    PointXYZITree::Ptr global_map_tree_;
+    PointTree::Ptr global_map_tree_;
 
     // 轨迹点云
-    PointCloudXYZI::Ptr traj_cloud_;
+    PointCloudPtr traj_cloud_;
     // 轨迹点云的kd树
-    PointXYZITree::Ptr traj_cloud_tree_;
+    PointTree::Ptr traj_cloud_tree_;
 
     bool traj_cloud_loaded_ = false;
 
@@ -133,5 +135,9 @@ class Localizer {
 
     // 待优化的里程计位姿
     std::vector<PoseTrans> keyframe_poses_;
+
+    bool get_init_pose_ = false;
+    bool get_curr_lidar_ = false;
+    PoseTrans init_guess_pose_;
 };
 }  // namespace slam

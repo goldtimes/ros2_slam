@@ -6,7 +6,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     LOG_INFO("P2PlaneRegister constructor");
     first_frame_ = true;
     // ikd_tree树
-    m_ikdtree = std::make_shared<KD_TREE<slam::PointXYZIRT>>();
+    m_ikdtree = std::make_shared<KD_TREE<slam::PointType>>();
     m_ikdtree->set_downsample_param(map_resolution);
     map_resolution = system_config->frontend_config_.p2plane_config.map_resolution;
     cube_len = system_config->frontend_config_.p2plane_config.cube_len;
@@ -179,12 +179,22 @@ void P2PlaneRegister::IncreMap() {
 bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // filter cloud
     current_lidar_ = cloud_lidar;
+    is_keyframe_ = false;
     // auto t1 = std::chrono::high_resolution_clock::now();
     TrimCloud();
     // auto t2 = std::chrono::high_resolution_clock::now();
     // auto trim_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
     // LOG_INFO("trim time:{}", trim_time * 1e3);
     kf_ptr_->UpdateLidar();
+    PoseTrans curr_pose(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+    PoseTrans delta_pose = last_keypose_.inverse() * curr_pose;
+    if (delta_pose.norm() > 0.5 || delta_pose.RPY().norm() > 0.5) {
+        is_keyframe_ = true;
+        last_keypose_ = curr_pose;
+    } else {
+        is_keyframe_ = false;
+    }
+
     if (updated_failed_num_ > 3) {
         return false;
     }
@@ -314,5 +324,14 @@ bool P2PlaneRegister::EstimatePlane(const PointVec &points, double thresh, Eigen
 }
 void P2PlaneRegister::UpdateMap() {
     IncreMap();
+}
+
+PointCloudPtr P2PlaneRegister::GetSubmap() {
+    PointCloudPtr cloud(new PointCloudType);
+    m_ikdtree->flatten(m_ikdtree->Root_Node, m_ikdtree->PCL_Storage, delete_point_storage_set::NOT_RECORD);
+    cloud->points = m_ikdtree->PCL_Storage;
+    cloud->width = cloud->points.size();
+    cloud->height = 1;
+    return cloud;
 }
 }  // namespace slam
