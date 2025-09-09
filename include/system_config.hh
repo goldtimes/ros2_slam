@@ -188,11 +188,19 @@ struct FrontendConfig {
 struct LocalizerConfig {
     bool use_meta_maps;
     double global_map_filter_size;
+    std::string local_map_dir;
+    std::string register_method;
+    double point_to_plane;
+    double dist_to_robot;
 
     void print() const {
         LOG_INFO("LocalizerConfig:");
         LOG_INFO("  use_meta_maps: {}", use_meta_maps);
         LOG_INFO("  global_map_filter_size: {:03.3f}", global_map_filter_size);
+        LOG_INFO("  local_map_dir: {}", local_map_dir);
+        LOG_INFO("  register_method: {}", register_method);
+        LOG_INFO("  point_to_plane: {:03.3f}", point_to_plane);
+        LOG_INFO("  dist_to_robot: {:03.3f}", dist_to_robot);
     }
 };
 

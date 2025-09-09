@@ -2,11 +2,11 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "lidar_register/voxel_map.hh"
 #include "localizer/localizer.hh"
+#include "pointcloud_utils.hh"
 #include "ros/time.h"
 #include "system.hh"
 #include "system_config.hh"
 #include "utils.hh"
-#include "pointcloud_utils.hh"
 namespace slam {
 
 ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr)
@@ -456,9 +456,9 @@ void ROS1Manager::PublishPath(const ros::Publisher pub, nav_msgs::Path& path, co
 void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& metamaps_msg) {
     LOG_INFO("receive metaset_info label size: {} leaf map size: {}", metamaps_msg->labels.size(),
              metamaps_msg->v_name.size());
-
+    std::string map_dir = system_ptr_->GetSystemConfig()->localizer_config_.local_map_dir;
     int success_cnt = 0;
-    PointCloudXYZI::Ptr traj_cloud(new PointCloudXYZI);
+    PointCloudPtr traj_cloud(new PointCloudType);
     // 存储地图信息
     std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>> ids_metamap_map;
     // 根据叶子地图的id遍历图元列表
@@ -473,8 +473,7 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
             continue;
         }
         std::stringstream ss;
-        ss << "/home/kilox/maps"
-           << "/" << leaf_map;
+        ss << map_dir << "/" << leaf_map;
         auto leaf_node_path = ss.str();
         if (!boost::filesystem::exists(boost::filesystem::path(leaf_node_path))) {
             LOG_ERROR("[LOC_MATCHER] map_node_id:{} no exists", leaf_node_path);
@@ -497,8 +496,7 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
     for (auto& leaf_map : leaf_maps) {
         for (auto metamap : leaf_map.second) {
             std::stringstream ss;
-            ss << "/home/kilox/maps"
-               << "/" << leaf_map.first << "/" << metamap << "/data.yaml";
+            ss << map_dir << "/" << leaf_map.first << "/" << metamap << "/data.yaml";
             LOG_INFO("load file {} \n", ss.str().c_str());
             if (!boost::filesystem::exists(ss.str())) {
                 LOG_INFO("config file {} not exist, SKIP", ss.str());
@@ -522,20 +520,19 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
                 ids_metamap_map[identity].push_back(std::make_shared<MetaInfo>());
                 auto& meta_info = ids_metamap_map[identity].back();
                 meta_info->level = level, meta_info->x = T.t[0], meta_info->y = T.t[1], meta_info->name = metamap;
-                meta_info->map_pcd.reset(new PointCloudXYZI);
+                meta_info->map_pcd.reset(new PointCloudType);
                 meta_info->T = T;
                 meta_info->identity = identity;
                 success_cnt++;
 
                 std::stringstream ss1;
-                ss1 << "/home/kilox/maps"
-                    << "/" << leaf_map.first << "/" << metamap << "/data_trajectory.pcd";
+                ss1 << map_dir << "/" << leaf_map.first << "/" << metamap << "/data_trajectory.pcd";
                 // ss1 << map_dir << "/" << name << "/data_trajectory.pcd";
                 if (boost::filesystem::exists(ss1.str())) {
-                    PointCloudXYZI::Ptr tmp_cloud(new PointCloudXYZI);
-                    pcl::io::loadPCDFile<PointXYZI>(ss1.str(), *tmp_cloud);
-                    PointCloudXYZI::Ptr out_cloud(new PointCloudXYZI);
-                    TransformCloud<PointCloudXYZI::Ptr>(tmp_cloud, out_cloud, T.R, T.t);
+                    PointCloudPtr tmp_cloud(new PointCloudType);
+                    pcl::io::loadPCDFile<PointType>(ss1.str(), *tmp_cloud);
+                    PointCloudPtr out_cloud(new PointCloudType);
+                    TransformCloud<PointCloudPtr>(tmp_cloud, out_cloud, T.R, T.t);
                     *traj_cloud += *out_cloud;
                 }
             } catch (std::exception& e) {

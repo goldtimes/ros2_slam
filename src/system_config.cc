@@ -150,6 +150,10 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         // 加载定位配置
         localizer_config_.use_meta_maps = config["localizer"]["use_meta_maps"].as<bool>();
         localizer_config_.global_map_filter_size = config["localizer"]["global_map_filter_size"].as<double>();
+        localizer_config_.local_map_dir = config["localizer"]["local_map_dir"].as<std::string>();
+        localizer_config_.register_method = config["localizer"]["register_method"].as<std::string>();
+        localizer_config_.point_to_plane = config["localizer"]["point_to_plane"].as<double>();
+        localizer_config_.dist_to_robot = config["localizer"]["dist_to_robot"].as<double>();
         localizer_config_.print();
     } catch (const YAML::BadFile& e) {
         LOG_ERROR("config file not found: {}", config_path);

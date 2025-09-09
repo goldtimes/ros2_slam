@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 13:52:22
+ * @LastEditTime: 2025-09-09 17:38:58
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -24,6 +24,8 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <future>
 #include <memory>
 #include "eigen_type.hh"
 #include "logger.hh"
@@ -36,6 +38,7 @@ class SystemConfig;
 
 // 定义定位中的状态量
 enum class LOCAL_STATE {
+    MAP_NOT_LOAD,  // 加载了图元地图
     NOT_INIT,      // 未初始化
     INITING,       // 初始化中
     INIT_FAILED,   // 初始化失败
@@ -59,9 +62,9 @@ struct ScorePose {
 // 图元信息
 struct MetaInfo {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    double load_time;
-    double expired_time;
-    PointCloudXYZI::Ptr map_pcd;
+    boost::posix_time::ptime load_time;
+    boost::posix_time::ptime expired_time;
+    PointCloudPtr map_pcd;
     std::string name;
     bool is_active = false;
     bool is_old = false;
@@ -88,9 +91,12 @@ class Localizer {
 
     void SetTrajCloud(const PointCloudPtr& traj_cloud);
 
-    // void SetLidarCloud(const PointCloudXYZI::Ptr& lidar_cloud);
+    void SetLidarCloud(const PointCloudPtr& lidar_cloud, const PoseTrans& T_LtoO);
+
+    void SetSubmapCloud(const PointCloudPtr& submap_cloud, const PoseTrans& T_LtoO);
 
    private:
+    // 根据当前的位置加载地图
     bool LoadMapByPose(const PoseTrans& init_pose = PoseTrans());
 
     // 地图更新线程
@@ -98,8 +104,21 @@ class Localizer {
     // 地图注册线程
     void MapRegister() noexcept;
 
+    // 初始化配准
+    void StartInitialization();
+    // 取消初始化
+    void CancelInit();
+
+    bool InitSearch();
+
+    void CheckInitializationStatus();
+
+    void AllocateMemory();
+
    private:
     std::shared_ptr<SystemConfig> system_config_ptr_;
+
+    std::mutex state_mutex_;
     LOCAL_STATE local_state_ = LOCAL_STATE::NOT_INIT;
     // 存储地图id和地图的图元列表
     std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>> ids_metamap_map_;
@@ -109,6 +128,11 @@ class Localizer {
     std::shared_ptr<std::thread> map_update_thread_;
     std::shared_ptr<std::thread> map_register_thread_;
     pcl::VoxelGrid<PointType> global_map_filter_;
+
+    // 当前的lidar点云
+    PointCloudPtr curr_lidar_cloud_;
+    // 当前的submap点云，用来配准
+    PointCloudPtr curr_submap_cloud_;
 
     // 全局地图
     PointCloudPtr global_map_;
@@ -123,7 +147,7 @@ class Localizer {
     bool traj_cloud_loaded_ = false;
 
     bool map_loaded_ = false;
-
+    std::pair<std::string, MetaInfo> curr_map_;
     MetaInfo curr_meta_info_;
 
     // gtsam 相关
@@ -137,7 +161,23 @@ class Localizer {
     std::vector<PoseTrans> keyframe_poses_;
 
     bool get_init_pose_ = false;
-    bool get_curr_lidar_ = false;
-    PoseTrans init_guess_pose_;
+    bool get_new_lidar_ = false;
+    bool get_new_submap_ = false;
+
+    // 用户指定的机器人在地图中的初始化位姿
+    PoseTrans guess_pose_;
+
+    PoseTrans T_OtoM_;  // odom在map下的坐标系
+
+    std::future<bool> init_future_worker_;
+    std::atomic_bool is_initializing_;
+    std::atomic_bool cancel_init_;
+
+    PoseTrans T_LtoO_;  // 雷达在odom下的坐标系
+    PoseTrans update_T_LtoO_;
+
+    bool update_map_ = false;
+
+    std::string map_dir_;
 };
 }  // namespace slam
