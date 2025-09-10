@@ -100,6 +100,8 @@ class ROS1Manager {
     ros::Publisher lio_odom_pub_;
     ros::Publisher gnss_path_pub_;
 
+    ros::Publisher global_map_pub_;
+
     nav_msgs::Path lio_path_;
     nav_msgs::Path encoder_path_;
     nav_msgs::Path gnss_path_;

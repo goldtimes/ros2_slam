@@ -55,6 +55,7 @@ void ROS1Manager::InitPub() {
         gnss_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/gnss_path", 10);
         gnss_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/gnss_odom", 10);
     }
+    global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/global_map", 1, true);
 }
 
 void ROS1Manager::InitSub() {
@@ -91,7 +92,7 @@ void ROS1Manager::InitSub() {
     }
 
     ros_init_pose_sub_ = nh_.subscribe("/initialpose", 1, &ROS1Manager::InitPoseCallback, this);
-    init_pose_sub_ = nh_.subscribe("/init_pose", 1, &ROS1Manager::InitPoseCallback, this);
+    init_pose_sub_ = nh_.subscribe("/init_pose", 1, &ROS1Manager::RosInitPoseCallback, this);
 }
 void ROS1Manager::InitService() {
 }
@@ -347,20 +348,6 @@ void ROS1Manager::PublishState(const double& sensor_time) {
         }
         lio_odom_pub_.publish(odom);
     }
-    // if (lio_path_pub_.getNumSubscribers() != 0) {
-    //     lio_path_.header.stamp = ros::Time(sensor_time);
-    //     auto current_state = system_ptr_->GetCurentNavState();
-    //     PoseTrans current_pose(current_state.rot, current_state.pos);
-    //     geometry_msgs::PoseStamped pose;
-    //     PoseTransToPoseStampedMsg(current_pose, pose);
-    //     lio_path_.poses.push_back(pose);
-    //     lio_path_.header.frame_id = "odom";
-    //     lio_path_pub_.publish(lio_path_);
-    //     if (lio_path_.poses.size() > 10000) {
-    //         // 为了不让内存增长
-    //         lio_path_.poses.erase(lio_path_.poses.begin());
-    //     }
-    // }
 }
 
 void ROS1Manager::PublishLidar(const double& sensor_time) {
@@ -370,6 +357,10 @@ void ROS1Manager::PublishLidar(const double& sensor_time) {
     cloud_robot_pub_.publish(cloud_robot);
     auto cloud_odom = ToPointCloud2(system_ptr_->GetCloudInOdomLink(), "odom", sensor_time);
     cloud_odom_pub_.publish(cloud_odom);
+    if (system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
+        auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
+        global_map_pub_.publish(global_map);
+    }
 }
 
 void ROS1Manager::PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg) {
@@ -527,7 +518,6 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
 
                 std::stringstream ss1;
                 ss1 << map_dir << "/" << leaf_map.first << "/" << metamap << "/data_trajectory.pcd";
-                // ss1 << map_dir << "/" << name << "/data_trajectory.pcd";
                 if (boost::filesystem::exists(ss1.str())) {
                     PointCloudPtr tmp_cloud(new PointCloudType);
                     pcl::io::loadPCDFile<PointType>(ss1.str(), *tmp_cloud);
@@ -541,13 +531,16 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
             }
         }
     }
+    // debug
+    // pcl::io::savePCDFile(map_dir + "/traj.pcd", *traj_cloud);
 
     // get_meta_label = true;
 
     if (!traj_cloud->empty()) {
         system_ptr_->GetLocalizer()->SetTrajCloud(traj_cloud);
     }
-    LOG_INFO("load meta finish [success: {}/ total: {}]", success_cnt, metamaps_msg->v_name.size());
+    system_ptr_->GetLocalizer()->SetMetaMaps(ids_metamap_map);
+    LOG_INFO("load meta finish [success: {}]", success_cnt);
 }
 
 void ROS1Manager::InitPoseCallback(const robot_manager::slam_pose::ConstPtr& init_pose_msg) {

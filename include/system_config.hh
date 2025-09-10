@@ -198,6 +198,8 @@ struct LocalizerConfig {
     double delta_rot;
     double init_icp_score;
     double icp_dist_thresh;
+    double update_search_dist_thresh;
+    double match_score_thresh;
 
     void print() const {
         LOG_INFO("LocalizerConfig:");
@@ -213,6 +215,8 @@ struct LocalizerConfig {
         LOG_INFO("  delta_rot: {:03.3f}", delta_rot);
         LOG_INFO("  init_icp_score: {:03.3f}", init_icp_score);
         LOG_INFO("  icp_dist_thresh: {:03.3f}", icp_dist_thresh);
+        LOG_INFO("  update_search_dist_thresh: {:03.3f}", update_search_dist_thresh);
+        LOG_INFO("  match_score_thresh: {:03.3f}", match_score_thresh);
     }
 };
 

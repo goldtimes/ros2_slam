@@ -160,6 +160,8 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         localizer_config_.delta_rot = config["localizer"]["delta_rot"].as<double>();
         localizer_config_.init_icp_score = config["localizer"]["init_icp_score"].as<double>();
         localizer_config_.icp_dist_thresh = config["localizer"]["icp_dist_thresh"].as<double>();
+        localizer_config_.update_search_dist_thresh = config["localizer"]["update_search_dist_thresh"].as<double>();
+        localizer_config_.match_score_thresh = config["localizer"]["match_score_thresh"].as<double>();
         localizer_config_.print();
     } catch (const YAML::BadFile& e) {
         LOG_ERROR("config file not found: {}", config_path);

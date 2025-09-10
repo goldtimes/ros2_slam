@@ -122,6 +122,9 @@ localizer:
   delta_rot: 0.3  # [-0.3, 0, 0.3]
   init_icp_score: 0.10
   icp_dist_thresh: 1.0 # 最邻近搜索的阈值，小于1m的点都计算进来
+  update_search_dist_thresh: 1.0 # 搜索的阈值，小于1m的点都计算进来
+  match_score_thresh: 0.1 # 匹配的阈值，小于0.1的点都计算进来
+
 
 
 

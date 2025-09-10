@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 19:45:28
+ * @LastEditTime: 2025-09-10 17:36:47
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -24,6 +24,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 
+#include <pcl/registration/gicp.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <future>
 #include <memory>
@@ -76,6 +77,8 @@ struct MetaInfo {
 
 class Localizer {
    public:
+    using GICP = pcl::GeneralizedIterativeClosestPoint<PointType, PointType>;
+
     Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr);
     ~Localizer();
 
@@ -94,6 +97,22 @@ class Localizer {
     void SetLidarCloud(const PointCloudPtr& lidar_cloud, const PoseTrans& T_LtoO);
 
     void SetSubmapCloud(const PointCloudPtr& submap_cloud, const PoseTrans& T_LtoO);
+
+    LOCAL_STATE GetLocalState() const {
+        return local_state_;
+    }
+
+    PoseTrans GetT_OtoM() const {
+        return T_OtoM_;
+    }
+
+    PointCloudPtr GetGlobalMap() const {
+        return global_map_;
+    }
+
+    bool GetGlobalMapUpdate() const {
+        return global_map_update_;
+    }
 
    private:
     // 根据当前的位置加载地图
@@ -120,6 +139,12 @@ class Localizer {
 
     double CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& input_cloud, const PointTree::Ptr& targer_tree,
                              double dist_thresh);
+
+    void UpdateSearch();
+
+    double GicpAlign(const PointCloudPtr& trans_cloud, const PointCloudPtr& target_cloud,
+                     const PointTree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh,
+                     double match_score_thresh);
 
    private:
     std::shared_ptr<SystemConfig> system_config_ptr_;
@@ -153,6 +178,8 @@ class Localizer {
     bool traj_cloud_loaded_ = false;
 
     bool map_loaded_ = false;
+    bool global_map_update_ = false;
+
     std::pair<std::string, MetaInfo> curr_map_;
     MetaInfo curr_meta_info_;
 
@@ -185,5 +212,6 @@ class Localizer {
     bool update_map_ = false;
 
     std::string map_dir_;
+    GICP::Ptr gicp_matcher_;
 };
 }  // namespace slam
