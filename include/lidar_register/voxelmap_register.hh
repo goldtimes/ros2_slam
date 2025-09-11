@@ -1,3 +1,12 @@
+/*
+ * @Author: lihang lihang@kilox.cn
+ * @Date: 2025-09-04 17:38:22
+ * @LastEditors: lihang lihang@kilox.cn
+ * @LastEditTime: 2025-09-11 20:49:54
+ * @FilePath: /fast_lvio_ws/src/open_slam/include/lidar_register/voxelmap_register.hh
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
+ * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #pragma once
 #include <pcl/filters/voxel_grid.h>
 #include "lidar_register.hh"
@@ -10,11 +19,11 @@ class VoxelMapRegister : public LidarRegister {
 
     ~VoxelMapRegister();
 
-    virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
-    virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
-    virtual PointCloudPtr GetSubmap() override;
+    virtual PointCloudXYZIPtr GetSubmap() override;
 
    private:
     // M3D transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF> kf_ptr,

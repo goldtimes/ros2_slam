@@ -6,7 +6,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     LOG_INFO("P2PlaneRegister constructor");
     first_frame_ = true;
     // ikd_tree树
-    m_ikdtree = std::make_shared<KD_TREE<slam::PointType>>();
+    m_ikdtree = std::make_shared<KD_TREE<PointXYZI>>();
     m_ikdtree->set_downsample_param(map_resolution);
     map_resolution = system_config->frontend_config_.p2plane_config.map_resolution;
     cube_len = system_config->frontend_config_.p2plane_config.cube_len;
@@ -17,11 +17,11 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     // 信息矩阵
     lidar_info_matrix_ = lidar_noise_std_ == 0.0 ? 1000 : 1.0 / lidar_noise_std_;
     // 分配空间
-    current_lidar_.reset(new PointCloudType);
-    cloud_world.reset(new PointCloudType(10000, 1));
-    m_norm_vec.reset(new PointCloudType(10000, 1));
-    m_effect_cloud_lidar.reset(new PointCloudType(10000, 1));
-    m_effect_norm_vec.reset(new PointCloudType(10000, 1));
+    current_lidar_.reset(new PointCloudXYZI);
+    cloud_world.reset(new PointCloudXYZI(10000, 1));
+    m_norm_vec.reset(new PointCloudXYZI(10000, 1));
+    m_effect_cloud_lidar.reset(new PointCloudXYZI(10000, 1));
+    m_effect_norm_vec.reset(new PointCloudXYZI(10000, 1));
     m_nearest_points.resize(10000);
     m_point_selected_flag.resize(10000, false);
     LOG_INFO("map resolution: {}, cube_len:{}, det_range:{}, move_thresh:{}", map_resolution, cube_len, det_range,
@@ -40,7 +40,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
 P2PlaneRegister::~P2PlaneRegister() {
 }
 
-bool P2PlaneRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool P2PlaneRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // trans to world cloud
     // set to ikdtree
     if (first_frame_) {
@@ -145,7 +145,7 @@ void P2PlaneRegister::IncreMap() {
 
         const PointVec &points_near = m_nearest_points[i];
         bool need_add = true;
-        PointType downsample_result, mid_point;
+        PointXYZI downsample_result, mid_point;
         mid_point.x = std::floor(cloud_world->points[i].x / map_resolution) * map_resolution + 0.5 * map_resolution;
         mid_point.y = std::floor(cloud_world->points[i].y / map_resolution) * map_resolution + 0.5 * map_resolution;
         mid_point.z = std::floor(cloud_world->points[i].z / map_resolution) * map_resolution + 0.5 * map_resolution;
@@ -176,7 +176,7 @@ void P2PlaneRegister::IncreMap() {
     m_ikdtree->Add_Points(point_no_need_downsample, false);
 }
 
-bool P2PlaneRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool P2PlaneRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // filter cloud
     current_lidar_ = cloud_lidar;
     is_keyframe_ = false;
@@ -210,7 +210,7 @@ void P2PlaneRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_d
 #pragma omp parallel for
 #endif
     for (int i = 0; i < size; ++i) {
-        PointType point_lidar = current_lidar_->points[i];
+        PointXYZI point_lidar = current_lidar_->points[i];
         const auto pt_lidar = ToV3D(point_lidar);
         auto &point_world = cloud_world->points[i];
         const auto pt_world = T_WL * pt_lidar;
@@ -326,8 +326,8 @@ void P2PlaneRegister::UpdateMap() {
     IncreMap();
 }
 
-PointCloudPtr P2PlaneRegister::GetSubmap() {
-    PointCloudPtr cloud(new PointCloudType);
+PointCloudXYZIPtr P2PlaneRegister::GetSubmap() {
+    PointCloudXYZIPtr cloud(new PointCloudXYZI);
     m_ikdtree->flatten(m_ikdtree->Root_Node, m_ikdtree->PCL_Storage, delete_point_storage_set::NOT_RECORD);
     cloud->points = m_ikdtree->PCL_Storage;
     cloud->width = cloud->points.size();

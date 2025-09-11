@@ -2,7 +2,7 @@
 Author: lihang lihang@kilox.cn
 Date: 2025-09-10 16:22:49
 LastEditors: lihang lihang@kilox.cn
-LastEditTime: 2025-09-10 17:10:46
+LastEditTime: 2025-09-11 09:48:01
 FilePath: /fast_lvio_ws/src/open_slam/scripts/pub_map.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -18,7 +18,7 @@ from robot_manager.msg import slam_pose
 class PubSlamPose:
     def __init__(self):
         self.pub = rospy.Publisher(
-            "/initialpose", slam_pose, queue_size=1, latch=True
+            "/init_pose", slam_pose, queue_size=1, latch=True
         )
 
         time.sleep(1)

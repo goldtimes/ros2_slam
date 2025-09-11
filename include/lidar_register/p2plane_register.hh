@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-04 17:38:22
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 11:11:28
+ * @LastEditTime: 2025-09-11 20:54:12
  * @FilePath: /fast_lvio_ws/src/open_slam/include/lidar_register/p2plane_register.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%A
@@ -25,11 +25,11 @@ class P2PlaneRegister : public LidarRegister {
 
     ~P2PlaneRegister();
 
-    virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
-    virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
-    virtual PointCloudPtr GetSubmap() override;
+    virtual PointCloudXYZIPtr GetSubmap() override;
 
     void TrimCloud();
     void IncreMap();
@@ -37,19 +37,19 @@ class P2PlaneRegister : public LidarRegister {
    private:
     bool EstimatePlane(const PointVec &points, double thresh, Eigen::Vector4d &plane_coeff);
 
-    float sq_dist(const PointType &p1, const PointType &p2) {
+    float sq_dist(const PointXYZI &p1, const PointXYZI &p2) {
         return (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z);
     }
 
    private:
     LocalMap m_local_map;
-    std::shared_ptr<KD_TREE<slam::PointType>> m_ikdtree;
+    std::shared_ptr<KD_TREE<PointXYZI>> m_ikdtree;
 
-    PointCloudPtr cloud_world;
+    PointCloudXYZIPtr cloud_world;
     std::vector<bool> m_point_selected_flag;
-    PointCloudPtr m_norm_vec;
-    PointCloudPtr m_effect_cloud_lidar;
-    PointCloudPtr m_effect_norm_vec;
+    PointCloudXYZIPtr m_norm_vec;
+    PointCloudXYZIPtr m_effect_cloud_lidar;
+    PointCloudXYZIPtr m_effect_norm_vec;
 
     std::vector<PointVec> m_nearest_points;
 

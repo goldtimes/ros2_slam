@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-04 17:38:22
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 09:28:31
+ * @LastEditTime: 2025-09-11 20:50:42
  * @FilePath: /fast_lvio_ws/src/open_slam/src/lidar_register/inc_ndt_register.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -36,7 +36,7 @@ IncNdtRegister::~IncNdtRegister() {
     LOG_INFO("~IncNdtRegister");
 }
 
-bool IncNdtRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool IncNdtRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     if (first_frame_) {
         // transform cloud_lidar to world frame
         auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
@@ -49,7 +49,7 @@ bool IncNdtRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> 
     return true;
 }
 
-bool IncNdtRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool IncNdtRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // transform cloud_lidar to body
     auto cloud_body = TransformLidarOMP(cloud_lidar, system_config_->lidar2imu_.R, system_config_->lidar2imu_.t);
     // 降采样
@@ -72,8 +72,8 @@ void IncNdtRegister::UpdateMap() {
     }
 }
 
-PointCloudPtr IncNdtRegister::GetSubmap() {
-    PointCloudPtr cloud(new PointCloudType);
+PointCloudXYZIPtr IncNdtRegister::GetSubmap() {
+    PointCloudXYZIPtr cloud(new PointCloudType);
 
     return cloud;
 }

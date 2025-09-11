@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-10 17:37:05
+ * @LastEditTime: 2025-09-11 20:59:42
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -60,60 +60,63 @@ Localizer::~Localizer() {
 void Localizer::SetMetaMaps(const std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>>& maps) {
     LOG_INFO("receive meta maps");
     ids_metamap_map_ = maps;
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    local_state_ = LOCAL_STATE::NOT_INIT;
+    map_loaded_ = true;
 }
 
-void Localizer::SetLidarCloud(const PointCloudPtr& lidar_cloud, const PoseTrans& T_LtoO) {
+void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_RtoO) {
     curr_lidar_cloud_ = lidar_cloud;
     get_new_lidar_ = true;
-    T_LtoO_ = T_LtoO;
+    T_RtoO_ = T_RtoO;
     if (local_state_ == LOCAL_STATE::INITED) {
         update_map_ = true;
-        guess_pose_ = T_OtoM_ * T_LtoO;
+        update_T_RtoM_ = T_OtoM_ * T_RtoO_;
     }
 }
 
-void Localizer::SetSubmapCloud(const PointCloudPtr& submap_cloud, const PoseTrans& T_LtoO) {
+void Localizer::SetSubmapCloud(const PointCloudXYZIPtr& submap_cloud, const PoseTrans& T_LtoO) {
     curr_submap_cloud_ = submap_cloud;
     get_new_submap_ = true;
-    update_T_LtoO_ = T_LtoO;
+    update_T_RtoO_ = T_LtoO;
 }
 
-void Localizer::SetInitPose(const PoseTrans& init_pose, int level, const std::string& map_id) {
+void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::string& map_id) {
     if (ids_metamap_map_.empty()) {
         LOG_ERROR(YELLOW "The map has not been loaded yet");
         return;
     }
     get_init_pose_ = true;
     // 设置机器人的初始位置
-    guess_pose_ = init_pose;
+    init_T_RtoM_ = init_RtoM;
     // 通知地图更新线程更新地图
     update_map_ = true;
     // 记录当前的地图信息
     curr_meta_info_.level = level;
     curr_map_ = std::make_pair(map_id, curr_meta_info_);
     LOG_INFO("map_identity:{}", map_id);
-    LOG_INFO("init posisition:{}", guess_pose_.t.transpose());
-    LOG_INFO("init orientation:{}", guess_pose_.RPY().transpose());
+    LOG_INFO("init posisition:{}", init_T_RtoM_.t.transpose());
+    LOG_INFO("init orientation:{}", init_T_RtoM_.RPY().transpose());
     // 修改初始值的高度
     if (traj_cloud_loaded_) {
-        PointType init_pt;
-        init_pt.x = guess_pose_.t(0);
-        init_pt.y = guess_pose_.t(1);
-        init_pt.z = guess_pose_.t(2);
+        PointXYZI init_pt;
+        init_pt.x = init_T_RtoM_.t(0);
+        init_pt.y = init_T_RtoM_.t(1);
+        init_pt.z = init_T_RtoM_.t(2);
         // 查找最近的点
         std::vector<int> indices;
         std::vector<float> distances;
         traj_cloud_tree_->nearestKSearch(init_pt, 1, indices, distances);
         if (indices.size() > 0) {
-            guess_pose_.t(2) = traj_cloud_->points[indices[0]].z;
+            init_T_RtoM_.t(2) = traj_cloud_->points[indices[0]].z;
         }
-        if (guess_pose_.t(2) < 0) {
-            guess_pose_.t(2) = 0;
+        if (init_T_RtoM_.t(2) < 0) {
+            init_T_RtoM_.t(2) = 0;
         }
-        if (guess_pose_.t(2) > 2.0) {
-            guess_pose_.t(2) /= 2;
+        if (init_T_RtoM_.t(2) > 2.0) {
+            init_T_RtoM_.t(2) /= 2;
         }
-        LOG_INFO("change predict height to {}", guess_pose_.t.transpose());
+        LOG_INFO("change predict height to {}", init_T_RtoM_.t.transpose());
     }
 }
 
@@ -126,9 +129,13 @@ void Localizer::SetMaps(const std::string& pcd_path) {
     // 构建kd树
     global_map_tree_->setInputCloud(global_map_);
     map_loaded_ = true;
+
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    local_state_ = LOCAL_STATE::NOT_INIT;
+    map_loaded_ = true;
 }
 
-void Localizer::SetTrajCloud(const PointCloudPtr& traj_cloud) {
+void Localizer::SetTrajCloud(const PointCloudXYZIPtr& traj_cloud) {
     // 分配空间
     traj_cloud_.reset(new PointCloudType());
     traj_cloud_tree_.reset(new PointTree());
@@ -143,7 +150,7 @@ void Localizer::MapUpdate() noexcept {
     while (ros::ok()) {
         if (update_map_) {
             update_map_ = false;
-            LoadMapByPose(guess_pose_);
+            LoadMapByPose(update_T_RtoM_);
         }
         rate.sleep();
     }
@@ -152,13 +159,13 @@ void Localizer::MapUpdate() noexcept {
 void Localizer::MapRegister() noexcept {
     LOG_INFO("MapRegister Run");
     // 等待局部地图更新了
-    ros::Rate rate(20);
+    ros::Rate rate(50);
     while (ros::ok()) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         switch (local_state_) {
             // 需要在外面设置 NOT_INIT状态
             case LOCAL_STATE::NOT_INIT:
-                LOG_INFO("[LOC] not init");
+                LOG_INFO("[LOC] not init , get_init_pose_:{}, get_new_lidar:{}", get_init_pose_, get_new_lidar_);
                 if (get_init_pose_ && get_new_lidar_) {
                     StartInitialization();
                     get_init_pose_ = false;
@@ -240,7 +247,8 @@ bool Localizer::InitSearch() {
     int num_rot = system_config_ptr_->localizer_config_.num_rot;
     double delta_trans = system_config_ptr_->localizer_config_.delta_trans;
     double delta_rot = system_config_ptr_->localizer_config_.delta_rot;
-    std::vector<PoseTrans> search_poses = GeneratorSearchGrids(guess_pose_, num_trans, num_rot, delta_trans, delta_rot);
+    std::vector<PoseTrans> search_poses =
+        GeneratorSearchGrids(init_T_RtoM_, num_trans, num_rot, delta_trans, delta_rot);
     double min_score = 1e4;
     PoseTrans best_guess_pose;
     for (size_t i = 0; i < search_poses.size(); i++) {
@@ -269,7 +277,7 @@ bool Localizer::InitSearch() {
         if (cancel_init_) {
             break;
         }
-        PointCloudPtr trans_source_cloud = TransformLidar(curr_lidar_cloud_, search_poses[i].R, search_poses[i].t);
+        PointCloudXYZIPtr trans_source_cloud = TransformLidar(curr_lidar_cloud_, search_poses[i].R, search_poses[i].t);
         PoseTrans incre_pose;
         double score;
         GicpAlign(trans_source_cloud, global_map_, global_map_tree_, incre_pose,
@@ -279,13 +287,13 @@ bool Localizer::InitSearch() {
         LOG_INFO("try times {}, score:{}", i, score);
         if (score > 0 && score < init_icp_score) {
             init_icp_score = score;
-            // 更新配准后的pose
-            T_OtoM_ = incre_pose * search_poses[i];
+            // 更新配准后机器位姿
+            init_Result_ = incre_pose * search_poses[i];
             success = true;
 
             if (score < system_config_ptr_->localizer_config_.init_icp_score / 2) {
                 success = true;
-                T_OtoM_ = search_poses[i];
+                init_Result_ = search_poses[i];
                 break;
             }
         } else if (score > init_icp_score) {
@@ -333,7 +341,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
         }
 
         // 从文件加载
-        pcl::io::loadPCDFile<PointType>(ss.str(), *meta_info->map_pcd);
+        pcl::io::loadPCDFile<PointXYZI>(ss.str(), *meta_info->map_pcd);
         meta_info->is_active = true, meta_info->is_old = false;
         meta_info->load_time = boost::posix_time::microsec_clock::local_time();
         LOG_INFO("load {}, point size {} \n", ss.str().c_str(), meta_info->map_pcd->size());
@@ -370,7 +378,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
 
     // 如果发生了更新, 则从新更新地图
     if (update) {
-        PointCloudPtr trans_map(new PointCloudType);
+        PointCloudXYZIPtr trans_map(new PointCloudType);
         for (auto& meta_info : ids_metamap_map_[curr_map_.first]) {
             if (!meta_info->is_active) continue;
             if (meta_info->map_pcd->empty()) continue;
@@ -385,9 +393,6 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
             return false;
         }
         LOG_INFO(YELLOW "global map point size {} \n" RESET, global_map_->size());
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        local_state_ = LOCAL_STATE::NOT_INIT;
-        map_loaded_ = true;
     } else {
         global_map_update_ = false;
     }
@@ -420,13 +425,13 @@ std::vector<PoseTrans> Localizer::GeneratorSearchGrids(const PoseTrans& init_pos
     return search_poses;
 }
 
-double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& input_cloud,
+double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIPtr& input_cloud,
                                     const PointTree::Ptr& targer_tree, double dist_thresh) {
     if (input_cloud->points.size() < 100) {
         LOG_ERROR("input cloud size is too small < 100");
         return -1;
     }
-    PointCloudPtr trans_cloud(new PointCloudType);
+    PointCloudXYZIPtr trans_cloud(new PointCloudType);
     TransformCloud(input_cloud, trans_cloud, pose.R, pose.t);
 
     std::vector<int> nn_indices;
@@ -450,7 +455,7 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& 
 }
 
 void Localizer::UpdateSearch() {
-    PointCloudPtr cloud_in_map = TransformLidar(curr_submap_cloud_, T_OtoM_.R, T_OtoM_.t);
+    PointCloudXYZIPtr cloud_in_map = TransformLidar(curr_submap_cloud_, T_OtoM_.R, T_OtoM_.t);
     PoseTrans incre_pose;
     double score = GicpAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
                              system_config_ptr_->localizer_config_.update_search_dist_thresh,
@@ -467,7 +472,7 @@ void Localizer::UpdateSearch() {
     }
 }
 
-double Localizer::GicpAlign(const PointCloudPtr& trans_cloud, const PointCloudPtr& target_cloud,
+double Localizer::GicpAlign(const PointCloudXYZIPtr& trans_cloud, const PointCloudXYZIPtr& target_cloud,
                             const PointTree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh,
                             double match_score_thresh) {
     double score = -1;
@@ -479,7 +484,7 @@ double Localizer::GicpAlign(const PointCloudPtr& trans_cloud, const PointCloudPt
         LOG_ERROR("target cloud size is too small < 100");
         return -1;
     }
-    PointCloudPtr aligned_cloud(new PointCloudType);
+    PointCloudXYZIPtr aligned_cloud(new PointCloudXYZI);
     gicp_matcher_->setSearchMethodTarget(target_tree, true);
     gicp_matcher_->setInputTarget(target_cloud);
     gicp_matcher_->setInputSource(trans_cloud);

@@ -37,7 +37,7 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
 VoxelMapRegister::~VoxelMapRegister() {
 }
 
-bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool VoxelMapRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // pcl::io::savePCDFileASCII("/home/kilox/cloud_lidar.pcd", *cloud_lidar);
     if (first_frame_) {
         M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
@@ -79,7 +79,7 @@ bool VoxelMapRegister::InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF
     return true;
 }
 
-bool VoxelMapRegister::Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
+bool VoxelMapRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
     // scan_filter_.setInputCloud(cloud_lidar);
     // scan_filter_.filter(*current_lidar_);
     current_lidar_ = cloud_lidar;
@@ -252,8 +252,8 @@ M3D VoxelMapRegister::calcBodyCov(Eigen::Vector3d &pb, const float range_inc, co
 //     return cov_world;
 // }
 
-PointCloudPtr VoxelMapRegister::GetSubmap() {
-    PointCloudPtr cloud(new PointCloudType);
+PointCloudXYZIPtr VoxelMapRegister::GetSubmap() {
+    PointCloudXYZIPtr cloud(new PointCloudXYZI);
 
     return cloud;
 }

@@ -23,7 +23,7 @@ System::System(const std::string& config_path) : config_path_(config_path) {
     system_init_.store(false);
 
     // 定位程序
-    localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
+    // localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
 }
 
 void System::InitConfigParams() {
@@ -126,17 +126,17 @@ const M33D System::GetCov() const {
 }
 
 // lidar坐标系原始数据
-const PointCloudPtr System::GetCloudInLidarLink() const {
+const PointCloudXYZIPtr System::GetCloudInLidarLink() const {
     return front_end_ptr_->GetCloudInLidarLink();
 }
 
 // robot_link坐标系点云
-const PointCloudPtr System::GetCloudInRobotLink() const {
+const PointCloudXYZIPtr System::GetCloudInRobotLink() const {
     return front_end_ptr_->GetCloudInRobotLink();
 }
 
 // odom坐标系点云
-const PointCloudPtr System::GetCloudInOdomLink() const {
+const PointCloudXYZIPtr System::GetCloudInOdomLink() const {
     return front_end_ptr_->GetCloudInOdomLink();
 }
 

@@ -160,7 +160,7 @@ bool LidarProcess::mid360_process(const sensor_msgs::PointCloud2::ConstPtr& clou
                 pt.z = livox_point.z;
                 pt.intensity = livox_point.intensity;
                 // ns -> s
-                pt.curvature = livox_point.timestamp / 1e9;
+                pt.time = static_cast<float>(livox_point.timestamp / 1e9);
                 filtered_cloud->push_back(pt);
             }
         }
@@ -221,7 +221,7 @@ bool LidarProcess::velodyne16_process(const sensor_msgs::PointCloud2::ConstPtr& 
         p.intensity = pt.intensity;
         // std::cout << std::fixed << "point time:" << cloud->points[i].time << std::endl;
 
-        p.curvature = cloud_start_time + cloud->points[i].time / 1e6;
+        p.time = cloud_start_time + cloud->points[i].time / 1e6;
         // std::cout << std::fixed << "pt time:" << p.time << std::endl;
         filtered_cloud->push_back(p);
         // }
@@ -264,7 +264,7 @@ bool LidarProcess::avia_process(const livox_ros_driver2::CustomMsg::ConstPtr& ms
             p.y = msg->points[i].y;
             p.z = msg->points[i].z;
             p.intensity = msg->points[i].reflectivity;
-            p.curvature = time_start + msg->points[i].offset_time / 1e9;  // 纳秒->毫秒
+            p.time = time_start + msg->points[i].offset_time / 1e9;  // 纳秒->毫秒
             double sq_range = p.x * p.x + p.y * p.y + p.z * p.z;
             if (sq_range > (min_range_ * min_range_) && sq_range < max_range_ * max_range_) {
                 out_cloud->push_back(p);

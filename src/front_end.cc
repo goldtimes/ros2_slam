@@ -4,6 +4,7 @@
 #include "lidar_register/inc_ndt_register.hh"
 #include "lidar_register/p2plane_register.hh"
 #include "lidar_register/voxelmap_register.hh"
+#include "localizer/localizer.hh"
 #include "propogator.hh"
 #include "system.hh"
 #include "system_config.hh"
@@ -57,9 +58,9 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
 }
 
 void FrontEnd::AllocateMemory() {
-    undistort_cloud_lidar_.reset(new PointCloudType);
-    undistort_cloud_robot_.reset(new PointCloudType);
-    undistort_cloud_odom_.reset(new PointCloudType);
+    undistort_cloud_lidar_.reset(new PointCloudXYZI);
+    undistort_cloud_robot_.reset(new PointCloudXYZI);
+    undistort_cloud_odom_.reset(new PointCloudXYZI);
 }
 
 FrontEnd::~FrontEnd() {
@@ -84,7 +85,7 @@ void FrontEnd::Run() {
             // get measurement
             MeasureGroup meas;
             if (GetMeasureGroup(meas)) {
-                // LOG_INFO("GetMeasureGroup success!");
+                LOG_INFO("GetMeasureGroup success!");
                 measure_group_ = meas;
                 if (front_end_status_ == FrontEndStatus::IMU_INIT) {
                     // 静态初始化
@@ -123,9 +124,7 @@ void FrontEnd::Run() {
                     // 更新TWE
                     T_WE = T_WE * encoder_delta_pose;
                 }
-                // 对gnss进行处理
-                if (use_gnss_) {
-                }
+
                 propogator_ptr_->UndistortLidar(measure_group_, undistort_cloud_lidar_);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
@@ -161,11 +160,16 @@ void FrontEnd::Run() {
                         //                           *world_cloud);
                         frame_id++;
                         // 根据关键帧的生成来通知后台配准线程
-                        if (lidar_register_ptr_->IsKeyFrame()) {
+                        if (lidar_register_ptr_->IsKeyFrame() || first_frame_) {
                             LOG_INFO("KeyFrame");
                             // set submap to localizer
+                            // localizer_ptr_->SetSubmap(world_cloud);
+                            // system_->GetLocalizer()->SetSubmapCloud(world_cloud, T_WL);
+                            // first_frame_ = false;
                         }
-                        // set lidar to localizer
+                        // 传入robot坐标下的点云和robot在odom下的坐标
+                        // auto T_RtoO = T_WL * T_BL.inverse();
+                        // system_->GetLocalizer()->SetLidarCloud(undistort_cloud_robot_, T_RtoO);
                         // auto t4 = std::chrono::high_resolution_clock::now();
                         // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3).count();
                         // LOG_INFO("Get Map used time: {} ms", total_time * 1e3);
@@ -210,18 +214,18 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
         measures.lidar_beg_time = system_->lidar_time_queue_.front();
         // sort cloud
         std::sort(measures.curent_cloud->points.begin(), measures.curent_cloud->points.end(),
-                  [](const PointType& a, const PointType& b) { return a.curvature < b.curvature; });
+                  [](const PointType& a, const PointType& b) { return a.time < b.time; });
         if (measures.curent_cloud->size() < 1) {
             measures.lidar_end_time = measures.lidar_beg_time + lidar_mean_scantime_;
             LOG_ERROR("lidar cloud size is 0, begin time is {}, end time is {}", measures.lidar_beg_time,
                       measures.lidar_end_time);
-        } else if (measures.curent_cloud->points.back().curvature < 0.5 * lidar_mean_scantime_) {
+        } else if (measures.curent_cloud->points.back().time < 0.5 * lidar_mean_scantime_) {
             measures.lidar_end_time = measures.lidar_beg_time + lidar_mean_scantime_;
             LOG_ERROR("lidar cloud end time is too small, begin time is {}, end time is {}", measures.lidar_beg_time,
                       measures.lidar_end_time);
         } else {
             scan_count_++;
-            measures.lidar_end_time = measures.curent_cloud->points.back().curvature;
+            measures.lidar_end_time = measures.curent_cloud->points.back().time;
             lidar_mean_scantime_ +=
                 (measures.lidar_end_time - measures.lidar_beg_time - lidar_mean_scantime_) / scan_count_;
         }
@@ -229,9 +233,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        // LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
-        //          measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
-        //          lidar_mean_scantime_);
+        LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
+                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -342,17 +345,17 @@ const M3D FrontEnd::GetGnssHeading() const {
 }
 
 // lidar坐标系原始数据
-const PointCloudPtr FrontEnd::GetCloudInLidarLink() const {
+const PointCloudXYZIPtr FrontEnd::GetCloudInLidarLink() const {
     return undistort_cloud_lidar_;
 }
 
 // robot_link坐标系点云
-const PointCloudPtr FrontEnd::GetCloudInRobotLink() const {
+const PointCloudXYZIPtr FrontEnd::GetCloudInRobotLink() const {
     return undistort_cloud_robot_;
 }
 
 // odom坐标系点云
-const PointCloudPtr FrontEnd::GetCloudInOdomLink() const {
+const PointCloudXYZIPtr FrontEnd::GetCloudInOdomLink() const {
     return undistort_cloud_odom_;
 }
 

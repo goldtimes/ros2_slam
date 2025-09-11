@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-08-29 14:15:00
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-09 16:24:50
+ * @LastEditTime: 2025-09-11 20:53:42
  * @FilePath: /fast_lvio_ws/src/open_slam/include/pointcloud_utils.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AEe
@@ -19,15 +19,18 @@
 #include "logger.hh"
 
 namespace slam {
-using PointType = pcl::PointXYZINormal;
+
+using PointType = slam::PointXYZIRT;
 using PointCloudType = pcl::PointCloud<PointType>;
 using PointCloudPtr = PointCloudType::Ptr;
-using PointVec = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
-using PointTree = pcl::search::KdTree<PointType>;
 
 using PointXYZI = pcl::PointXYZI;
 using PointCloudXYZI = pcl::PointCloud<PointXYZI>;
+using PointVec = std::vector<PointXYZI, Eigen::aligned_allocator<PointXYZI>>;
+using PointCloudXYZIPtr = pcl::PointCloud<PointXYZI>::Ptr;
 using PointXYZITree = pcl::search::KdTree<PointXYZI>;
+using PointTree = pcl::search::KdTree<PointXYZI>;
+using PointFilter = pcl::VoxelGrid<PointXYZI>;
 
 template <typename T>
 inline V3D ToV3D(const T& point) {
@@ -48,9 +51,9 @@ inline T dis_a_b(const T& xa, const T& ya, const T& xb, const T& yb) {
     return std::sqrt(std::pow(xa - xb, 2) + std::pow(ya - yb, 2));
 }
 
-PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const SE3& transform);
-PointCloudPtr TransformLidarOMP(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
-PointCloudPtr TransformLidar(const PointCloudPtr& cloud, const M3D& R, const V3D& t);
+PointCloudXYZIPtr TransformLidarOMP(const PointCloudXYZIPtr& cloud, const SE3& transform);
+PointCloudXYZIPtr TransformLidarOMP(const PointCloudXYZIPtr& cloud, const M3D& R, const V3D& t);
+PointCloudXYZIPtr TransformLidar(const PointCloudXYZIPtr& cloud, const M3D& R, const V3D& t);
 
 template <typename T>
 void TransformCloud(const T& cloud, T& out_cloud, const M3D& R, const V3D& t) {

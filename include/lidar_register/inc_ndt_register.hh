@@ -18,11 +18,11 @@ class IncNdtRegister : public LidarRegister {
 
     ~IncNdtRegister();
 
-    virtual bool InitMap(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
-    virtual bool Align(PointCloudPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
+    virtual bool Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) override;
     virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) override;
     virtual void UpdateMap() override;
-    virtual PointCloudPtr GetSubmap() override;
+    virtual PointCloudXYZIPtr GetSubmap() override;
 
    private:
     double voxel_size_;

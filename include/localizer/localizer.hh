@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-10 17:36:47
+ * @LastEditTime: 2025-09-11 20:59:22
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -65,7 +65,7 @@ struct MetaInfo {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     boost::posix_time::ptime load_time;
     boost::posix_time::ptime expired_time;
-    PointCloudPtr map_pcd;
+    PointCloudXYZIPtr map_pcd;
     std::string name;
     bool is_active = false;
     bool is_old = false;
@@ -77,7 +77,7 @@ struct MetaInfo {
 
 class Localizer {
    public:
-    using GICP = pcl::GeneralizedIterativeClosestPoint<PointType, PointType>;
+    using GICP = pcl::GeneralizedIterativeClosestPoint<PointXYZI, PointXYZI>;
 
     Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr);
     ~Localizer();
@@ -92,11 +92,11 @@ class Localizer {
     void SetMaps(const std::string& pcd_path);
     void SetInitPose(const PoseTrans& init_pose, int level = 0, const std::string& map_id = "");
 
-    void SetTrajCloud(const PointCloudPtr& traj_cloud);
+    void SetTrajCloud(const PointCloudXYZIPtr& traj_cloud);
 
-    void SetLidarCloud(const PointCloudPtr& lidar_cloud, const PoseTrans& T_LtoO);
+    void SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_LtoO);
 
-    void SetSubmapCloud(const PointCloudPtr& submap_cloud, const PoseTrans& T_LtoO);
+    void SetSubmapCloud(const PointCloudXYZIPtr& submap_cloud, const PoseTrans& T_LtoO);
 
     LOCAL_STATE GetLocalState() const {
         return local_state_;
@@ -106,7 +106,7 @@ class Localizer {
         return T_OtoM_;
     }
 
-    PointCloudPtr GetGlobalMap() const {
+    PointCloudXYZIPtr GetGlobalMap() const {
         return global_map_;
     }
 
@@ -137,13 +137,13 @@ class Localizer {
     std::vector<PoseTrans> GeneratorSearchGrids(const PoseTrans& init_pose, int num_trans, int num_rot,
                                                 double delta_trans, double delta_rot);
 
-    double CalculateP2PScore(const PoseTrans& pose, const PointCloudPtr& input_cloud, const PointTree::Ptr& targer_tree,
-                             double dist_thresh);
+    double CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIPtr& input_cloud,
+                             const PointXYZITree::Ptr& targer_tree, double dist_thresh);
 
     void UpdateSearch();
 
-    double GicpAlign(const PointCloudPtr& trans_cloud, const PointCloudPtr& target_cloud,
-                     const PointTree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh,
+    double GicpAlign(const PointCloudXYZIPtr& trans_cloud, const PointCloudXYZIPtr& target_cloud,
+                     const PointXYZITree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh,
                      double match_score_thresh);
 
    private:
@@ -158,22 +158,22 @@ class Localizer {
     bool use_meta_maps_ = false;
     std::shared_ptr<std::thread> map_update_thread_;
     std::shared_ptr<std::thread> map_register_thread_;
-    pcl::VoxelGrid<PointType> global_map_filter_;
+    pcl::VoxelGrid<PointXYZI> global_map_filter_;
 
     // 当前的lidar点云
-    PointCloudPtr curr_lidar_cloud_;
+    PointCloudXYZIPtr curr_lidar_cloud_;
     // 当前的submap点云，用来配准
-    PointCloudPtr curr_submap_cloud_;
+    PointCloudXYZIPtr curr_submap_cloud_;
 
     // 全局地图
-    PointCloudPtr global_map_;
+    PointCloudXYZIPtr global_map_;
     // 全局地图的kd树
-    PointTree::Ptr global_map_tree_;
+    PointXYZITree::Ptr global_map_tree_;
 
     // 轨迹点云
-    PointCloudPtr traj_cloud_;
+    PointCloudXYZIPtr traj_cloud_;
     // 轨迹点云的kd树
-    PointTree::Ptr traj_cloud_tree_;
+    PointXYZITree::Ptr traj_cloud_tree_;
 
     bool traj_cloud_loaded_ = false;
 
@@ -198,7 +198,8 @@ class Localizer {
     bool get_new_submap_ = false;
 
     // 用户指定的机器人在地图中的初始化位姿
-    PoseTrans guess_pose_;
+    PoseTrans init_T_RtoM_;
+    PoseTrans init_Result_;
 
     PoseTrans T_OtoM_;  // odom在map下的坐标系
 
@@ -206,8 +207,9 @@ class Localizer {
     std::atomic_bool is_initializing_;
     std::atomic_bool cancel_init_;
 
-    PoseTrans T_LtoO_;  // 雷达在odom下的坐标系
-    PoseTrans update_T_LtoO_;
+    PoseTrans T_RtoO_;  // 雷达在odom下的坐标系
+    PoseTrans update_T_RtoM_;
+    PoseTrans update_T_RtoO_;
 
     bool update_map_ = false;
 

@@ -91,8 +91,8 @@ void ROS1Manager::InitSub() {
         metamaps_sub_ = nh_.subscribe("metaset_info", 1, &ROS1Manager::MetamapsCallback, this);
     }
 
-    ros_init_pose_sub_ = nh_.subscribe("/initialpose", 1, &ROS1Manager::InitPoseCallback, this);
-    init_pose_sub_ = nh_.subscribe("/init_pose", 1, &ROS1Manager::RosInitPoseCallback, this);
+    ros_init_pose_sub_ = nh_.subscribe("/initialpose", 1, &ROS1Manager::RosInitPoseCallback, this);
+    init_pose_sub_ = nh_.subscribe("/init_pose", 1, &ROS1Manager::InitPoseCallback, this);
 }
 void ROS1Manager::InitService() {
 }
@@ -115,7 +115,7 @@ void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr&
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudType);
+    PointCloudPtr cloud_ptr(new PointCloudXYZI);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -137,7 +137,7 @@ void ROS1Manager::Livox2CloudCallback(const livox_ros_driver2::CustomMsg::ConstP
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudType);
+    PointCloudPtr cloud_ptr(new PointCloudXYZI);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -158,7 +158,7 @@ void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudType);
+    PointCloudPtr cloud_ptr(new PointCloudXYZI);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -279,7 +279,10 @@ void ROS1Manager::Visualize() {
     ros::Rate rate(50);
     while (ros::ok()) {
         rate.sleep();
-
+        // if (system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
+        //     auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
+        //     global_map_pub_.publish(global_map);
+        // }
         // 系统以及初始化完成后，但是还在处理雷达消息，可视化的线程要比里程计的线程快
         if (last_visualize_time_ == system_ptr_->GetSystemTime() && system_ptr_->IsSystemInit()) {
             continue;
@@ -306,7 +309,14 @@ void ROS1Manager::Visualize() {
 }
 
 void ROS1Manager::PublishTF(const double& sensor_time) {
-    // 发布robot_link在odom的tf信息
+    //
+    PoseTrans T_OtoM = system_ptr_->GetLocalizer()->GetT_OtoM();
+    geometry_msgs::TransformStamped tran_OM = GetTransformStamped(sensor_time, T_OtoM);
+    tran_OM.header.frame_id = "map";
+    tran_OM.child_frame_id = "odom";
+    tf_broadcaster_->sendTransform(tran_OM);
+
+    // 发布robot_link在odom的tf信息;
     auto current_state = system_ptr_->GetCurentNavState();
     PoseTrans T_iInG(current_state.rot, current_state.pos);
     PoseTrans T_bInG = T_iInG * system_ptr_->GetImuToBaselink().inverse();
@@ -357,10 +367,6 @@ void ROS1Manager::PublishLidar(const double& sensor_time) {
     cloud_robot_pub_.publish(cloud_robot);
     auto cloud_odom = ToPointCloud2(system_ptr_->GetCloudInOdomLink(), "odom", sensor_time);
     cloud_odom_pub_.publish(cloud_odom);
-    if (system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
-        auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
-        global_map_pub_.publish(global_map);
-    }
 }
 
 void ROS1Manager::PoseTransToPoseStampedMsg(const PoseTrans& pose_trans, geometry_msgs::PoseStamped& pose_msg) {
@@ -413,7 +419,7 @@ geometry_msgs::TransformStamped ROS1Manager::GetTransformStamped(const double ti
     return trans;
 }
 
-sensor_msgs::PointCloud2 ROS1Manager::ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,
+sensor_msgs::PointCloud2 ROS1Manager::ToPointCloud2(const PointCloudXYZIPtr& cloud, const std::string& frame_id,
                                                     double timestamp) {
     sensor_msgs::PointCloud2 cloud_msg;
     if (!cloud->empty()) {
@@ -449,7 +455,7 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
              metamaps_msg->v_name.size());
     std::string map_dir = system_ptr_->GetSystemConfig()->localizer_config_.local_map_dir;
     int success_cnt = 0;
-    PointCloudPtr traj_cloud(new PointCloudType);
+    PointCloudXYZIPtr traj_cloud(new PointCloudXYZI);
     // 存储地图信息
     std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>> ids_metamap_map;
     // 根据叶子地图的id遍历图元列表
@@ -511,7 +517,7 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
                 ids_metamap_map[identity].push_back(std::make_shared<MetaInfo>());
                 auto& meta_info = ids_metamap_map[identity].back();
                 meta_info->level = level, meta_info->x = T.t[0], meta_info->y = T.t[1], meta_info->name = metamap;
-                meta_info->map_pcd.reset(new PointCloudType);
+                meta_info->map_pcd.reset(new PointCloudXYZI);
                 meta_info->T = T;
                 meta_info->identity = identity;
                 success_cnt++;
@@ -519,10 +525,10 @@ void ROS1Manager::MetamapsCallback(const robot_manager::metaset_info::ConstPtr& 
                 std::stringstream ss1;
                 ss1 << map_dir << "/" << leaf_map.first << "/" << metamap << "/data_trajectory.pcd";
                 if (boost::filesystem::exists(ss1.str())) {
-                    PointCloudPtr tmp_cloud(new PointCloudType);
-                    pcl::io::loadPCDFile<PointType>(ss1.str(), *tmp_cloud);
-                    PointCloudPtr out_cloud(new PointCloudType);
-                    TransformCloud<PointCloudPtr>(tmp_cloud, out_cloud, T.R, T.t);
+                    PointCloudXYZIPtr tmp_cloud(new PointCloudXYZI);
+                    pcl::io::loadPCDFile<PointXYZI>(ss1.str(), *tmp_cloud);
+                    PointCloudXYZIPtr out_cloud(new PointCloudXYZI);
+                    TransformCloud<PointCloudXYZIPtr>(tmp_cloud, out_cloud, T.R, T.t);
                     *traj_cloud += *out_cloud;
                 }
             } catch (std::exception& e) {

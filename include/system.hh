@@ -68,13 +68,13 @@ class System {
 
     const PoseTrans GetImuToBaselink() const;
     // lidar坐标系原始数据
-    const PointCloudPtr GetCloudInLidarLink() const;
+    const PointCloudXYZIPtr GetCloudInLidarLink() const;
 
     // robot_link坐标系点云
-    const PointCloudPtr GetCloudInRobotLink() const;
+    const PointCloudXYZIPtr GetCloudInRobotLink() const;
 
     // odom坐标系点云
-    const PointCloudPtr GetCloudInOdomLink() const;
+    const PointCloudXYZIPtr GetCloudInOdomLink() const;
 
     // std::shared_ptr<VoxelMap> GetVoxelMap() const {
     //     return front_end_ptr_->GetVoxelMap();

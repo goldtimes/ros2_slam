@@ -58,7 +58,7 @@ class ROS1Manager {
                                                         const PoseTrans& transform = PoseTrans(),
                                                         bool flip_trans = false);
 
-    sensor_msgs::PointCloud2 ToPointCloud2(const PointCloudPtr& cloud, const std::string& frame_id,
+    sensor_msgs::PointCloud2 ToPointCloud2(const PointCloudXYZIPtr& cloud, const std::string& frame_id,
                                            double timestamp = -1);
     void voxelTimerCB(const ros::TimerEvent& event);
 

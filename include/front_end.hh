@@ -36,13 +36,13 @@ class FrontEnd {
     State GetCurentNavState();
 
     // lidar坐标系原始数据
-    const PointCloudPtr GetCloudInLidarLink() const;
+    const PointCloudXYZIPtr GetCloudInLidarLink() const;
 
     // robot_link坐标系点云
-    const PointCloudPtr GetCloudInRobotLink() const;
+    const PointCloudXYZIPtr GetCloudInRobotLink() const;
 
     // odom坐标系点云
-    const PointCloudPtr GetCloudInOdomLink() const;
+    const PointCloudXYZIPtr GetCloudInOdomLink() const;
 
     const PoseTrans GetTransformEncodeToWorld() const {
         return T_WE;
@@ -76,6 +76,8 @@ class FrontEnd {
     bool use_encoder_ = false;
     bool use_gnss_ = false;
 
+    bool first_frame_ = true;
+
     std::shared_ptr<Propogator> propogator_ptr_;
     std::shared_ptr<IESKF> kf_ptr_;
     State nav_state_;
@@ -93,9 +95,9 @@ class FrontEnd {
     PoseTrans T_WE;
 
     std::shared_ptr<LidarRegister> lidar_register_ptr_;
-    PointCloudPtr undistort_cloud_lidar_;
-    PointCloudPtr undistort_cloud_robot_;
-    PointCloudPtr undistort_cloud_odom_;
+    PointCloudXYZIPtr undistort_cloud_lidar_;
+    PointCloudXYZIPtr undistort_cloud_robot_;
+    PointCloudXYZIPtr undistort_cloud_odom_;
 
     // 轮速计数据处理
     std::shared_ptr<EncoderProcessor> encoder_processor_ptr_;
