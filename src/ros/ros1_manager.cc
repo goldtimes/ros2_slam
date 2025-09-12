@@ -56,6 +56,7 @@ void ROS1Manager::InitPub() {
         gnss_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/gnss_odom", 10);
     }
     global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/global_map", 1, true);
+    submap_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/submap", 1, true);
 }
 
 void ROS1Manager::InitSub() {
@@ -115,7 +116,7 @@ void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr&
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudXYZI);
+    PointCloudPtr cloud_ptr(new PointCloudType);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -137,7 +138,7 @@ void ROS1Manager::Livox2CloudCallback(const livox_ros_driver2::CustomMsg::ConstP
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudXYZI);
+    PointCloudPtr cloud_ptr(new PointCloudType);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -158,7 +159,7 @@ void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr
     last_lidar_time_ = curr_lidar_time;
     lidar_frame_count_++;
     // 需要在这里处理lidar数据
-    PointCloudPtr cloud_ptr(new PointCloudXYZI);
+    PointCloudPtr cloud_ptr(new PointCloudType);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_livox, cloud_ptr); }, "lidar_process");
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
@@ -279,10 +280,15 @@ void ROS1Manager::Visualize() {
     ros::Rate rate(50);
     while (ros::ok()) {
         rate.sleep();
-        // if (system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
-        //     auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
-        //     global_map_pub_.publish(global_map);
-        // }
+        if (system_ptr_->GetLocalizer() != nullptr && system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
+            auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
+            global_map_pub_.publish(global_map);
+        }
+        if (system_ptr_->GetLocalizer() != nullptr) {
+            auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "map");
+            submap_pub_.publish(submap);
+        }
+
         // 系统以及初始化完成后，但是还在处理雷达消息，可视化的线程要比里程计的线程快
         if (last_visualize_time_ == system_ptr_->GetSystemTime() && system_ptr_->IsSystemInit()) {
             continue;

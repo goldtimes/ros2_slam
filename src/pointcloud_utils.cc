@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-08-29 14:15:00
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-11 20:47:29
+ * @LastEditTime: 2025-09-12 09:59:58
  * @FilePath: /fast_lvio_ws/src/open_slam/src/pointcloud_utils.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -12,7 +12,7 @@
 namespace slam {
 
 PointCloudXYZIPtr TransformLidarOMP(const PointCloudXYZIPtr& cloud, const SE3& transform) {
-    PointCloudXYZIPtr transformed_cloud(new PointCloudXYZIPtr);
+    PointCloudXYZIPtr transformed_cloud(new PointCloudXYZI);
     transformed_cloud->resize(cloud->size());
 #ifdef MP_EN
     omp_set_num_threads(4);
@@ -31,7 +31,7 @@ PointCloudXYZIPtr TransformLidarOMP(const PointCloudXYZIPtr& cloud, const SE3& t
 }
 
 PointCloudXYZIPtr TransformLidarOMP(const PointCloudXYZIPtr& cloud, const M3D& R, const V3D& t) {
-    PointCloudXYZIPtr transformed_cloud(new PointCloudType);
+    PointCloudXYZIPtr transformed_cloud(new PointCloudXYZI);
     transformed_cloud->resize(cloud->size());
 #ifdef MP_EN
     omp_set_num_threads(4);
@@ -51,7 +51,7 @@ PointCloudXYZIPtr TransformLidar(const PointCloudXYZIPtr& cloud, const M3D& r, c
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     transform.block<3, 3>(0, 0) = r.cast<float>();
     transform.block<3, 1>(0, 3) = t.cast<float>();
-    PointCloudXYZIPtr ret(new PointCloudType);
+    PointCloudXYZIPtr ret(new PointCloudXYZI);
     pcl::transformPointCloud(*cloud, *ret, transform);
     return ret;
 }

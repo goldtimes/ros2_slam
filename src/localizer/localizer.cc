@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-11 20:59:42
+ * @LastEditTime: 2025-09-12 16:20:40
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -31,9 +31,9 @@ Localizer::Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr) : s
 
 void Localizer::AllocateMemory() {
     // 分配空间
-    curr_lidar_cloud_.reset(new PointCloudType());
-    curr_submap_cloud_.reset(new PointCloudType());
-    global_map_.reset(new PointCloudType());
+    curr_lidar_cloud_.reset(new PointCloudXYZI());
+    curr_submap_cloud_.reset(new PointCloudXYZI());
+    global_map_.reset(new PointCloudXYZI());
     global_map_tree_.reset(new PointTree());
 
     gicp_matcher_.reset(new GICP());
@@ -62,10 +62,12 @@ void Localizer::SetMetaMaps(const std::map<std::string, std::vector<std::shared_
     ids_metamap_map_ = maps;
     std::lock_guard<std::mutex> lock(state_mutex_);
     local_state_ = LOCAL_STATE::NOT_INIT;
+    LOG_INFO("local_state_:{}", local_state_);
     map_loaded_ = true;
 }
 
 void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_RtoO) {
+    std::lock_guard<std::mutex> lock(lidar_mutex_);
     curr_lidar_cloud_ = lidar_cloud;
     get_new_lidar_ = true;
     T_RtoO_ = T_RtoO;
@@ -137,7 +139,7 @@ void Localizer::SetMaps(const std::string& pcd_path) {
 
 void Localizer::SetTrajCloud(const PointCloudXYZIPtr& traj_cloud) {
     // 分配空间
-    traj_cloud_.reset(new PointCloudType());
+    traj_cloud_.reset(new PointCloudXYZI());
     traj_cloud_tree_.reset(new PointTree());
     traj_cloud_ = traj_cloud;
     traj_cloud_tree_->setInputCloud(traj_cloud_);
@@ -161,15 +163,29 @@ void Localizer::MapRegister() noexcept {
     // 等待局部地图更新了
     ros::Rate rate(50);
     while (ros::ok()) {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        switch (local_state_) {
+        // 1. 先获取当前状态（仅在获取状态时加锁）
+        LOCAL_STATE current_state;
+        bool has_init_pose;
+        bool has_new_lidar;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            current_state = local_state_;
+            has_init_pose = get_init_pose_;
+            has_new_lidar = get_new_lidar_;
+        }  // 锁在此处释放，避免后续操作持有锁
+        switch (current_state) {
             // 需要在外面设置 NOT_INIT状态
             case LOCAL_STATE::NOT_INIT:
                 LOG_INFO("[LOC] not init , get_init_pose_:{}, get_new_lidar:{}", get_init_pose_, get_new_lidar_);
-                if (get_init_pose_ && get_new_lidar_) {
+                if (has_init_pose && has_new_lidar) {
+                    // 3. 仅在修改共享变量时加锁
+                    {
+                        std::lock_guard<std::mutex> lock(state_mutex_);
+                        get_init_pose_ = false;
+                        get_new_lidar_ = false;
+                    }
+                    // 启动初始化（耗时操作，无锁）
                     StartInitialization();
-                    get_init_pose_ = false;
-                    get_new_lidar_ = false;
                 }
                 break;
             case LOCAL_STATE::INITING:  // cast 不会创建作用域
@@ -206,7 +222,10 @@ void Localizer::StartInitialization() {
     // 重新开始用新的位姿初始化
     cancel_init_ = false;
     is_initializing_ = true;
-    local_state_ = LOCAL_STATE::INITING;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        local_state_ = LOCAL_STATE::INITING;
+    }
     // 启动异步初始化任务
     init_future_worker_ = std::async(std::launch::async, &Localizer::InitSearch, this);
 }
@@ -251,11 +270,17 @@ bool Localizer::InitSearch() {
         GeneratorSearchGrids(init_T_RtoM_, num_trans, num_rot, delta_trans, delta_rot);
     double min_score = 1e4;
     PoseTrans best_guess_pose;
+    PointCloudXYZIPtr curr_lidar_cloud;
+    {
+        // 这里放到了两个线程中了，如果不加锁，curr_lidar_cloud会被修改，并且需要进行深拷贝
+        std::lock_guard<std::mutex> lock(lidar_mutex_);
+        curr_lidar_cloud.reset(new PointCloudXYZI(*curr_lidar_cloud_));
+    }
     for (size_t i = 0; i < search_poses.size(); i++) {
         if (cancel_init_) {
             break;
         }
-        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud_, global_map_tree_,
+        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud, global_map_tree_,
                                          system_config_ptr_->localizer_config_.icp_dist_thresh);
         if (score < min_score) {
             min_score = score;
@@ -271,21 +296,24 @@ bool Localizer::InitSearch() {
     delta_trans = 0.1;
     search_poses.clear();
     search_poses = GeneratorSearchGrids(best_guess_pose, num_trans, num_rot, delta_trans, delta_rot);
+    LOG_INFO("After Search, search_poses size:{}", search_poses.size());
     int fail_cnt = 0;
     double init_icp_score = system_config_ptr_->localizer_config_.init_icp_score;
     for (size_t i = 0; i < search_poses.size(); i++) {
         if (cancel_init_) {
             break;
         }
-        PointCloudXYZIPtr trans_source_cloud = TransformLidar(curr_lidar_cloud_, search_poses[i].R, search_poses[i].t);
+        PointCloudXYZIPtr trans_source_cloud = TransformLidar(curr_lidar_cloud, search_poses[i].R, search_poses[i].t);
+
         PoseTrans incre_pose;
         double score;
-        GicpAlign(trans_source_cloud, global_map_, global_map_tree_, incre_pose,
-                  system_config_ptr_->localizer_config_.update_search_dist_thresh,
-                  system_config_ptr_->localizer_config_.match_score_thresh);
+        score = GicpAlign(trans_source_cloud, global_map_, global_map_tree_, incre_pose,
+                          system_config_ptr_->localizer_config_.update_search_dist_thresh,
+                          system_config_ptr_->localizer_config_.match_score_thresh);
 
         LOG_INFO("try times {}, score:{}", i, score);
         if (score > 0 && score < init_icp_score) {
+            LOG_INFO("update score");
             init_icp_score = score;
             // 更新配准后机器位姿
             init_Result_ = incre_pose * search_poses[i];
@@ -370,7 +398,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
             if (meta_info->is_old && (cur_tms - meta_info->expired_time).total_milliseconds() > 15 * 1000) {
                 LOG_INFO("remove grid [{}] \n", meta_info->name.c_str());
                 meta_info->is_active = false;
-                meta_info->map_pcd.reset(new PointCloudType);
+                meta_info->map_pcd.reset(new PointCloudXYZI);
                 update = true;
             }
         }
@@ -378,7 +406,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
 
     // 如果发生了更新, 则从新更新地图
     if (update) {
-        PointCloudXYZIPtr trans_map(new PointCloudType);
+        PointCloudXYZIPtr trans_map(new PointCloudXYZI);
         for (auto& meta_info : ids_metamap_map_[curr_map_.first]) {
             if (!meta_info->is_active) continue;
             if (meta_info->map_pcd->empty()) continue;
@@ -388,6 +416,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
             global_map_filter_.setInputCloud(trans_map);
             global_map_filter_.filter(*global_map_);
             global_map_update_ = true;
+            global_map_tree_->setInputCloud(global_map_);
         }
         if (global_map_->empty()) {
             return false;
@@ -431,7 +460,8 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIP
         LOG_ERROR("input cloud size is too small < 100");
         return -1;
     }
-    PointCloudXYZIPtr trans_cloud(new PointCloudType);
+    // LOG_INFO("input cloud size {}", input_cloud->size());
+    PointCloudXYZIPtr trans_cloud(new PointCloudXYZI);
     TransformCloud(input_cloud, trans_cloud, pose.R, pose.t);
 
     std::vector<int> nn_indices;
@@ -448,7 +478,7 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIP
     }
     if (effect_num > 0) {
         double score = fitness_score / effect_num + (1 - 1.0 * effect_num / trans_cloud->size()) * 0.5;
-        LOG_INFO("effect_num:{}, dist:{}, p2p_score:{}", effect_num, fitness_score, score);
+        LOG_INFO("match_points:{}, dist_sum:{}, p2p_score:{}", effect_num, fitness_score, score);
         return score;
     }
     return -1;

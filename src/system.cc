@@ -23,7 +23,7 @@ System::System(const std::string& config_path) : config_path_(config_path) {
     system_init_.store(false);
 
     // 定位程序
-    // localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
+    localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
 }
 
 void System::InitConfigParams() {
@@ -146,6 +146,10 @@ const PoseTrans System::GetTransformEncodeToWorld() const {
 
 const M3D System::GetGnssHeading() const {
     return front_end_ptr_->GetGnssHeading();
+}
+
+const PointCloudXYZIPtr System::GetSubmap() const {
+    return front_end_ptr_->GetSubmap();
 }
 
 // 重置系统

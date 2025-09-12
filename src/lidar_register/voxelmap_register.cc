@@ -24,7 +24,7 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
     sigma_num_ = system_config_->frontend_config_.voxel_config.sigma_num;
     std::vector<int> layer_point_size = {20, 10};
     voxel_map_ = std::make_shared<VoxelMap>(0.5, 2, layer_point_size, 100, 0.01);
-    current_lidar_.reset(new PointCloudType);
+    current_lidar_.reset(new PointCloudXYZI);
     // 设置雷达损失函数
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });

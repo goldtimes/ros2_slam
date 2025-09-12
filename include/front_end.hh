@@ -43,6 +43,8 @@ class FrontEnd {
 
     // odom坐标系点云
     const PointCloudXYZIPtr GetCloudInOdomLink() const;
+    // 获取submap
+    const PointCloudXYZIPtr GetSubmap() const;
 
     const PoseTrans GetTransformEncodeToWorld() const {
         return T_WE;

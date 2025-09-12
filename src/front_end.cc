@@ -85,7 +85,7 @@ void FrontEnd::Run() {
             // get measurement
             MeasureGroup meas;
             if (GetMeasureGroup(meas)) {
-                LOG_INFO("GetMeasureGroup success!");
+                // LOG_INFO("GetMeasureGroup success!");
                 measure_group_ = meas;
                 if (front_end_status_ == FrontEndStatus::IMU_INIT) {
                     // 静态初始化
@@ -152,7 +152,7 @@ void FrontEnd::Run() {
                         // LOG_INFO("Align Success");
                         lidar_register_ptr_->UpdateMap();
                         // get current cloud
-                        PointCloudPtr world_cloud(new PointCloudType);
+                        PointCloudXYZIPtr world_cloud(new PointCloudXYZI);
                         // auto t3 = std::chrono::high_resolution_clock::now();
                         world_cloud = lidar_register_ptr_->GetSubmap();
                         // pcl::io::savePCDFileASCII("/home/kilox/fast_lvio_ws/src/open_slam/PCD/world_cloud_" +
@@ -164,12 +164,12 @@ void FrontEnd::Run() {
                             LOG_INFO("KeyFrame");
                             // set submap to localizer
                             // localizer_ptr_->SetSubmap(world_cloud);
-                            // system_->GetLocalizer()->SetSubmapCloud(world_cloud, T_WL);
-                            // first_frame_ = false;
+                            system_->GetLocalizer()->SetSubmapCloud(world_cloud, T_WL);
+                            first_frame_ = false;
                         }
                         // 传入robot坐标下的点云和robot在odom下的坐标
-                        // auto T_RtoO = T_WL * T_BL.inverse();
-                        // system_->GetLocalizer()->SetLidarCloud(undistort_cloud_robot_, T_RtoO);
+                        auto T_RtoO = T_WL * T_BL.inverse();
+                        system_->GetLocalizer()->SetLidarCloud(undistort_cloud_robot_, T_RtoO);
                         // auto t4 = std::chrono::high_resolution_clock::now();
                         // auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3).count();
                         // LOG_INFO("Get Map used time: {} ms", total_time * 1e3);
@@ -233,8 +233,9 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
-                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
+        // LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
+        //          measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
+        //          lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -361,5 +362,9 @@ const PointCloudXYZIPtr FrontEnd::GetCloudInOdomLink() const {
 
 const M33D FrontEnd::GetCov() const {
     return kf_ptr_->GetCov();
+}
+
+const PointCloudXYZIPtr FrontEnd::GetSubmap() const {
+    return lidar_register_ptr_->GetSubmap();
 }
 }  // namespace slam

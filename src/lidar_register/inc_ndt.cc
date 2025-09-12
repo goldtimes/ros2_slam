@@ -15,7 +15,7 @@ IncNdt::IncNdt(double voxel_size, bool near_search, int max_capacity, int min_ef
       calib_lidar2imu_(calib_lidar2imu) {
     inv_voxel_size_ = 1.0 / voxel_size_;
     GenerateNearbyGrids();
-    source_.reset(new PointCloudType);
+    source_.reset(new PointCloudXYZI);
 }
 IncNdt::~IncNdt() {
 }
@@ -29,7 +29,7 @@ void IncNdt::GenerateNearbyGrids() {
     }
 }
 
-void IncNdt::AddCloud(PointCloudPtr& cloud_world) {
+void IncNdt::AddCloud(PointCloudXYZIPtr& cloud_world) {
     std::set<KeyType, less_vec<3>> active_voxels;
     for (const auto& point : cloud_world->points) {
         auto pt_eigen = ToV3D(point);
