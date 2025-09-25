@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="open_slam" type="pub_map.py" name="pub_metamap" output="screen" />
+</launch>

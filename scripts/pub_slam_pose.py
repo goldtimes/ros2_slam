@@ -2,7 +2,7 @@
 Author: lihang lihang@kilox.cn
 Date: 2025-09-10 16:22:49
 LastEditors: lihang lihang@kilox.cn
-LastEditTime: 2025-09-11 09:48:01
+LastEditTime: 2025-09-25 10:38:42
 FilePath: /fast_lvio_ws/src/open_slam/scripts/pub_map.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -23,14 +23,14 @@ class PubSlamPose:
 
         time.sleep(1)
         msg = slam_pose()
-        msg.x = 1
-        msg.y = 1
-        msg.z = 1
+        msg.x = 1.87
+        msg.y = 1.14
+        msg.z = -0.42
         msg.roll = 0
         msg.pitch = 0
-        msg.yaw = 0
+        msg.yaw = 1.6347589
         msg.level = 6
-        msg.name = "MAP20250530DDT358178911318183936"
+        msg.name = "MAP250923RCS645457827356942750"
         self.pub.publish(msg)
         rospy.loginfo("发布消息 {}".format(msg))
 

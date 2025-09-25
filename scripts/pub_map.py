@@ -2,7 +2,7 @@
 Author: lihang lihang@kilox.cn
 Date: 2025-09-10 16:22:49
 LastEditors: lihang lihang@kilox.cn
-LastEditTime: 2025-09-10 16:31:06
+LastEditTime: 2025-09-25 11:21:08
 FilePath: /fast_lvio_ws/src/open_slam/scripts/pub_map.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -23,10 +23,10 @@ class PubMetaInfo:
 
         time.sleep(1)
         map_dir = rospy.get_param(
-            "/slam_node/loc_map_dir", "/home/kilox/maps/6office"
+            "/slam_node/loc_map_dir", "/home/kilox/maps/6_office"
         )
         map_name = rospy.get_param(
-            "/slam_node/loc_map_name", "MAP20250530DDT358178911318183936"
+            "/slam_node/loc_map_name", "MAP250923RCS645457827356942750"
         )
 
         msg = metaset_info()

@@ -1,0 +1,13 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+
+    <arg name="bag_start" default="0" />
+    <arg name="bag_rate" default="2" />
+    <arg name="output" default="screen" />
+    <arg name="bag_file" default="/media/kilox/yijie/rosbags/benchmark/run1.bag" />
+
+    <node pkg="rosbag" type="play" name="rosbag"
+        args="-s $(arg bag_start) $(arg bag_file) --topics /imu /camera/imu /livox/imu /lslidar_packet_c16 /rslidar_points /rslidar_imu_data /rslidar_packets  /livox/lidar /odom /camera/fisheye1/image_raw /camera/fisheye2/image_raw /odom_path  /leg_odom /imu/data  /lidar_points /tw/lidar /tw/imu /airy_points /airy_imu_data /vanjee_points /vanjee_imu  --clock --pause -r $(arg bag_rate)"
+        required="true" output="$(arg output)" />
+
+</launch>

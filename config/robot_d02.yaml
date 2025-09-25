@@ -112,7 +112,7 @@ front_end:
 localizer:
   use_meta_maps: true # 使用图元地图
   global_map_filter_size: 0.3 # 对全局地图的降采样
-  local_map_dir: "/home/kilox/maps" # 地图的目录
+  local_map_dir: "/home/kilox/maps/6_office" # 地图的目录
   register_method: "gicp" # "ceres", "LM" 
   point_to_plane: 0.01 # 点到平面的距离
   dist_to_robot: 50  # 图元中心到机器人的距离

@@ -15,6 +15,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(
     ROS_PACKAGE 
     roscpp 
+    rospy
     rosbag 
     tf2
     tf2_ros
@@ -131,4 +132,10 @@ add_executable(slam_node
 add_dependencies(slam_node robot_manager_generate_messages_cpp)
 target_link_libraries(slam_node 
 ${thirdparty_libs}
+)
+
+catkin_install_python(PROGRAMS
+    scripts/pub_map.py
+    scripts/pub_slam_pose.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
