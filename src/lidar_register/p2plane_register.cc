@@ -24,6 +24,7 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     m_effect_norm_vec.reset(new PointCloudXYZI(10000, 1));
     m_nearest_points.resize(10000);
     m_point_selected_flag.resize(10000, false);
+    submap_.reset(new PointCloudXYZI);
     LOG_INFO("map resolution: {}, cube_len:{}, det_range:{}, move_thresh:{}", map_resolution, cube_len, det_range,
              move_thresh);
     // 设置雷达损失函数
@@ -52,6 +53,11 @@ bool P2PlaneRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IE
         m_ikdtree->Build(cloud_world_tmp->points);
         LOG_INFO("Build Map Size:{}, cloud  size:{}", m_ikdtree->size(), cloud_world_tmp->size());
         first_frame_ = false;
+        keyframes_.emplace_back(T_WL, cloud_world_tmp);
+        {
+            std::lock_guard<std::mutex> lock(local_map_mutex_);
+            submap_ = cloud_world_tmp;
+        }
     }
     // const auto current_state = kf_ptr_->GetState();
     // SE3 T_WI(current_state.r_wi, current_state.t_wi);
@@ -187,10 +193,26 @@ bool P2PlaneRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESK
     // LOG_INFO("trim time:{}", trim_time * 1e3);
     kf_ptr_->UpdateLidar();
     PoseTrans curr_pose(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+    auto T_WL = curr_pose * system_config_->lidar2imu_;
+    if (keyframes_.size() > system_config_->frontend_config_.p2plane_config.keyframe_num) {
+        keyframes_.pop_front();
+    }
     PoseTrans delta_pose = last_keypose_.inverse() * curr_pose;
-    if (delta_pose.norm() > 0.5 || delta_pose.RPY().norm() > 0.5) {
+    if (delta_pose.norm() > system_config_->frontend_config_.p2plane_config.keyframe_distance ||
+        delta_pose.RPY().norm() > system_config_->frontend_config_.p2plane_config.keyframe_angle_distance) {
         is_keyframe_ = true;
         last_keypose_ = curr_pose;
+        PointCloudXYZIPtr tmp_cloud(new PointCloudXYZI);
+        PointCloudXYZIPtr tmp_submap(new PointCloudXYZI);
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
+        keyframes_.push_back({T_WL, cloud_world_tmp});
+
+        std::lock_guard<std::mutex> lock(local_map_mutex_);
+        for (auto &keyframe : keyframes_) {
+            *tmp_submap += *keyframe.second;
+        }
+        submap_ = tmp_submap;
+
     } else {
         is_keyframe_ = false;
     }
@@ -327,11 +349,7 @@ void P2PlaneRegister::UpdateMap() {
 }
 
 PointCloudXYZIPtr P2PlaneRegister::GetSubmap() {
-    PointCloudXYZIPtr cloud(new PointCloudXYZI);
-    m_ikdtree->flatten(m_ikdtree->Root_Node, m_ikdtree->PCL_Storage, delete_point_storage_set::NOT_RECORD);
-    cloud->points = m_ikdtree->PCL_Storage;
-    cloud->width = cloud->points.size();
-    cloud->height = 1;
-    return cloud;
+    std::lock_guard<std::mutex> lock(local_map_mutex_);
+    return submap_;
 }
 }  // namespace slam

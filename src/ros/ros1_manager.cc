@@ -277,15 +277,15 @@ void ROS1Manager::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr& gnss_msg)
 }
 
 void ROS1Manager::Visualize() {
-    ros::Rate rate(50);
+    ros::Rate rate(10);
     while (ros::ok()) {
         rate.sleep();
         if (system_ptr_->GetLocalizer() != nullptr && system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
-            auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map");
+            auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map", last_visualize_time_);
             global_map_pub_.publish(global_map);
         }
         if (system_ptr_->GetLocalizer() != nullptr) {
-            auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "map");
+            auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "map", last_visualize_time_);
             submap_pub_.publish(submap);
         }
 

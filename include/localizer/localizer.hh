@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-12 14:47:46
+ * @LastEditTime: 2025-09-25 19:22:36
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -177,7 +177,6 @@ class Localizer {
 
     bool traj_cloud_loaded_ = false;
 
-    bool map_loaded_ = false;
     bool global_map_update_ = false;
 
     std::pair<std::string, MetaInfo> curr_map_;
@@ -207,11 +206,12 @@ class Localizer {
     std::atomic_bool is_initializing_;
     std::atomic_bool cancel_init_;
 
-    PoseTrans T_RtoO_;  // 雷达在odom下的坐标系
-    PoseTrans update_T_RtoM_;
+    PoseTrans T_RtoO_;     // 雷达在odom下的坐标系
+    PoseTrans Pose_RtoM_;  // robot在map下的坐标系
     PoseTrans update_T_RtoO_;
 
     bool update_map_ = false;
+    bool loaded_map_ = false;
 
     std::string map_dir_;
     GICP::Ptr gicp_matcher_;

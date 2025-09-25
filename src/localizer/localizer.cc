@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-12 16:20:40
+ * @LastEditTime: 2025-09-25 19:13:29
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -26,6 +26,7 @@ Localizer::Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr) : s
                                    system_config_ptr->localizer_config_.global_map_filter_size);
 
     local_state_ = LOCAL_STATE::MAP_NOT_LOAD;
+    loaded_map_ = false;
     AllocateMemory();
 }
 
@@ -63,7 +64,6 @@ void Localizer::SetMetaMaps(const std::map<std::string, std::vector<std::shared_
     std::lock_guard<std::mutex> lock(state_mutex_);
     local_state_ = LOCAL_STATE::NOT_INIT;
     LOG_INFO("local_state_:{}", local_state_);
-    map_loaded_ = true;
 }
 
 void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_RtoO) {
@@ -73,7 +73,7 @@ void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTr
     T_RtoO_ = T_RtoO;
     if (local_state_ == LOCAL_STATE::INITED) {
         update_map_ = true;
-        update_T_RtoM_ = T_OtoM_ * T_RtoO_;
+        Pose_RtoM_ = T_OtoM_ * T_RtoO_;
     }
 }
 
@@ -91,6 +91,7 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
     get_init_pose_ = true;
     // 设置机器人的初始位置
     init_T_RtoM_ = init_RtoM;
+    Pose_RtoM_ = init_RtoM;
     // 通知地图更新线程更新地图
     update_map_ = true;
     // 记录当前的地图信息
@@ -130,11 +131,10 @@ void Localizer::SetMaps(const std::string& pcd_path) {
     }
     // 构建kd树
     global_map_tree_->setInputCloud(global_map_);
-    map_loaded_ = true;
+    loaded_map_ = true;
 
     std::lock_guard<std::mutex> lock(state_mutex_);
     local_state_ = LOCAL_STATE::NOT_INIT;
-    map_loaded_ = true;
 }
 
 void Localizer::SetTrajCloud(const PointCloudXYZIPtr& traj_cloud) {
@@ -152,7 +152,7 @@ void Localizer::MapUpdate() noexcept {
     while (ros::ok()) {
         if (update_map_) {
             update_map_ = false;
-            LoadMapByPose(update_T_RtoM_);
+            LoadMapByPose(Pose_RtoM_);
         }
         rate.sleep();
     }
@@ -176,7 +176,7 @@ void Localizer::MapRegister() noexcept {
         switch (current_state) {
             // 需要在外面设置 NOT_INIT状态
             case LOCAL_STATE::NOT_INIT:
-                LOG_INFO("[LOC] not init , get_init_pose_:{}, get_new_lidar:{}", get_init_pose_, get_new_lidar_);
+                // LOG_INFO("[LOC] not init , get_init_pose_:{}, get_new_lidar:{}", get_init_pose_, get_new_lidar_);
                 if (has_init_pose && has_new_lidar) {
                     // 3. 仅在修改共享变量时加锁
                     {
@@ -184,7 +184,10 @@ void Localizer::MapRegister() noexcept {
                         get_init_pose_ = false;
                         get_new_lidar_ = false;
                     }
-                    // 启动初始化（耗时操作，无锁）
+                    if (!loaded_map_) {
+                        continue;
+                    }
+                    // 启动初始化,耗时操作，无锁, 需要等待地图加载完成
                     StartInitialization();
                 }
                 break;
@@ -336,6 +339,7 @@ bool Localizer::InitSearch() {
 }
 
 bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
+    LOG_INFO("LoadMapByPose, T_BtoM:{}", T_BtoM.t.transpose());
     Eigen::Vector2d pos = T_BtoM.t.head<2>();
     // 找不到当前的地图
     if (ids_metamap_map_.find(curr_map_.first) == ids_metamap_map_.end()) {
@@ -422,6 +426,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
             return false;
         }
         LOG_INFO(YELLOW "global map point size {} \n" RESET, global_map_->size());
+        loaded_map_ = true;
     } else {
         global_map_update_ = false;
     }
