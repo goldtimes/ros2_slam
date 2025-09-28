@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-28 11:25:46
+ * @LastEditTime: 2025-09-28 14:23:38
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -176,6 +176,9 @@ void Localizer::MapRegister() noexcept {
         switch (current_state) {
             // 需要在外面设置 NOT_INIT状态
             case LOCAL_STATE::NOT_INIT:
+                if (!loaded_map_) {
+                    break;
+                }
                 // LOG_INFO("[LOC] not init , get_init_pose_:{}, get_new_lidar:{}", get_init_pose_, get_new_lidar_);
                 if (has_init_pose && has_new_lidar) {
                     // 3. 仅在修改共享变量时加锁
@@ -183,9 +186,6 @@ void Localizer::MapRegister() noexcept {
                         std::lock_guard<std::mutex> lock(state_mutex_);
                         get_init_pose_ = false;
                         get_new_lidar_ = false;
-                    }
-                    if (!loaded_map_) {
-                        continue;
                     }
                     // 启动初始化,耗时操作，无锁, 需要等待地图加载完成
                     StartInitialization();
@@ -195,7 +195,9 @@ void Localizer::MapRegister() noexcept {
                 CheckInitializationStatus();
                 break;
             case LOCAL_STATE::INITED:
-                UpdateSearch();
+                if (get_new_submap_) {
+                    UpdateSearch();
+                }
                 break;
             case LOCAL_STATE::INIT_FAILED:
                 break;
@@ -250,6 +252,7 @@ void Localizer::CheckInitializationStatus() {
         is_initializing_ = false;
         if (success) {
             local_state_ = LOCAL_STATE::INITED;
+            get_new_submap_ = false;
             LOG_INFO(BLUE "Init Success" RESET);
         } else {
             local_state_ = LOCAL_STATE::INIT_FAILED;
@@ -519,6 +522,7 @@ void Localizer::UpdateSearch() {
              "init, incre_trans {:03.3f} " RESET,
              cloud_in_map->size(), score, incre_pose.norm());
     PoseTrans best_OtoM = incre_pose * T_OtoM_;
+    T_OtoM_ = best_OtoM;
     if (score > system_config_ptr_->localizer_config_.match_score_thresh) {
         LOG_INFO("updated failed:{}", score);
         std::lock_guard<std::mutex> lock(state_mutex_);

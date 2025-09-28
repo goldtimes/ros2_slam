@@ -285,7 +285,7 @@ void ROS1Manager::Visualize() {
             global_map_pub_.publish(global_map);
         }
         if (system_ptr_->GetLocalizer() != nullptr) {
-            auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "map", last_visualize_time_);
+            auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "odom", last_visualize_time_);
             submap_pub_.publish(submap);
         }
 
