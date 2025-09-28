@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-25 19:13:29
+ * @LastEditTime: 2025-09-28 11:25:46
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -250,6 +250,7 @@ void Localizer::CheckInitializationStatus() {
         is_initializing_ = false;
         if (success) {
             local_state_ = LOCAL_STATE::INITED;
+            LOG_INFO(BLUE "Init Success" RESET);
         } else {
             local_state_ = LOCAL_STATE::INIT_FAILED;
         }
@@ -302,6 +303,7 @@ bool Localizer::InitSearch() {
     LOG_INFO("After Search, search_poses size:{}", search_poses.size());
     int fail_cnt = 0;
     double init_icp_score = system_config_ptr_->localizer_config_.init_icp_score;
+    std::vector<std::pair<double, PoseTrans>> candidate_poses;
     for (size_t i = 0; i < search_poses.size(); i++) {
         if (cancel_init_) {
             break;
@@ -314,17 +316,14 @@ bool Localizer::InitSearch() {
                           system_config_ptr_->localizer_config_.update_search_dist_thresh,
                           system_config_ptr_->localizer_config_.match_score_thresh);
 
-        LOG_INFO("try times {}, score:{}", i, score);
+        LOG_INFO("try times {}, score:{}, score_thresh:{}", i, score, init_icp_score);
         if (score > 0 && score < init_icp_score) {
-            LOG_INFO("update score");
-            init_icp_score = score;
+            // candidate_poses.push_back()
+            // LOG_INFO("update score");
             // 更新配准后机器位姿
             init_Result_ = incre_pose * search_poses[i];
-            success = true;
-
+            candidate_poses.emplace_back(score, init_Result_);
             if (score < system_config_ptr_->localizer_config_.init_icp_score / 2) {
-                success = true;
-                init_Result_ = search_poses[i];
                 break;
             }
         } else if (score > init_icp_score) {
@@ -334,6 +333,26 @@ bool Localizer::InitSearch() {
             LOG_INFO("try many times, can't get a good match score");
             return false;
         }
+    }
+    if (candidate_poses.empty()) {
+        return false;
+    }
+    double best_score = 100;
+    int best_idx = -1;
+    PoseTrans result_T_RtoM;
+    for (int i = 0; i < candidate_poses.size(); i++) {
+        if (candidate_poses[i].first < best_score) {
+            best_score = candidate_poses[i].first;
+            best_idx = i;
+            result_T_RtoM = candidate_poses[i].second;
+        }
+    }
+    if (best_idx == -1) {
+        return false;
+    } else {
+        success = true;
+        T_OtoM_ = result_T_RtoM * T_RtoO_.inverse();
+        LOG_INFO("choose best score: {}, T_OtoM:{}", best_score, T_OtoM_);
     }
     return success;
 }
