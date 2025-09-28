@@ -119,13 +119,12 @@ class RTKNode(object):
                     self.gnss_data = line_bytes.decode('ascii')
                     # except UnicodeDecodeError:
                     #     self.gnss_data = line_bytes.decode('gbk', errors='ignore')
-                    
                     # 处理GGA数据并发布到ROS
                     if 'GNGGA' in self.gnss_data or 'GPGGA' in self.gnss_data:
                         print("gnss_data:", self.gnss_data)
 
                         self.pub_gnss_to_ros(self.gnss_data)
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.01)
 
             except Exception as e:
                 rospy.logerr(f"GNSS数据读取错误: {e}")

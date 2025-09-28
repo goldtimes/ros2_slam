@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-28 14:23:38
+ * @LastEditTime: 2025-09-28 19:24:30
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -78,9 +78,11 @@ void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTr
 }
 
 void Localizer::SetSubmapCloud(const PointCloudXYZIPtr& submap_cloud, const PoseTrans& T_LtoO) {
-    curr_submap_cloud_ = submap_cloud;
-    get_new_submap_ = true;
-    update_T_RtoO_ = T_LtoO;
+    if (local_state_ != LOCAL_STATE::INITED) {
+        curr_submap_cloud_ = submap_cloud;
+        get_new_submap_ = true;
+        update_T_RtoO_ = T_LtoO;
+    }
 }
 
 void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::string& map_id) {
@@ -196,7 +198,11 @@ void Localizer::MapRegister() noexcept {
                 break;
             case LOCAL_STATE::INITED:
                 if (get_new_submap_) {
+                    auto start = std::chrono::high_resolution_clock::now();
                     UpdateSearch();
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                    LOG_INFO("UpdateSearch cost time: {} ms", duration.count());
                 }
                 break;
             case LOCAL_STATE::INIT_FAILED:
@@ -361,7 +367,7 @@ bool Localizer::InitSearch() {
 }
 
 bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
-    LOG_INFO("LoadMapByPose, T_BtoM:{}", T_BtoM.t.transpose());
+    // LOG_INFO("LoadMapByPose, T_BtoM:{}", T_BtoM.t.transpose());
     Eigen::Vector2d pos = T_BtoM.t.head<2>();
     // 找不到当前的地图
     if (ids_metamap_map_.find(curr_map_.first) == ids_metamap_map_.end()) {
@@ -402,7 +408,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
         update = true;
         new_load_cnt++;
     }
-    LOG_INFO("load new meta cnt {}", new_load_cnt);
+    // LOG_INFO("load new meta cnt {}", new_load_cnt);
     if (new_load_cnt == 0) {
         return false;
     }
@@ -505,7 +511,7 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIP
     }
     if (effect_num > 0) {
         double score = fitness_score / effect_num + (1 - 1.0 * effect_num / trans_cloud->size()) * 0.5;
-        LOG_INFO("match_points:{}, dist_sum:{}, p2p_score:{}", effect_num, fitness_score, score);
+        // LOG_INFO("match_points:{}, dist_sum:{}, p2p_score:{}", effect_num, fitness_score, score);
         return score;
     }
     return -1;

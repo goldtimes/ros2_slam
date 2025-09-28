@@ -26,6 +26,9 @@ encoder:
   encoder_topic: "/odom"
   encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
   encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
+  wheel_cov: 1e-2 # 编码器平移噪声标准差
+  nhc_y: 1e-2 # 编码器旋转噪声标准差
+  nhc_z: 1e-3 # 编码器旋转噪声标准差
 
 gnss:
   gnss_topic: "/gnss"

@@ -4,9 +4,9 @@
 namespace slam {
 EncoderProcessor::EncoderProcessor(const std::shared_ptr<SystemConfig>& config_ptr) : config_ptr_(config_ptr) {
     is_static_ = true;
-    wheel_cov_ = 0.01;
-    nhc_y_ = 0.01;
-    nhc_z_ = 0.001;
+    wheel_cov_ = config_ptr->encoder_config_.wheel_cov;
+    nhc_y_ = config_ptr->encoder_config_.nhc_y;
+    nhc_z_ = config_ptr->encoder_config_.nhc_z;
 }
 
 void EncoderProcessor::AddEncoder(const std::deque<Encoder>& encoders) {
@@ -149,11 +149,16 @@ void EncoderProcessor::UpdateEncoder(const Encoder& encoder, const Input& input,
     }
     cov_mat(2, 2) = nhc_z_;
     cov_mat = cov_mat + tmp_mat * tmp_mat.transpose() * 0.1;
+    M3D info_mat;             // 最终的动态信息矩阵
+    const double eps = 1e-6;  // 正则化参数，避免协方差矩阵奇异（逆不存在）
+    // 先对协方差矩阵添加微小对角扰动，确保可逆
+    M3D cov_reg = cov_mat + eps * M3D::Identity();
+    info_mat = cov_reg.inverse();  // 信息矩阵 = 正则化协方差矩阵的逆
     share_state.valid = true;
     share_state.H33_.setZero();
     share_state.b33_.setZero();
-    share_state.H33_ = J.transpose() * 10000 * J;
-    share_state.b33_ = J.transpose() * 10000 * res;
+    share_state.H33_ = J.transpose() * info_mat * J;
+    share_state.b33_ = J.transpose() * info_mat * res;
     // LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 

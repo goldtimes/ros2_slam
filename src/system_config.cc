@@ -36,6 +36,9 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         encoder_config_.encoder_topic = config["encoder"]["encoder_topic"].as<std::string>();
         encoder_config_.encoder_position_noise_std = config["encoder"]["encoder_position_noise_std"].as<double>();
         encoder_config_.encoder_rotation_noise_std = config["encoder"]["encoder_rotation_noise_std"].as<double>();
+        encoder_config_.wheel_cov = config["encoder"]["wheel_cov"].as<double>();
+        encoder_config_.nhc_y = config["encoder"]["nhc_y"].as<double>();
+        encoder_config_.nhc_z = config["encoder"]["nhc_z"].as<double>();
         encoder_config_.print();
 
         // 加载GNSS相关的配置

@@ -160,7 +160,7 @@ void FrontEnd::Run() {
                         //                           *world_cloud);
                         frame_id++;
                         // 根据关键帧的生成来通知后台配准线程
-                        if (lidar_register_ptr_->IsKeyFrame() || first_frame_) {
+                        if (lidar_register_ptr_->IsKeyFrame()) {
                             LOG_INFO("KeyFrame");
                             // set submap to localizer
                             // localizer_ptr_->SetSubmap(world_cloud);

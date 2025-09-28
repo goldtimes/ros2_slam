@@ -62,12 +62,18 @@ struct EncoderConfig {
     std::string encoder_topic;
     double encoder_position_noise_std;
     double encoder_rotation_noise_std;
+    double wheel_cov;
+    double nhc_y;
+    double nhc_z;
     // 重载print函数
     void print() const {
         LOG_INFO("EncoderConfig:");
         LOG_INFO("  encoder_topic: {}", encoder_topic);
         LOG_INFO("  encoder_position_noise_std: {:03.3f}", encoder_position_noise_std);
         LOG_INFO("  encoder_rotation_noise_std: {:03.3f}", encoder_rotation_noise_std);
+        LOG_INFO("  wheel_cov: {:03.3f}", wheel_cov);
+        LOG_INFO("  nhc_y: {:03.3f}", nhc_y);
+        LOG_INFO("  nhc_z: {:03.3f}", nhc_z);
     }
 };
 struct GNSSConfig {
