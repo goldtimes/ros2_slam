@@ -134,6 +134,10 @@ target_link_libraries(slam_node
 ${thirdparty_libs}
 )
 
+
+add_executable(dynamic_test test/dynamic.cc)
+target_link_libraries(dynamic_test ${thirdparty_libs})
+
 catkin_install_python(PROGRAMS
     scripts/pub_map.py
     scripts/pub_slam_pose.py
