@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-29 15:10:50
+ * @LastEditTime: 2025-09-29 15:36:36
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -45,8 +45,6 @@ void Localizer::AllocateMemory() {
     gicp_matcher_->setTransformationEpsilon(1e-6);
     gicp_matcher_->setEuclideanFitnessEpsilon(1e-6);
     gicp_matcher_->setRANSACIterations(1);
-    // new_lidar_map.init_icp->setSearchMethodTarget(new_lidar_map.map_tree, true);
-    // new_lidar_map.init_icp->setInputTarget(new_lidar_map.global_map);
 }
 
 Localizer::~Localizer() {
