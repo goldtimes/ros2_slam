@@ -22,9 +22,11 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
     LOG_INFO("range_cov: {}, angle_cov: {}", range_cov, angle_cov);
     updatemap_omp_ = system_config_->frontend_config_.voxel_config.updatemap_omp;
     sigma_num_ = system_config_->frontend_config_.voxel_config.sigma_num;
-    std::vector<int> layer_point_size = {20, 10};
-    voxel_map_ = std::make_shared<VoxelMap>(0.5, 2, layer_point_size, 100, 0.01);
+    voxel_map_ = std::make_shared<VoxelMap>(voxel_size_, max_layer_, layer_point_size_, max_points_size_,
+                                            planer_threshold_, max_capacity_);
     current_lidar_.reset(new PointCloudXYZI);
+    // 设置最大的迭代次数
+    kf_ptr_->SetMaxIterNum(system_config_->frontend_config_.max_iteration);
     // 设置雷达损失函数
     kf_ptr_->SetLidarLossFunc(
         [this](State &state, ESKFShareState &shared_data) { UpdateLidarFunc(state, shared_data); });
@@ -180,8 +182,8 @@ void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_
                  residual_infos_[i].plane_norm;
         double r_info = r_cov < 0.0001 ? 1000 : 1 / r_cov;
         assert(r_cov > 0.0);
-        J.block<1, 3>(0, 3) = residual_infos_[i].plane_norm.transpose();
-        J.block<1, 3>(0, 0) = -residual_infos_[i].plane_norm.transpose() * rot_end *
+        J.block<1, 3>(0, 0) = residual_infos_[i].plane_norm.transpose();
+        J.block<1, 3>(0, 3) = -residual_infos_[i].plane_norm.transpose() * rot_end *
                               Sophus::SO3d::hat(rot_ext * residual_infos_[i].point_lidar + pos_ext);
         // std::cout << "j:" << J << ",r_info:" << r_info << std::endl;
         // if (system_config_->frontend_config_.calib_lidar2imu) {
