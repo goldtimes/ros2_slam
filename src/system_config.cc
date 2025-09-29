@@ -85,17 +85,15 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         frontend_config_.remove_ranges = config["front_end"]["remove_ranges"].as<std::vector<double>>();
         frontend_config_.calib_lidar2imu = config["front_end"]["calib_lidar2imu"].as<bool>();
         frontend_config_.max_iteration = config["front_end"]["max_iteration"].as<int>();
+        // 关键帧参数
+        frontend_config_.keyframe_size = config["front_end"]["keyframe_size"].as<int>();
+        frontend_config_.keyframe_distance = config["front_end"]["keyframe_distance"].as<double>();
+        frontend_config_.keyframe_angle_distance = config["front_end"]["keyframe_angle_distance"].as<double>();
+        frontend_config_.use_angle_keyframe = config["front_end"]["use_angle_keyframe"].as<bool>();
+        frontend_config_.print();
         if (use_p2plane_) {
             frontend_config_.p2plane_config.p2plane_thresh =
                 config["front_end"]["use_p2plane"]["p2plane_thresh"].as<double>();
-            frontend_config_.p2plane_config.keyframe_num =
-                config["front_end"]["use_p2plane"]["keyframe_size"].as<int>();
-            frontend_config_.p2plane_config.keyframe_distance =
-                config["front_end"]["use_p2plane"]["keyframe_distance"].as<double>();
-            frontend_config_.p2plane_config.keyframe_angle_distance =
-                config["front_end"]["use_p2plane"]["keyframe_angle_distance"].as<double>();
-            frontend_config_.p2plane_config.use_angle_keyframe =
-                config["front_end"]["use_p2plane"]["use_angle_keyframe"].as<bool>();
             frontend_config_.p2plane_config.downsample = config["front_end"]["use_p2plane"]["downsample"].as<double>();
             frontend_config_.p2plane_config.map_resolution =
                 config["front_end"]["use_p2plane"]["map_resolution"].as<double>();

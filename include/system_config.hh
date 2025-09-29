@@ -22,7 +22,7 @@ struct LidarConfig {
     std::string lidar_right_topic;
     // 重载print函数
     void print() const {
-        LOG_INFO("LidarConfig:");
+        LOG_INFO(BLUE "LidarConfig:" RESET);
         LOG_INFO("  lidar_topic: {}", lidar_topic);
         LOG_INFO("  is_tms_head: {}", is_tms_head);
         LOG_INFO("  use_livox_driver: {}", use_livox_driver);
@@ -49,7 +49,7 @@ struct IMUConfig {
     double gyro_bias_noise_std;
     // 重载print函数
     void print() const {
-        LOG_INFO("IMUConfig:");
+        LOG_INFO(BLUE "IMUConfig:" RESET);
         LOG_INFO("  imu_topic: {}", imu_topic);
         LOG_INFO("  imu_scale: {:03.3f}", imu_scale);
         LOG_INFO("  acc_noise_std: {:03.3f}", acc_noise_std);
@@ -67,7 +67,7 @@ struct EncoderConfig {
     double nhc_z;
     // 重载print函数
     void print() const {
-        LOG_INFO("EncoderConfig:");
+        LOG_INFO(BLUE "EncoderConfig:" RESET);
         LOG_INFO("  encoder_topic: {}", encoder_topic);
         LOG_INFO("  encoder_position_noise_std: {:03.3f}", encoder_position_noise_std);
         LOG_INFO("  encoder_rotation_noise_std: {:03.3f}", encoder_rotation_noise_std);
@@ -83,7 +83,7 @@ struct GNSSConfig {
     bool has_orientation;
     // 重载print函数
     void print() const {
-        LOG_INFO("GNSSConfig:");
+        LOG_INFO(BLUE "GNSSConfig:" RESET);
         LOG_INFO("  gnss_topic: {}", gnss_topic);
         LOG_INFO("  gnss_position_noise_std: {:03.3f}", gnss_position_noise_std);
         LOG_INFO("  gnss_rotation_noise_std: {:03.3f}", gnss_rotation_noise_std);
@@ -104,7 +104,7 @@ struct P2PlaneConfig {
     double move_thresh;
     // 重载print函数
     void print() const {
-        LOG_INFO("P2PlaneConfig:");
+        LOG_INFO(BLUE "P2PlaneConfig:" RESET);
         LOG_INFO("  keyframe_num: {}", keyframe_num);
         LOG_INFO("  p2plane_thresh: {:03.3f}", p2plane_thresh);
         LOG_INFO("  keyframe_distance: {:03.3f}", keyframe_distance);
@@ -137,7 +137,7 @@ struct VoxelConfig {
     bool updatemap_omp;
     // 重载print函数
     void print() const {
-        LOG_INFO("VoxelConfig:");
+        LOG_INFO(BLUE "VoxelConfig:" RESET);
         LOG_INFO("  voxle_size: {:03.3f}", voxle_size);
         LOG_INFO("  max_layer: {}", max_layer);
         // LOG_INFO("  layer_point_size: [{},{}]", layer_point_size[0], layer_point_size[1], layer_point_size[2],
@@ -169,7 +169,7 @@ struct NDTConfig {
     double eps;
     // 重载print函数
     void print() const {
-        LOG_INFO("NDTConfig:");
+        LOG_INFO(BLUE "NDTConfig:" RESET);
         LOG_INFO("  voxle_size: {:03.3f}", voxel_size);
         LOG_INFO("  near_search: {}", near_search);
         LOG_INFO("  max_capacity: {}", max_capacity);
@@ -186,6 +186,20 @@ struct FrontendConfig {
     std::vector<double> remove_ranges;
     bool calib_lidar2imu;
     int max_iteration;
+    // 关键帧参数
+    int keyframe_size;
+    double keyframe_distance;
+    double keyframe_angle_distance;
+    bool use_angle_keyframe;
+    void print() const {
+        LOG_INFO(BLUE "FrontendConfig:" RESET);
+        LOG_INFO("  calib_lidar2imu: {}", calib_lidar2imu);
+        LOG_INFO("  max_iteration: {}", max_iteration);
+        LOG_INFO("  keyframe_size: {}", keyframe_size);
+        LOG_INFO("  keyframe_distance: {:03.3f}", keyframe_distance);
+        LOG_INFO("  keyframe_angle_distance: {:03.3f}", keyframe_angle_distance);
+        LOG_INFO("  use_angle_keyframe: {}", use_angle_keyframe);
+    }
     P2PlaneConfig p2plane_config;
     VoxelConfig voxel_config;
     NDTConfig ndt_config;
@@ -209,7 +223,7 @@ struct LocalizerConfig {
     bool use_ceres;
 
     void print() const {
-        LOG_INFO("LocalizerConfig:");
+        LOG_INFO(BLUE "LocalizerConfig:" RESET);
         LOG_INFO("  use_meta_maps: {}", use_meta_maps);
         LOG_INFO("  global_map_filter_size: {:03.3f}", global_map_filter_size);
         LOG_INFO("  local_map_dir: {}", local_map_dir);

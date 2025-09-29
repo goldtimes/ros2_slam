@@ -14,6 +14,15 @@ VoxelMapRegister::VoxelMapRegister(const std::shared_ptr<SystemConfig> &system_c
     max_capacity_ = system_config_->frontend_config_.voxel_config.max_capacity;
     range_cov = system_config->frontend_config_.voxel_config.ranging_cov;
     angle_cov = system_config->frontend_config_.voxel_config.angle_cov;
+
+    // 关键帧参数
+    keyframe_size_ = system_config->frontend_config_.keyframe_size;
+    keyframe_distance_ = system_config->frontend_config_.keyframe_distance;
+    keyframe_angle_distance_ = system_config->frontend_config_.keyframe_angle_distance;
+    use_angle_keyframe_ = system_config->frontend_config_.use_angle_keyframe;
+
+    submap_.reset(new PointCloudXYZI);
+
     // scan_filter_.setLeafSize(0.1, 0.1, 0.1);
     LOG_INFO(
         "voxel_size_: {}, max_layer_: {}, max_points_size_: {}, max_cov_points_size_: {}, "
@@ -40,7 +49,6 @@ VoxelMapRegister::~VoxelMapRegister() {
 }
 
 bool VoxelMapRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
-    // pcl::io::savePCDFileASCII("/home/kilox/cloud_lidar.pcd", *cloud_lidar);
     if (first_frame_) {
         M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
         V3D p_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().pos_ext + kf_ptr_->GetState().pos;
@@ -77,13 +85,16 @@ bool VoxelMapRegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<I
         voxel_map_->insert(pv_list);
         LOG_INFO("Build Voxel Map Size: {}", voxel_map_->cache.size());
         first_frame_ = false;
+        keyframes_.emplace_back(T_WL, cloud_world_tmp);
+        {
+            std::lock_guard<std::mutex> lock(local_map_mutex_);
+            submap_ = cloud_world_tmp;
+        }
     }
     return true;
 }
 
 bool VoxelMapRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) {
-    // scan_filter_.setInputCloud(cloud_lidar);
-    // scan_filter_.filter(*current_lidar_);
     current_lidar_ = cloud_lidar;
     // 降采样
     for (size_t i = 0; i < current_lidar_->size(); ++i) {
@@ -95,6 +106,32 @@ bool VoxelMapRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IES
     }
     kf_ptr_->UpdateLidar();
 
+    PoseTrans curr_pose(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+    auto T_WL = curr_pose * system_config_->lidar2imu_;
+    if (keyframes_.size() > keyframe_size_) {
+        keyframes_.pop_front();
+    }
+    PoseTrans delta_pose = last_keypose_.inverse() * curr_pose;
+    if ((delta_pose.norm() > keyframe_distance_) ||
+        (use_angle_keyframe_ && delta_pose.RPY().norm() > keyframe_angle_distance_)) {
+        is_keyframe_ = true;
+        last_keypose_ = curr_pose;
+        PointCloudXYZIPtr tmp_submap(new PointCloudXYZI);
+        auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
+        keyframes_.push_back({T_WL, cloud_world_tmp});
+
+        std::lock_guard<std::mutex> lock(local_map_mutex_);
+        for (auto &keyframe : keyframes_) {
+            *tmp_submap += *keyframe.second;
+        }
+        submap_ = tmp_submap;
+    } else {
+        is_keyframe_ = false;
+    }
+    return true;
+}
+
+void VoxelMapRegister::UpdateMap() {
     // 更新地图
     M3D r_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().rot_ext;
     V3D p_wl = kf_ptr_->GetState().rot * kf_ptr_->GetState().pos_ext + kf_ptr_->GetState().pos;
@@ -121,10 +158,6 @@ bool VoxelMapRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IES
         pv_list.push_back(pv);
     }
     voxel_map_->insert(pv_list);
-    return true;
-}
-
-void VoxelMapRegister::UpdateMap() {
 }
 
 void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {
@@ -202,8 +235,8 @@ void VoxelMapRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_
         return;
     }
     shared_data.valid = true;
-    LOG_INFO("iter: {},effective_num:{},total_res:{}, aver_res:{}", shared_data.iter_num, effect_num, total_res,
-             total_res / effect_num);
+    // LOG_INFO("iter: {},effective_num:{},total_res:{}, aver_res:{}", shared_data.iter_num, effect_num, total_res,
+    //          total_res / effect_num);
 }
 
 M3D VoxelMapRegister::calcBodyCov(Eigen::Vector3d &pb, const float range_inc, const float degree_inc) {
@@ -225,38 +258,8 @@ M3D VoxelMapRegister::calcBodyCov(Eigen::Vector3d &pb, const float range_inc, co
     return direction * range_var * direction.transpose() + A * direction_var * A.transpose();
 };
 
-// M3D VoxelMapRegister::transformLiDARCovToWorld(const Eigen::Vector3d &point_lidar, const std::shared_ptr<IESKF>
-// kf_ptr,
-//                                                const PoseTrans &lidar_to_imu, const Eigen::Matrix3d &cov_lidar) {
-//     Eigen::Matrix3d point_crossmat;
-//     point_crossmat << SKEW_SYM_MATRX(point_lidar);
-
-//     // lidar到body的方差传播
-//     // conjugate() 共轭
-//     Eigen::Matrix3d cov_body = lidar_to_imu.R * cov_lidar * lidar_to_imu.R.transpose() +
-//                                lidar_to_imu.R * (-point_crossmat) * kf_ptr->GetCov().block<3, 3>(6, 6) *
-//                                    (-point_crossmat).transpose() * lidar_to_imu.R.transpose() +
-//                                kf_ptr->GetCov().block<3, 3>(9, 9);
-//     // P_L =  T_L_to_I * P_L
-//     // Eigen::Vector3d p_body = lidar_to_imu.rotationMatrix() * point_lidar + lidar_to_imu.translation();
-//     Eigen::Vector3d p_body = lidar_to_imu * point_lidar;
-
-//     point_crossmat << SKEW_SYM_MATRX(p_body);
-
-//     Eigen::Matrix3d rot_var = kf_ptr->GetCov().block<3, 3>(0, 0);
-//     Eigen::Matrix3d t_var = kf_ptr->GetCov().block<3, 3>(3, 3);
-
-//     Eigen::Matrix3d cov_world = kf_ptr->GetState().r_wi * cov_body * kf_ptr->GetState().r_wi.transpose() +
-//                                 kf_ptr->GetState().r_wi * (-point_crossmat) * rot_var * (-point_crossmat).transpose()
-//                                 *
-//                                     kf_ptr->GetState().r_wi.transpose() +
-//                                 t_var;
-//     return cov_world;
-// }
-
 PointCloudXYZIPtr VoxelMapRegister::GetSubmap() {
-    PointCloudXYZIPtr cloud(new PointCloudXYZI);
-
-    return cloud;
+    std::lock_guard<std::mutex> lock(local_map_mutex_);
+    return submap_;
 }
 }  // namespace slam

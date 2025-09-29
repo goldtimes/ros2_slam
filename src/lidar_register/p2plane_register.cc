@@ -12,6 +12,13 @@ P2PlaneRegister::P2PlaneRegister(const std::shared_ptr<SystemConfig> &system_con
     cube_len = system_config->frontend_config_.p2plane_config.cube_len;
     det_range = system_config->frontend_config_.p2plane_config.det_range;
     move_thresh = system_config->frontend_config_.p2plane_config.move_thresh;
+
+    // 关键帧参数
+    keyframe_size_ = system_config->frontend_config_.keyframe_size;
+    keyframe_distance_ = system_config->frontend_config_.keyframe_distance;
+    keyframe_angle_distance_ = system_config->frontend_config_.keyframe_angle_distance;
+    use_angle_keyframe_ = system_config->frontend_config_.use_angle_keyframe;
+
     // 协方差
     lidar_noise_std_ = system_config->lidar_config_.lidar_noise_std;
     // 信息矩阵
@@ -186,23 +193,19 @@ bool P2PlaneRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESK
     // filter cloud
     current_lidar_ = cloud_lidar;
     is_keyframe_ = false;
-    // auto t1 = std::chrono::high_resolution_clock::now();
     TrimCloud();
-    // auto t2 = std::chrono::high_resolution_clock::now();
-    // auto trim_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
-    // LOG_INFO("trim time:{}", trim_time * 1e3);
     kf_ptr_->UpdateLidar();
+
     PoseTrans curr_pose(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
     auto T_WL = curr_pose * system_config_->lidar2imu_;
-    if (keyframes_.size() > system_config_->frontend_config_.p2plane_config.keyframe_num) {
+    if (keyframes_.size() > keyframe_size_) {
         keyframes_.pop_front();
     }
     PoseTrans delta_pose = last_keypose_.inverse() * curr_pose;
-    if (delta_pose.norm() > system_config_->frontend_config_.p2plane_config.keyframe_distance ||
-        delta_pose.RPY().norm() > system_config_->frontend_config_.p2plane_config.keyframe_angle_distance) {
+    if ((delta_pose.norm() > keyframe_distance_) ||
+        (use_angle_keyframe_ && delta_pose.RPY().norm() > keyframe_angle_distance_)) {
         is_keyframe_ = true;
         last_keypose_ = curr_pose;
-        PointCloudXYZIPtr tmp_cloud(new PointCloudXYZI);
         PointCloudXYZIPtr tmp_submap(new PointCloudXYZI);
         auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
         keyframes_.push_back({T_WL, cloud_world_tmp});
