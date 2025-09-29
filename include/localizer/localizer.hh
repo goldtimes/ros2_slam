@@ -2,7 +2,7 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:59
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-25 19:22:36
+ * @LastEditTime: 2025-09-29 14:11:56
  * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
@@ -146,6 +146,9 @@ class Localizer {
                      const PointXYZITree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh,
                      double match_score_thresh);
 
+    double CeresAlign(const PointCloudXYZIPtr& trans_cloud, const PointCloudXYZIPtr& target_cloud,
+                      const PointXYZITree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh);
+
    private:
     std::shared_ptr<SystemConfig> system_config_ptr_;
 
@@ -212,6 +215,8 @@ class Localizer {
 
     bool update_map_ = false;
     bool loaded_map_ = false;
+
+    bool use_ceres_ = false;
 
     std::string map_dir_;
     GICP::Ptr gicp_matcher_;

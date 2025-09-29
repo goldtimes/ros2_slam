@@ -2,14 +2,16 @@
  * @Author: lihang lihang@kilox.cn
  * @Date: 2025-09-08 13:41:48
  * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-28 19:24:30
+ * @LastEditTime: 2025-09-29 15:10:50
  * @FilePath: /fast_lvio_ws/src/open_slam/src/localizer/localizer.cc
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #include "localizer/localizer.hh"
+#include <pcl/range_image/range_image.h>
 #include <boost/filesystem.hpp>
 #include <chrono>
+#include "localizer/map_align.hpp"
 #include "system_config.hh"
 
 namespace slam {
@@ -27,6 +29,7 @@ Localizer::Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr) : s
 
     local_state_ = LOCAL_STATE::MAP_NOT_LOAD;
     loaded_map_ = false;
+    use_ceres_ = system_config_ptr_->localizer_config_.use_ceres;
     AllocateMemory();
 }
 
@@ -78,11 +81,10 @@ void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTr
 }
 
 void Localizer::SetSubmapCloud(const PointCloudXYZIPtr& submap_cloud, const PoseTrans& T_LtoO) {
-    if (local_state_ != LOCAL_STATE::INITED) {
-        curr_submap_cloud_ = submap_cloud;
-        get_new_submap_ = true;
-        update_T_RtoO_ = T_LtoO;
-    }
+    curr_submap_cloud_ = submap_cloud;
+    get_new_submap_ = true;
+    LOG_INFO("get new submap");
+    update_T_RtoO_ = T_LtoO;
 }
 
 void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::string& map_id) {
@@ -174,6 +176,10 @@ void Localizer::MapRegister() noexcept {
             current_state = local_state_;
             has_init_pose = get_init_pose_;
             has_new_lidar = get_new_lidar_;
+            if (has_init_pose && has_new_lidar) {
+                current_state = LOCAL_STATE::NOT_INIT;
+            }
+            // LOG_INFO("current_state:{}", current_state);
         }  // 锁在此处释放，避免后续操作持有锁
         switch (current_state) {
             // 需要在外面设置 NOT_INIT状态
@@ -258,9 +264,9 @@ void Localizer::CheckInitializationStatus() {
         is_initializing_ = false;
         if (success) {
             local_state_ = LOCAL_STATE::INITED;
-            get_new_submap_ = false;
             LOG_INFO(BLUE "Init Success" RESET);
         } else {
+            LOG_INFO(BLUE "Init Failed" RESET);
             local_state_ = LOCAL_STATE::INIT_FAILED;
         }
     }
@@ -520,9 +526,15 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIP
 void Localizer::UpdateSearch() {
     PointCloudXYZIPtr cloud_in_map = TransformLidar(curr_submap_cloud_, T_OtoM_.R, T_OtoM_.t);
     PoseTrans incre_pose;
-    double score = GicpAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
-                             system_config_ptr_->localizer_config_.update_search_dist_thresh,
-                             system_config_ptr_->localizer_config_.match_score_thresh);
+    double score;
+    if (!use_ceres_) {
+        score = GicpAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
+                          system_config_ptr_->localizer_config_.update_search_dist_thresh,
+                          system_config_ptr_->localizer_config_.match_score_thresh);
+    } else {
+        score = CeresAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
+                           system_config_ptr_->localizer_config_.update_search_dist_thresh);
+    }
     LOG_INFO(BLUE
              "=======> update source {} icp score {:03.3f} current in match icp "
              "init, incre_trans {:03.3f} " RESET,
@@ -563,5 +575,45 @@ double Localizer::GicpAlign(const PointCloudXYZIPtr& trans_cloud, const PointClo
         incre_pose = final_tf;
     }
     return score;
+}
+
+double Localizer::CeresAlign(const PointCloudXYZIPtr& source, const PointCloudXYZIPtr& target_cloud,
+                             const PointXYZITree::Ptr& target_tree, PoseTrans& incre_pose, double update_dist_thresh) {
+    pcl::PointXYZI minPt, maxPt;
+    // 获取source的最小最大点
+    pcl::getMinMax3D(*source, minPt, maxPt);
+
+    float boarder_width = 2;
+    minPt.x = minPt.x - boarder_width;
+    minPt.y = minPt.y - boarder_width;
+    minPt.z = minPt.z - boarder_width;
+
+    maxPt.x = maxPt.x + boarder_width;
+    maxPt.y = maxPt.y + boarder_width;
+    maxPt.z = maxPt.z + boarder_width;
+
+    SceneAlignment<float> m_scene_align;
+    m_scene_align.m_accepted_threshold = 0.35;
+    // m_scene_align.m_maximum_icp_iteration = 2;
+    m_scene_align.m_maximum_icp_iteration = 2;
+
+    m_scene_align.set_downsample_resolution(0.2, 0.2);
+
+    m_scene_align.m_para_scene_alignments_maximum_residual_block = 5000;
+
+    auto rT1 = boost::posix_time::microsec_clock::local_time();
+    double icp_score = m_scene_align.find_tranfrom_of_two_mappings(target_cloud, source);
+    auto rT2 = boost::posix_time::microsec_clock::local_time();
+    double time_use_1 = (rT2 - rT1).total_microseconds() * 1e-3;
+    // LOG_INFO("ceres align time use:{} ms", time_use_1);
+
+    auto ICP_q = m_scene_align.m_pc_reg.m_q_w_curr;
+    auto ICP_t = m_scene_align.m_pc_reg.m_t_w_curr;
+
+    PoseTrans s2t(ICP_q.toRotationMatrix(), ICP_t);
+    double score_ndt_2 = CalculateP2PScore(s2t, source, target_tree, update_dist_thresh);
+
+    incre_pose = s2t;
+    return score_ndt_2;
 }
 }  // namespace slam

@@ -206,6 +206,7 @@ struct LocalizerConfig {
     double icp_dist_thresh;
     double update_search_dist_thresh;
     double match_score_thresh;
+    bool use_ceres;
 
     void print() const {
         LOG_INFO("LocalizerConfig:");
@@ -223,6 +224,7 @@ struct LocalizerConfig {
         LOG_INFO("  icp_dist_thresh: {:03.3f}", icp_dist_thresh);
         LOG_INFO("  update_search_dist_thresh: {:03.3f}", update_search_dist_thresh);
         LOG_INFO("  match_score_thresh: {:03.3f}", match_score_thresh);
+        LOG_INFO("  use_ceres: {}", use_ceres);
     }
 };
 
