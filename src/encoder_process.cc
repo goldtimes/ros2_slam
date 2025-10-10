@@ -157,8 +157,8 @@ void EncoderProcessor::UpdateEncoder(const Encoder& encoder, const Input& input,
     share_state.valid = true;
     share_state.H33_.setZero();
     share_state.b33_.setZero();
-    share_state.H33_ = J.transpose() * 100 * J;
-    share_state.b33_ = J.transpose() * 100 * res;
+    share_state.H33_ = J.transpose() * info_mat * J;
+    share_state.b33_ = J.transpose() * info_mat * res;
     // LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 

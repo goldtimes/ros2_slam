@@ -1,4 +1,5 @@
 #include "lidar_register/voxel_map.hh"
+#include "logger.hh"
 
 namespace slam {
 OctoTree::OctoTree(int _max_layer, int _layer, std::vector<int> _update_size_threshes, int _max_point_thresh,
@@ -226,7 +227,9 @@ void VoxelMap::insert(const std::vector<PointWithCov> &input_points) {
             feat_map[pair.first].tree->quater_length = voxel_size / 4;
             feat_map[pair.first].tree->insert(pair.second.points);
             if (cache.size() > capacity) {
+                // LOG_INFO("cache size: {}", cache.size());
                 feat_map.erase(cache.back());
+                sub_map.erase(cache.back());
                 cache.pop_back();
             }
         } else {

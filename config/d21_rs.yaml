@@ -26,9 +26,9 @@ encoder:
   encoder_topic: "/odom"
   encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
   encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
-  wheel_cov: 1e-1 # 编码器平移噪声标准差
-  nhc_y: 1e-1 # 编码器旋转噪声标准差
-  nhc_z: 1e-1 # 编码器旋转噪声标准差
+  wheel_cov: 1e-3 # 编码器平移噪声标准差
+  nhc_y: 1e-2 # 编码器旋转噪声标准差
+  nhc_z: 1e-2 # 编码器旋转噪声标准差
 
 gnss:
   gnss_topic: "/gnss"
@@ -55,8 +55,8 @@ T_imu2encoder: [1.0000000,  0.0000000,  0.0000000, 0.0000000,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
-use_voxel: false
+use_p2plane: false
+use_voxel: true
 use_ndt: false # 不要用，这算法有点问题
 
 has_encoder: false
@@ -76,21 +76,21 @@ front_end:
   use_angle_keyframe: true  # 是否使用角度关键帧
 
   use_p2plane: 
-    p2plane_thresh: 0.01 # 平面阈值
-    downsample: 0.2 # 降采样
+    p2plane_thresh: 0.1 # 平面阈值
+    downsample: 0.4 # 降采样
     map_resolution: 0.3 # 地图分辨率
     cube_len: 300 # 立方体长度
     det_range: 60 # 检测范围
     move_thresh: 1.5 # 移动阈值
 
   use_voxel_map: 
-    voxle_size: 0.5
+    voxle_size: 1.0
     max_layer: 2 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值
     max_points_size: 1000 # 每个voxel最大的点云数量
     max_cov_points_size: 1000 # 每个voxel最大的协方差点云数量
-    max_capacity: 10000 # 整体的voxel个数
+    max_capacity: 100000 # 整体的voxel个数
     update_omp: false # 更新voxel地图时使用omp加速
     sigma_num: 3
 

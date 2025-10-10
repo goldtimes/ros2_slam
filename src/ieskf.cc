@@ -96,7 +96,7 @@ void IESKF::UpdateEncoder(const Encoder& encoder, const Input& input) {
     shared_state.res = 1e10;
     V33D delta = V33D::Zero();
     // 高斯牛顿的求解,H矩阵和b矩阵
-    for (size_t i = 0; i < max_iter_num_; i++) {
+    for (size_t i = 0; i < 1; i++) {
         // 构建点面的残差
         wheel_loss_func_(encoder, input, predict_x, shared_state);
         if (shared_state.valid == false) {
