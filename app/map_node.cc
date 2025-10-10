@@ -14,7 +14,7 @@
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "openslam_node");
-    ros::NodeHandle nh;
+    ros::NodeHandle nh("~");
     SpdLogger logger;
     std::string config_path;
     nh.param<std::string>("config_path", config_path, "");

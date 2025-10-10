@@ -63,7 +63,7 @@ void ROS1Manager::InitSub() {
     imu_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->imu_config_.imu_topic, 100, &ROS1Manager::ImuCallback,
                              this, ros::TransportHints().tcpNoDelay());
     if (system_ptr_->GetSystemConfig()->lidar_config_.use_livox_driver == 0) {
-        lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topic, 100,
+        lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topic, 10,
                                    &ROS1Manager::StandarCloudCallback, this, ros::TransportHints().tcpNoDelay());
         LOG_INFO("use standard lidar driver");
     } else if (system_ptr_->GetSystemConfig()->lidar_config_.use_livox_driver == 1) {
@@ -99,6 +99,7 @@ void ROS1Manager::InitService() {
 }
 
 void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg) {
+    // LOG_INFO("StandarCloudCallback");
     static double last_record_lidar_time = cloud_msg->header.stamp.toSec();
     double curr_lidar_time = cloud_msg->header.stamp.toSec();
     // 统计fps
@@ -118,6 +119,9 @@ void ROS1Manager::StandarCloudCallback(const sensor_msgs::PointCloud2::ConstPtr&
     // 需要在这里处理lidar数据
     PointCloudPtr cloud_ptr(new PointCloudType);
     evaluate_and_call([&]() { system_ptr_->GetLidarProcess()->Process(cloud_msg, cloud_ptr); }, "lidar_process");
+    if (!system_ptr_->GetSystemConfig()->lidar_config_.is_tms_head) {
+        curr_lidar_time = cloud_ptr->points[0].time;
+    }
     // push to system
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }

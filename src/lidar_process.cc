@@ -176,6 +176,68 @@ bool LidarProcess::ls16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_
     return false;
 }
 bool LidarProcess::rs16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
+    // LOG_INFO("rs16_process");
+    // 创建点云
+    pcl::PointCloud<slam::RsPointXYZIRT>::Ptr cloud(new pcl::PointCloud<slam::RsPointXYZIRT>);
+    // 转换点云
+    pcl::fromROSMsg(*cloud_msg, *cloud);
+    int points_num = cloud->points.size();
+    // LOG_INFO("time:{}", cloud_msg->header.stamp.toSec());
+    // 角度过滤点云，距离过滤点云，以及降采样
+    PointCloudPtr filtered_cloud(new PointCloudType);
+    filtered_cloud->reserve(points_num);
+    int valid_num = 0;
+    for (int i = 0; i < points_num; ++i) {
+        valid_num++;
+        if (valid_num % point_filter_num_ != 0) {
+            continue;
+        }
+        auto point = cloud->points[i];
+        // 过滤nan点
+        if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z)) {
+            continue;
+        }
+
+        double dist = std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+        if (dist < min_range_ || dist > max_range_) {
+            continue;
+        }
+        // 过滤范围点云
+        if (point.x < remove_lidar_front_ && point.x > remove_lidar_back_ && point.y < remove_lidar_left_ &&
+            point.y > remove_lidar_right_) {
+            continue;
+        }
+        // 角度过滤
+        double point_angle = std::atan2(point.y, point.x);
+        for (const auto& angle_range : keep_angles) {
+            const double start_rad = normalizedAngle(angle_range.first) * M_PI / 180.0;
+            const double end_rad = normalizedAngle(angle_range.second) * M_PI / 180.0;
+            bool keep_point = false;
+            if (start_rad <= end_rad) {
+                // -135°-135°
+                keep_point = (point_angle >= start_rad && point_angle <= end_rad);
+            } else {
+                // case (e.g., 135° to -135°)
+                keep_point = (point_angle >= start_rad || point_angle <= end_rad);
+            }
+            if (keep_point) {
+                PointType pt;
+                pt.x = point.x;
+                pt.y = point.y;
+                pt.z = point.z;
+                pt.intensity = point.intensity;
+                // ns -> s
+                pt.time = point.timestamp;
+                // std::cout << std::fixed << "pt time:" << pt.time << std::endl;
+
+                filtered_cloud->push_back(pt);
+            }
+        }
+    };
+    out_cloud = filtered_cloud;
+    // LOG_INFO("after filter point size:{}", out_cloud->size());
+    return true;
+
     return false;
 }
 bool LidarProcess::airy_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {

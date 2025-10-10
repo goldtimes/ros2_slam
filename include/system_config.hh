@@ -13,8 +13,6 @@ struct LidarConfig {
     double lidar_min_range;
     double lidar_max_range;
     std::string lidar_type;
-    double lidar_position_noise_std;
-    double lidar_rotation_noise_std;
     bool is_tms_head;
     double lidar_noise_std;
     int use_multi_lidar;
@@ -30,8 +28,6 @@ struct LidarConfig {
         LOG_INFO("  lidar_min_range: {:03.3f}", lidar_min_range);
         LOG_INFO("  lidar_max_range: {:03.3f}", lidar_max_range);
         LOG_INFO("  lidar_type: {}", lidar_type);
-        LOG_INFO("  lidar_position_noise_std: {:03.3f}", lidar_position_noise_std);
-        LOG_INFO("  lidar_rotation_noise_std: {:03.3f}", lidar_rotation_noise_std);
         LOG_INFO("  lidar_noise_std: {:03.3f}", lidar_noise_std);
         LOG_INFO("  use_multi_lidar: {}", use_multi_lidar);
         if (use_multi_lidar > 1) {

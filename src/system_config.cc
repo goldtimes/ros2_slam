@@ -12,8 +12,6 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         lidar_config_.point_filter_num = config["lidar"]["point_filter_num"].as<int>();
         lidar_config_.lidar_min_range = config["lidar"]["lidar_min_range"].as<double>();
         lidar_config_.lidar_max_range = config["lidar"]["lidar_max_range"].as<double>();
-        lidar_config_.lidar_position_noise_std = config["lidar"]["lidar_position_noise_std"].as<double>();
-        lidar_config_.lidar_rotation_noise_std = config["lidar"]["lidar_rotation_noise_std"].as<double>();
         lidar_config_.lidar_noise_std = config["lidar"]["lidar_noise_std"].as<double>();
         lidar_config_.use_multi_lidar = config["lidar"]["use_multi_lidar"].as<int>();
         // 雷达数量加载对应的top
