@@ -2,7 +2,7 @@
     <param name="use_sim_time" value="true" />
 
     <arg name="bag_start" default="0" />
-    <arg name="bag_rate" default="2" />
+    <arg name="bag_rate" default="1" />
     <arg name="output" default="screen" />
     <arg name="bag_file" default="/media/kilox/yijie/rosbags/benchmark/run1.bag" />
 

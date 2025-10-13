@@ -96,7 +96,7 @@ void FrontEnd::Run() {
                             LOG_INFO("IMU_INIT!");
                             // 初始化轮速计的朝向
                             PoseTrans T_WI(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
-                            T_WE = T_WI * T_EI.inverse();
+                            // T_WE = T_WI * T_EI.inverse();
                             kf_ptr_->GetState().Print();
                         }
                     }
@@ -109,8 +109,8 @@ void FrontEnd::Run() {
                 evaluate_and_call([&]() { propogator_ptr_->PropogateState(meas); }, "propogate_and_undistort", false);
                 PoseTrans end_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
                 PoseTrans state_delta_pose = end_pose * start_pose.inverse();
-                // LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
-                //          state_delta_pose.RPY().norm());
+                LOG_INFO("state_delta_pose t_norm: {}, rotation_norm:{}", state_delta_pose.t.norm(),
+                         state_delta_pose.RPY().norm());
                 // 对轮速计进行积分，对首尾进行插值
                 if (use_encoder_) {
                     encoder_processor_ptr_->AddEncoder(measure_group_.encoders);
@@ -118,8 +118,8 @@ void FrontEnd::Run() {
                     auto res = encoder_processor_ptr_->Propagation(encoder_delta_pose, measure_group_.lidar_beg_time,
                                                                    measure_group_.lidar_end_time);
                     if (res) {
-                        // LOG_INFO("encoder_delta_pose t_norm: {}, rotation_norm:{}", encoder_delta_pose.t.norm(),
-                        //          encoder_delta_pose.RPY().norm());
+                        LOG_INFO("encoder_delta_pose t_norm: {}, rotation_norm:{}", encoder_delta_pose.t.norm(),
+                                 encoder_delta_pose.RPY().norm());
                     }
                     // 更新TWE
                     T_WE = T_WE * encoder_delta_pose;
@@ -233,9 +233,8 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
             LOG_WARN("lidar mean scan time is too large, mean scan time is {}", lidar_mean_scantime_);
         }
         lidar_pushed_ = true;
-        // LOG_INFO("lidar cloud size is {}, begin time is {:03.3f}, end time is {:03.3f}, mean scan time is {:03.3f}",
-        //          measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time,
-        //          lidar_mean_scantime_);
+        LOG_INFO("lidar cloud size is {}, begin time is {:03.6f}, end time is {:03.6f}, mean scan time is {:03.6f}",
+                 measures.curent_cloud->size(), measures.lidar_beg_time, measures.lidar_end_time, lidar_mean_scantime_);
     }
     // 处理imu数据
     double imu_time = system_->imu_queue_.front().timestamp_;
@@ -256,7 +255,7 @@ bool FrontEnd::GetMeasureGroup(MeasureGroup& measures) {
     //     LOG_INFO("encoder time is {}", encode.timestamp_);
     // }
     if (use_encoder_) {
-        while (!system_->encoder_queue_.empty() && encoder_time < measures.lidar_end_time) {
+        while (!system_->encoder_queue_.empty()) {
             measures.encoders.push_back(system_->encoder_queue_.front());
             system_->encoder_queue_.pop_front();
             encoder_time = system_->encoder_queue_.front().timestamp_;

@@ -3,7 +3,7 @@ lidar:
   lidar_type: "rs16" # rs16, ls16, tw, vanjee, airy
   use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
   lidar_topic: "/rslidar_points"
-  point_filter_num: 6 # 点云滤波次数
+  point_filter_num: 4 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
   lidar_max_range: 200.0 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
@@ -26,9 +26,9 @@ encoder:
   encoder_topic: "/odom"
   encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
   encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
-  wheel_cov: 1e-3 # 编码器平移噪声标准差
-  nhc_y: 1e-2 # 编码器旋转噪声标准差
-  nhc_z: 1e-2 # 编码器旋转噪声标准差
+  wheel_cov: 1e-1 # 编码器平移噪声标准差
+  nhc_y: 1e-1 # 编码器旋转噪声标准差
+  nhc_z: 1e-1 # 编码器旋转噪声标准差
 
 gnss:
   gnss_topic: "/gnss"
@@ -59,7 +59,7 @@ use_p2plane: false
 use_voxel: true
 use_ndt: false # 不要用，这算法有点问题
 
-has_encoder: false
+has_encoder: true
 has_gnss: false
 has_camera: false
 
@@ -68,7 +68,7 @@ front_end:
   calib_lidar2imu: false # 是否标定外参
   keep_angle_ranges: [-45, 40, 51, 130, 140, -140, -130, -65] # 保留的角度范围
   remove_ranges: [0.05, -0.15, 0.2, -0.2] # [x, -x, y, -y] 前左右的正方向上
-  max_iteration: 4 # 最大迭代次数
+  max_iteration: 6 # 最大迭代次数
   # 关键帧参数
   keyframe_size: 15
   keyframe_distance: 0.5 # 关键帧距离
@@ -85,7 +85,7 @@ front_end:
 
   use_voxel_map: 
     voxle_size: 1.0
-    max_layer: 2 #  # 4 layer, 0, 1, 2, 3
+    max_layer: 4 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值
     max_points_size: 1000 # 每个voxel最大的点云数量

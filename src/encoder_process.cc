@@ -15,7 +15,10 @@ void EncoderProcessor::AddEncoder(const std::deque<Encoder>& encoders) {
     }
     encoder_queue_.insert(encoder_queue_.end(), encoders.begin(), encoders.end());
     // 确保数据不要太多
-    while (encoders.back().timestamp_ - encoders.front().timestamp_ > 1.0) {
+    // LOG_INFO("encoder begin time:{}, encoder end time:{}", encoder_queue_.front().timestamp_,
+    //  encoder_queue_.back().timestamp_);
+    // LOG_INFO("DT:{}", encoders.back().timestamp_ - encoders.front().timestamp_);
+    while ((encoder_queue_.back().timestamp_ - encoder_queue_.front().timestamp_) > 2.0) {
         encoder_queue_.pop_front();
     }
 }
@@ -34,6 +37,9 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
     //     return false;
     // }
 
+    // LOG_INFO("encoder begin time:{}, encoder end time:{}", encoder_queue_.front().timestamp_,
+    //          encoder_queue_.back().timestamp_);
+    // LOG_INFO("lidar begin time:{}, lidar end time:{}", lidar_begin_time, lidar_end_time);
     std::deque<Encoder> selected_data;
     int start_idx = -1, end_idx = -1;
     for (int i = 0; i < encoder_queue_.size(); i++) {
@@ -50,16 +56,23 @@ bool EncoderProcessor::Propagation(PoseTrans& delta_pose, const double lidar_beg
     // 对第一个数据的encoder数据进行插值处理
     if (start_idx >= 1) {
         Encoder inter = interplate(encoder_queue_[start_idx - 1], encoder_queue_[start_idx], lidar_begin_time);
+        // LOG_INFO("front interplate");
         selected_data.push_front(inter);
     }
     // 对最后一个数据的encoder数据进行插值处理
     if (end_idx < encoder_queue_.size() - 1) {
         Encoder inter = interplate(encoder_queue_[end_idx], encoder_queue_[end_idx + 1], lidar_end_time);
+        // LOG_INFO("end interplate");
+
         selected_data.push_back(inter);
+    } else {
+        Encoder inter = interplate(encoder_queue_[end_idx], encoder_queue_[end_idx], lidar_end_time);
     }
-    if (selected_data.size() <= 2) {
+    if (selected_data.size() <= 1) {
         return false;
     }
+    LOG_INFO("select begin time:{}, end time:{}", selected_data.front().timestamp_, selected_data.back().timestamp_);
+
     // LOG_INFO("EncoderProcessor::Propagation: selected_data.size() = {}", selected_data.size());
     // 积分
     PoseTrans ret_pose;

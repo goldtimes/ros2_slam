@@ -79,10 +79,8 @@ void ROS1Manager::InitSub() {
         LOG_ERROR("use_livox_driver must be 0, 1 or 2!");
         std::exit(1);
     }
-    if (has_encoder_) {
-        encoder_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->encoder_config_.encoder_topic, 100,
-                                     &ROS1Manager::EncoderCallback, this, ros::TransportHints().tcpNoDelay());
-    }
+    encoder_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->encoder_config_.encoder_topic, 100,
+                                 &ROS1Manager::EncoderCallback, this, ros::TransportHints().tcpNoDelay());
     if (has_gnss_) {
         gnss_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->gnss_config_.gnss_topic, 100,
                                   &ROS1Manager::GNSSCallback, this, ros::TransportHints().tcpNoDelay());

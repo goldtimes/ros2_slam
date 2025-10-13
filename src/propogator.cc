@@ -152,17 +152,17 @@ void Propogator::PropogateState(MeasureGroup& meas) {
         // kf_->GetState().Print();
         // 在这里去做轮速计的更新
         if (use_wheel_ && !meas.encoders.empty()) {
-            double wheel_time = meas.encoders.front().timestamp_;
-            if (wheel_time < head.timestamp_) {
-                meas.encoders.pop_front();
-            } else {
-                if (wheel_time < tail.timestamp_) {
-                    // 轮速计的时间在两个imu之间，传入imu的速度值和当前轮速计的速度
-                    kf_->UpdateEncoder(meas.encoders.front(), input);
-                    // 删除轮速计
-                    meas.encoders.pop_front();
-                }
-            }
+            // double wheel_time = meas.encoders.front().timestamp_;
+            // if (wheel_time < head.timestamp_) {
+            //     meas.encoders.pop_front();
+            // } else {
+            //     if (wheel_time < tail.timestamp_) {
+            // 轮速计的时间在两个imu之间，传入imu的速度值和当前轮速计的速度
+            // kf_->UpdateEncoder(meas.encoders.front(), input);
+            // 删除轮速计
+            // meas.encoders.pop_front();
+            // }
+            // }
         }
         if (use_gnss_ && !meas.gnsss.empty()) {
             double gnss_time = meas.gnsss.front().timestamp_;
@@ -175,7 +175,6 @@ void Propogator::PropogateState(MeasureGroup& meas) {
                             // 时间在两个imu之间
                             LOG_INFO("update gnss");
                             kf_->UpdateGnss(meas.gnsss.front());
-                            // 删除轮速计
                             meas.gnsss.pop_front();
                         }
                     }

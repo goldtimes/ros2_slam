@@ -67,10 +67,14 @@ void IESKF::UpdateLidar() {
         b_.block<12, 1>(0, 0) += shared_state.b_;
 
         delta = -H_.inverse() * b_;
-        // LOG_INFO("delta:{},delta_norm:{}", delta.transpose(), delta.norm());
+        // LOG_INFO("delta_norm r:{}, t:{}", delta.segment<3>(0).norm(), delta.segment<3>(3).norm());
+        // if (delta.segment<3>(0).norm() > 0.1 || delta.segment<3>(3).norm() > 0.1) {
+        //     break;
+        // }
         if (std::isnan(delta[0])) {
             break;
         }
+
         x_ += delta;
         shared_state.iter_num += 1;
         if (stop_func_(delta)) {
