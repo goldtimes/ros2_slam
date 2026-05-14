@@ -2,17 +2,17 @@
 lidar: 
   lidar_type: "mid360" # rs16, ls16, tw, vanjee, airy
   use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
-  lidar_topic: "/livox/lidar"
-  point_filter_num: 6 # 点云滤波次数
+  lidar_nums:
+  lidar_topics: ["/livox/lidar"]
+  point_filter_num: 1 # 点云滤波次数
   lidar_min_range: 0.10 # 雷达最小范围
-  lidar_max_range: 30.0 # 雷达最大范围
+  lidar_max_range: 100 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
   is_tms_head: true # 雷达的时间戳是否为帧首
   lidar_noise_std: 0.001 # 雷达点云噪声标准差
-  use_multi_lidar: 1
-  lidar_left_topic: ""
-  lidar_right_topic: ""
+  
+  
   
 imu:
   imu_topic: "/livox/imu"
@@ -55,8 +55,8 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false
-use_voxel: true
+use_p2plane: false # fastlio2的里程计算法
+use_voxel: true # voxelmap的里程计算法
 use_ndt: false # 不要用，这算法有点问题
 
 has_encoder: true

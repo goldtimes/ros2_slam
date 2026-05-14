@@ -15,9 +15,9 @@ struct LidarConfig {
     std::string lidar_type;
     bool is_tms_head;
     double lidar_noise_std;
-    int use_multi_lidar;
-    std::string lidar_left_topic;
-    std::string lidar_right_topic;
+    int lidar_nums;
+    std::vector<std::string> lidar_topics;
+
     // 重载print函数
     void print() const {
         LOG_INFO(BLUE "LidarConfig:" RESET);
@@ -29,10 +29,9 @@ struct LidarConfig {
         LOG_INFO("  lidar_max_range: {:03.3f}", lidar_max_range);
         LOG_INFO("  lidar_type: {}", lidar_type);
         LOG_INFO("  lidar_noise_std: {:03.3f}", lidar_noise_std);
-        LOG_INFO("  use_multi_lidar: {}", use_multi_lidar);
-        if (use_multi_lidar > 1) {
-            LOG_INFO("  lidar_left_topic: {}", lidar_left_topic);
-            LOG_INFO("  lidar_right_topic: {}", lidar_right_topic);
+        LOG_INFO("  lidar_nums: {}", lidar_nums);
+        for (const auto& topic : lidar_topics) {
+            LOG_INFO("  lidar_topic: {}", topic);
         }
     }
 };
@@ -268,8 +267,8 @@ class SystemConfig {
     PoseTrans lidar2imu_;
     PoseTrans imu2encoder_;
     PoseTrans lidar2robot_;
-    PoseTrans Rlidar2imu_;
-    PoseTrans Llidar2imu_;
+
+    std::unordered_map<int, PoseTrans> lidar_extris;  // 雷达相对于imu外参
     PoseTrans gnss2imu_;
 };
 }  // namespace slam
