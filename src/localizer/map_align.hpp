@@ -10,9 +10,9 @@
  */
 #pragma once
 
-#include "commons.hh"
+#include "common/commons.hh"
 #include "localizer/point_cloud_registration.hpp"
-#include "logger.hh"
+#include "utils/logger.hh"
 
 namespace slam {
 template <typename T>

@@ -1,9 +1,9 @@
 #pragma once
 #include <yaml-cpp/yaml.h>
 #include <string>
-#include "commons.hh"
-#include "eigen_type.hh"
-#include "logger.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
+#include "utils/logger.hh"
 namespace slam {
 
 struct LidarConfig {

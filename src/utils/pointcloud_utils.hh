@@ -14,9 +14,9 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/search/kdtree.h>
-#include "eigen_type.hh"
-#include "lidar_point_type.hh"
-#include "logger.hh"
+#include "common/eigen_type.hh"
+#include "common/lidar_point_type.hh"
+#include "utils/logger.hh"
 
 namespace slam {
 

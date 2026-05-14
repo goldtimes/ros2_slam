@@ -72,7 +72,7 @@ include_directories(
 
 #include 
 include_directories(
- include
+ src/
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
@@ -111,22 +111,22 @@ add_executable(slam_node
     app/map_node.cc
     src/system.cc
     src/system_config.cc
-    src/lidar_process.cc
+    src/lio/lidar_process.cc
     src/ros/ros1_manager.cc
     src/front_end.cc
-    src/static_imu_init.cc
-    src/state.cc
-    src/ieskf.cc
-    src/propogator.cc
-    src/pointcloud_utils.cc
+    src/lio/static_imu_init.cc
+    src/common/state.cc
+    src/lio/ieskf.cc
+    src/lio/propogator.cc
+    src/utils/pointcloud_utils.cc
     src/lidar_register/voxelmap_register.cc
     src/lidar_register/voxel_map.cc
-    src/ikd_tree.cc
+    src/lio/ikd_tree.cc
     src/lidar_register/p2plane_register.cc
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
-    src/encoder_process.cc
-    src/gnss_process.cc
+    src/encoder/encoder_process.cc
+    src/gnss/gnss_process.cc
     src/localizer/localizer.cc
 )
 add_dependencies(slam_node robot_manager_generate_messages_cpp)

@@ -1,5 +1,5 @@
 #include "lidar_register/voxel_map.hh"
-#include "logger.hh"
+#include "utils/logger.hh"
 
 namespace slam {
 OctoTree::OctoTree(int _max_layer, int _layer, std::vector<int> _update_size_threshes, int _max_point_thresh,

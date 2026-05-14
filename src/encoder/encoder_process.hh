@@ -1,8 +1,8 @@
 #pragma once
 
-#include "commons.hh"
-#include "eigen_type.hh"
-#include "state.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
+#include "common/state.hh"
 
 namespace slam {
 

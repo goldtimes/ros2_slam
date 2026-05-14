@@ -9,11 +9,11 @@
  */
 #include <Eigen/Eigen>
 #include <list>
-#include "commons.hh"
-#include "eigen_type.hh"
-#include "logger.hh"
-#include "pointcloud_utils.hh"
-#include "state.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
+#include "common/state.hh"
+#include "utils/logger.hh"
+#include "utils/pointcloud_utils.hh"
 namespace slam {
 
 class IncNdt {

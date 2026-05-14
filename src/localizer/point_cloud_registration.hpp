@@ -217,7 +217,7 @@ class Point_cloud_registration {
                 surface_rejecetion_num = 0;
 
                 ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
-                ceres::LocalParameterization *q_parameterization = new ceres::EigenQuaternionParameterization();
+                ceres::Manifold *q_parameterization = new ceres::QuaternionManifold();
                 ceres::Problem::Options problem_options;
                 ceres::ResidualBlockId block_id;
                 ceres::Problem problem(problem_options);

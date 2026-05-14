@@ -8,9 +8,9 @@
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #include <ros/ros.h>
-#include "logger.hh"
 #include "ros/ros1_manager.hh"
 #include "system.hh"
+#include "utils/logger.hh"
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "openslam_node");

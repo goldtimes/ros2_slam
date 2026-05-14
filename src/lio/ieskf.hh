@@ -8,9 +8,9 @@
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #pragma once
-#include "commons.hh"
-#include "logger.hh"
-#include "state.hh"
+#include "common/commons.hh"
+#include "common/state.hh"
+#include "utils/logger.hh"
 
 namespace slam {
 

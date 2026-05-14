@@ -25,13 +25,14 @@
 #include <gtsam/slam/PriorFactor.h>
 
 #include <pcl/registration/gicp.h>
+#include <ros/ros.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <future>
 #include <memory>
-#include "eigen_type.hh"
-#include "logger.hh"
-#include "pointcloud_utils.hh"
-#include "pose_trans.hh"
+#include "common/eigen_type.hh"
+#include "common/pose_trans.hh"
+#include "utils/logger.hh"
+#include "utils/pointcloud_utils.hh"
 
 namespace slam {
 

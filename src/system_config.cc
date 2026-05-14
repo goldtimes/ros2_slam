@@ -1,5 +1,5 @@
 #include "system_config.hh"
-#include "logger.hh"
+#include "utils/logger.hh"
 
 namespace slam {
 bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
