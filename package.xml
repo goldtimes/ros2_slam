@@ -2,7 +2,7 @@
 <package format="3">
 
     <!-- Package Information -->
-    <name>open_slam</name>
+    <name>lio_slam</name>
     <version>2.5.0</version>
     <description> slam algo in robot </description>
     <license>GNU General Public License v3.0</license>
