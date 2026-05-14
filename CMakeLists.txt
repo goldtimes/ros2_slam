@@ -1,4 +1,4 @@
-project(open_slam)
+project(lio_slam)
 cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_BUILD_TYPE "Release")
