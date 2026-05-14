@@ -42,8 +42,6 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         gnss_config_.has_orientation = config["gnss"]["has_orientation"].as<bool>();
         gnss_config_.print();
 
-        // 通用配置
-        has_camera_ = config["has_camera"].as<bool>();
         has_encoder_ = config["has_encoder"].as<bool>();
         has_gnss_ = config["has_gnss"].as<bool>();
 
@@ -53,7 +51,6 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         use_ndt_ = config["use_ndt"].as<bool>();
         GRAVIRT_ = config["gravity"].as<double>();
         // 打印通用配置
-        LOG_INFO("has_camera: {}", has_camera_);
         LOG_INFO("has_encoder: {}", has_encoder_);
         LOG_INFO("has_gnss: {}", has_gnss_);
         LOG_INFO("use_p2plane: {}", use_p2plane_);

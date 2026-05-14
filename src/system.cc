@@ -22,7 +22,7 @@ System::System(const std::string& config_path) : config_path_(config_path) {
     // 开启前端的线程
     front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
     system_init_.store(false);
-
+    // 加入回环检测部分
     // 定位程序
     localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
 }

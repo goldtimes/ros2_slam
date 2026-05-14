@@ -101,9 +101,9 @@ list(APPEND thirdparty_libs
     ${PCL_LIBRARIES}
     ${Sophus_LIBRARIES}
     ${CERES_LIBRARIES}
+    spdlog::spdlog
     gtsam
     yaml-cpp
-    spdlog::spdlog
     geo_graphic
 )
 
@@ -135,8 +135,8 @@ ${thirdparty_libs}
 )
 
 
-add_executable(dynamic_test test/dynamic.cc)
-target_link_libraries(dynamic_test ${thirdparty_libs})
+# add_executable(dynamic_test test/dynamic.cc)
+# target_link_libraries(dynamic_test ${thirdparty_libs})
 
 catkin_install_python(PROGRAMS
     scripts/pub_map.py

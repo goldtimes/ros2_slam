@@ -5,7 +5,7 @@
 #include "utils/logger.hh"
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "openslam_node");
+    ros::init(argc, argv, "lio_slam");
     ros::NodeHandle nh("~");
     SpdLogger logger;
     std::string config_path;
@@ -13,10 +13,8 @@ int main(int argc, char **argv) {
     std::shared_ptr<slam::System> system_ptr = std::make_shared<slam::System>(config_path);
     std::shared_ptr<slam::ROS1Manager> ros1_manager_ptr = std::make_shared<slam::ROS1Manager>(nh, system_ptr);
 
-    ros::Rate rate(1000);
-    while (ros::ok()) {
-        rate.sleep();
-        ros::spinOnce();
-    }
+    ros::MultiThreadedSpinner spinner(4);
+    spinner.spin();
+
     return 0;
 }
