@@ -1,3 +1,3 @@
 <launch>
-    <node pkg="open_slam" type="pub_slam_pose.py" name="pub_slam_pose" output="screen" />
+    <node pkg="lio_slam" type="pub_slam_pose.py" name="pub_slam_pose" output="screen" />
 </launch>

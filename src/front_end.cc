@@ -155,7 +155,7 @@ void FrontEnd::Run() {
                         PointCloudXYZIPtr world_cloud(new PointCloudXYZI);
                         // auto t3 = std::chrono::high_resolution_clock::now();
                         world_cloud = lidar_register_ptr_->GetSubmap();
-                        // pcl::io::savePCDFileASCII("/home/kilox/fast_lvio_ws/src/open_slam/PCD/world_cloud_" +
+                        // pcl::io::savePCDFileASCII("/home/kilox/fast_lvio_ws/src/lio_slam/PCD/world_cloud_" +
                         //                               std::to_string(frame_id) + ".pcd",
                         //                           *world_cloud);
                         frame_id++;

@@ -1,12 +1,4 @@
-/*
- * @Author: lihang lihang@kilox.cn
- * @Date: 2025-09-08 13:41:59
- * @LastEditors: lihang lihang@kilox.cn
- * @LastEditTime: 2025-09-29 14:11:56
- * @FilePath: /fast_lvio_ws/src/open_slam/include/localizer/locallizer.hh
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置:
- * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
+
 #pragma once
 
 // gtsam相关

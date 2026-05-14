@@ -1,7 +1,7 @@
 <launch>
-    <arg name="config_path" default="$(find open_slam)/config/robot_d02.yaml" />
+    <arg name="config_path" default="$(find lio_slam)/config/robot_d02.yaml" />
     <param name="config_path" value="$(arg config_path)" />
-    <node pkg="open_slam" type="slam_node" name="slam_node" output="screen" >
+    <node pkg="lio_slam" type="slam_node" name="slam_node" output="screen" >
     </node>
 launch-prefix="gdb -ex run --args"
 
