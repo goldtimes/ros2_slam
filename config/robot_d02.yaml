@@ -53,9 +53,9 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false # fastlio2的里程计算法
+use_p2plane: true # fastlio2的里程计算法
 use_voxel: false # voxelmap的里程计算法
-use_ndt: true # 不要用，这算法有点问题
+use_ndt: false # 不要用，这算法有点问题
 
 has_encoder: false
 has_gnss: false
