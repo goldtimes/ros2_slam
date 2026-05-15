@@ -1,5 +1,5 @@
 #include "system_config.hh"
-#include "utils/logger.hh"
+#include "logger.hh"
 
 namespace slam {
 bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
@@ -13,9 +13,14 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         lidar_config_.lidar_min_range = config["lidar"]["lidar_min_range"].as<double>();
         lidar_config_.lidar_max_range = config["lidar"]["lidar_max_range"].as<double>();
         lidar_config_.lidar_noise_std = config["lidar"]["lidar_noise_std"].as<double>();
-        lidar_config_.lidar_nums = config["lidar"]["lidar_nums"].as<int>();
+        lidar_config_.use_multi_lidar = config["lidar"]["use_multi_lidar"].as<int>();
         // 雷达数量加载对应的top
-        lidar_config_.lidar_topics = config["lidar"]["lidar_topics"].as<std::vector<std::string>>();
+        if (lidar_config_.use_multi_lidar > 1) {
+            lidar_config_.lidar_left_topic = config["lidar"]["lidar_left_topic"].as<std::string>();
+            lidar_config_.lidar_right_topic = config["lidar"]["lidar_right_topic"].as<std::string>();
+        } else {
+            lidar_config_.lidar_topic = config["lidar"]["lidar_topic"].as<std::string>();
+        }
         lidar_config_.print();
         // 加载IMU相关的配置
         imu_config_.imu_topic = config["imu"]["imu_topic"].as<std::string>();
@@ -42,6 +47,8 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         gnss_config_.has_orientation = config["gnss"]["has_orientation"].as<bool>();
         gnss_config_.print();
 
+        // 通用配置
+        has_camera_ = config["has_camera"].as<bool>();
         has_encoder_ = config["has_encoder"].as<bool>();
         has_gnss_ = config["has_gnss"].as<bool>();
 
@@ -51,6 +58,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         use_ndt_ = config["use_ndt"].as<bool>();
         GRAVIRT_ = config["gravity"].as<double>();
         // 打印通用配置
+        LOG_INFO("has_camera: {}", has_camera_);
         LOG_INFO("has_encoder: {}", has_encoder_);
         LOG_INFO("has_gnss: {}", has_gnss_);
         LOG_INFO("use_p2plane: {}", use_p2plane_);
@@ -59,9 +67,9 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         LOG_INFO("GRAVIRT: {}", GRAVIRT_);
         // 加载雷达到机器人的外参文件
 
-        if (lidar_config_.lidar_nums > 1) {
-            lidar_extris[0] = LoadTransformAndPrint(config, "T_lidar0Toimu");
-            lidar_extris[1] = LoadTransformAndPrint(config, "T_Llidar1Toimu");
+        if (lidar_config_.use_multi_lidar > 1) {
+            Rlidar2imu_ = LoadTransformAndPrint(config, "T_Rlidar2imu");
+            Llidar2imu_ = LoadTransformAndPrint(config, "T_Llidar2imu");
         } else {
             lidar2imu_ = LoadTransformAndPrint(config, "T_lidar2imu");
         }

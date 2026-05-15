@@ -2,11 +2,11 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "lidar_register/voxel_map.hh"
 #include "localizer/localizer.hh"
+#include "pointcloud_utils.hh"
 #include "ros/time.h"
 #include "system.hh"
 #include "system_config.hh"
-#include "utils/logger.hh"
-#include "utils/pointcloud_utils.hh"
+#include "utils.hh"
 namespace slam {
 
 ROS1Manager::ROS1Manager(const ros::NodeHandle& nh, std::shared_ptr<System> system_ptr)
@@ -63,27 +63,17 @@ void ROS1Manager::InitSub() {
     imu_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->imu_config_.imu_topic, 100, &ROS1Manager::ImuCallback,
                              this, ros::TransportHints().tcpNoDelay());
     if (system_ptr_->GetSystemConfig()->lidar_config_.use_livox_driver == 0) {
-        if (system_ptr_->GetSystemConfig()->lidar_config_.lidar_nums == 1) {
-            lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topics[0], 10,
-                                       &ROS1Manager::StandarCloudCallback, this, ros::TransportHints().tcpNoDelay());
-            LOG_INFO("use standard lidar driver");
-        } else {
-        }
+        lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topic, 10,
+                                   &ROS1Manager::StandarCloudCallback, this, ros::TransportHints().tcpNoDelay());
+        LOG_INFO("use standard lidar driver");
     } else if (system_ptr_->GetSystemConfig()->lidar_config_.use_livox_driver == 1) {
-        if (system_ptr_->GetSystemConfig()->lidar_config_.lidar_nums == 1) {
-            lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topics[0], 10,
-                                       &ROS1Manager::LivoxCloudCallback, this, ros::TransportHints().tcpNoDelay());
-        } else {
-        }
-
+        lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topic, 10,
+                                   &ROS1Manager::LivoxCloudCallback, this, ros::TransportHints().tcpNoDelay());
         LOG_INFO("use livox driver 1");
 
     } else if (system_ptr_->GetSystemConfig()->lidar_config_.use_livox_driver == 2) {
-        if (system_ptr_->GetSystemConfig()->lidar_config_.lidar_nums == 1) {
-            lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topics[0], 10,
-                                       &ROS1Manager::Livox2CloudCallback, this, ros::TransportHints().tcpNoDelay());
-        } else {
-        }
+        lidar_sub_ = nh_.subscribe(system_ptr_->GetSystemConfig()->lidar_config_.lidar_topic, 10,
+                                   &ROS1Manager::Livox2CloudCallback, this, ros::TransportHints().tcpNoDelay());
         LOG_INFO("use livox driver 2");
     } else {
         LOG_ERROR("use_livox_driver must be 0, 1 or 2!");

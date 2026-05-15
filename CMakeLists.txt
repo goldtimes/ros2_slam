@@ -56,6 +56,12 @@ find_package(Ceres REQUIRED)
 # yaml-cpp
 find_package(yaml-cpp REQUIRED)
 
+# find_package(glog REQUIRED)
+message(STATUS "GLOG_FOUND: ${GLOG_FOUND}")
+message(STATUS "GLOG_INCLUDE_DIRS: ${GLOG_INCLUDE_DIRS}")
+message(STATUS "GLOG_LIBRARIES: ${GLOG_LIBRARIES}")
+message(STATUS "GLOG_VERSION: ${GLOG_VERSION}")
+
 #eigen
 find_package(Eigen3 REQUIRED)
 # openmp
@@ -72,7 +78,7 @@ include_directories(
 
 #include 
 include_directories(
- src/
+ include
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
@@ -101,9 +107,10 @@ list(APPEND thirdparty_libs
     ${PCL_LIBRARIES}
     ${Sophus_LIBRARIES}
     ${CERES_LIBRARIES}
-    spdlog::spdlog
+    glog::glog
     gtsam
     yaml-cpp
+    spdlog::spdlog
     geo_graphic
 )
 
@@ -111,22 +118,22 @@ add_executable(slam_node
     app/map_node.cc
     src/system.cc
     src/system_config.cc
-    src/lio/lidar_process.cc
+    src/lidar_process.cc
     src/ros/ros1_manager.cc
     src/front_end.cc
-    src/lio/static_imu_init.cc
-    src/common/state.cc
-    src/lio/ieskf.cc
-    src/lio/propogator.cc
-    src/utils/pointcloud_utils.cc
+    src/static_imu_init.cc
+    src/state.cc
+    src/ieskf.cc
+    src/propogator.cc
+    src/pointcloud_utils.cc
     src/lidar_register/voxelmap_register.cc
     src/lidar_register/voxel_map.cc
-    src/lio/ikd_tree.cc
+    src/ikd_tree.cc
     src/lidar_register/p2plane_register.cc
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
-    src/encoder/encoder_process.cc
-    src/gnss/gnss_process.cc
+    src/encoder_process.cc
+    src/gnss_process.cc
     src/localizer/localizer.cc
 )
 add_dependencies(slam_node robot_manager_generate_messages_cpp)
@@ -134,9 +141,6 @@ target_link_libraries(slam_node
 ${thirdparty_libs}
 )
 
-
-# add_executable(dynamic_test test/dynamic.cc)
-# target_link_libraries(dynamic_test ${thirdparty_libs})
 
 catkin_install_python(PROGRAMS
     scripts/pub_map.py

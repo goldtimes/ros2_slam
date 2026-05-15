@@ -87,7 +87,7 @@ front_end:
     voxle_size: 1.0
     max_layer: 4 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
-    plannar_threshold: 0.01 # 平面阈值
+    plannar_threshold: 0.1 # 平面阈值
     max_points_size: 1000 # 每个voxel最大的点云数量
     max_cov_points_size: 1000 # 每个voxel最大的协方差点云数量
     max_capacity: 100000 # 整体的voxel个数

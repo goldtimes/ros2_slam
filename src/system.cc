@@ -1,7 +1,7 @@
 #include "system.hh"
-#include "common/state.hh"
 #include "front_end.hh"
 #include "localizer/localizer.hh"
+#include "state.hh"
 #include "system_config.hh"
 
 namespace slam {
@@ -12,7 +12,6 @@ System::System(const std::string& config_path) : config_path_(config_path) {
         system_config_ptr_->lidar_config_.lidar_min_range, system_config_ptr_->lidar_config_.lidar_max_range,
         system_config_ptr_->lidar_config_.point_filter_num, system_config_ptr_->frontend_config_.keep_angle_ranges,
         system_config_ptr_->frontend_config_.remove_ranges);
-    // 前端持有了system对象
     front_end_ptr_ = new FrontEnd(this);
     T_IL = system_config_ptr_->lidar2imu_;
     T_BL = system_config_ptr_->lidar2robot_;
@@ -22,7 +21,7 @@ System::System(const std::string& config_path) : config_path_(config_path) {
     // 开启前端的线程
     front_end_thread_ptr_ = new std::thread(&FrontEnd::Run, front_end_ptr_);
     system_init_.store(false);
-    // 加入回环检测部分
+
     // 定位程序
     localizer_ptr_ = std::make_shared<Localizer>(system_config_ptr_);
 }
