@@ -260,6 +260,7 @@ class SystemConfig {
     bool use_p2plane_;
     bool use_voxel_;
     bool use_ndt_;
+    bool use_fasterlio_;
 
     bool has_encoder_;
     bool has_gnss_;

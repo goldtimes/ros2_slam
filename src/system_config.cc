@@ -56,6 +56,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
         use_p2plane_ = config["use_p2plane"].as<bool>();
         use_voxel_ = config["use_voxel"].as<bool>();
         use_ndt_ = config["use_ndt"].as<bool>();
+        use_fasterlio_ = config["use_fasterlio"].as<bool>();
         GRAVIRT_ = config["gravity"].as<double>();
         // 打印通用配置
         LOG_INFO("has_camera: {}", has_camera_);
@@ -144,6 +145,9 @@ bool SystemConfig::LoadAndPrintConfig(const std::string& config_path) {
                 config["front_end"]["use_ndt"]["res_outlier_thresh"].as<double>();
             frontend_config_.ndt_config.eps = config["front_end"]["use_ndt"]["eps"].as<double>();
             frontend_config_.ndt_config.print();
+        }
+
+        if (use_fasterlio_) {
         }
 
         // 加载定位配置

@@ -56,8 +56,9 @@ T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
 gravity: 9.81 # 重力加速度
 
 use_p2plane: false
-use_voxel: true
+use_voxel: false
 use_ndt: false # 不要用，这算法有点问题
+user_fasterlio: true
 
 has_encoder: true
 has_gnss: false
