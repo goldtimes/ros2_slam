@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # debug模式
 # if("${ENABLE_DEBUG}")
 #     message(STATUS " ***  build with debug mode !!!  ****  ")
@@ -57,17 +57,15 @@ find_package(Ceres REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 # find_package(glog REQUIRED)
-message(STATUS "GLOG_FOUND: ${GLOG_FOUND}")
-message(STATUS "GLOG_INCLUDE_DIRS: ${GLOG_INCLUDE_DIRS}")
-message(STATUS "GLOG_LIBRARIES: ${GLOG_LIBRARIES}")
-message(STATUS "GLOG_VERSION: ${GLOG_VERSION}")
 
 #eigen
 find_package(Eigen3 REQUIRED)
 # openmp
 FIND_PACKAGE(OpenMP REQUIRED) 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+if(OpenMP_CXX_FOUND)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 add_definitions(-DMP_EN)
 add_definitions(-DMP_PROC_NUM=6)

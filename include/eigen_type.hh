@@ -1,3 +1,4 @@
+#pragma once
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include "sophus/se2.hpp"
