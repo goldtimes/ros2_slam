@@ -76,7 +76,7 @@ include_directories(
 
 #include 
 include_directories(
- include
+ src
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
