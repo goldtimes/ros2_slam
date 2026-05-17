@@ -4,7 +4,7 @@
 #include <list>
 #include <vector>
 
-#include "ivox3d/hilbert.hpp"
+#include "hilbert.hpp"
 #include "math.h"
 
 namespace slam {

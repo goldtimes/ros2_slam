@@ -1,6 +1,3 @@
-//
-// Created by xiang on 2021/9/16.
-//
 #pragma once
 
 #include <glog/logging.h>
@@ -8,9 +5,8 @@
 #include <list>
 #include <thread>
 #include <unordered_map>
-
 #include "eigen_type.hh"
-#include "ivox3d/ivox3d_node.hpp"
+#include "ivox3d_node.hpp"
 #include "math.h"
 
 namespace slam {
