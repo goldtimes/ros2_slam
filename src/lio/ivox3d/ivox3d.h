@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include "eigen_type.hh"
 #include "ivox3d_node.hpp"
-#include "math.h"
+#include "math.hh"
 
 namespace slam {
 

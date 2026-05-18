@@ -77,6 +77,7 @@ include_directories(
 #include 
 include_directories(
  src
+ ${CMAKE_CURRENT_SOURCE_DIR}
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
@@ -130,6 +131,7 @@ add_executable(slam_node
     src/lidar_register/p2plane_register.cc
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
+    src/lidar_register/fasterlio_register.cc
     src/encoder_process.cc
     src/gnss_process.cc
     src/localizer/localizer.cc
