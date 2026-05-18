@@ -5,7 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include "eigen_type.hh"
+#include "common/eigen_type.hh"
 #define HASH_P 116101
 #define MAX_N 10000000000
 

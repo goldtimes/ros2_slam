@@ -1,6 +1,6 @@
-#include "eigen_type.hh"
+#include "common/eigen_type.hh"
+#include "common/logger.hh"
 #include "geo_graphic/LocalCartesian.hpp"
-#include "logger.hh"
 
 namespace slam {
 

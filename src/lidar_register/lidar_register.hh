@@ -10,12 +10,12 @@
 #pragma once
 
 #include <memory>
-#include "commons.hh"
-#include "ieskf.hh"
-#include "logger.hh"
-#include "pointcloud_utils.hh"
-#include "state.hh"
-#include "system_config.hh"
+#include "common/commons.hh"
+#include "common/logger.hh"
+#include "lio/ieskf.hh"
+#include "lio/state.hh"
+#include "system/system_config.hh"
+#include "utils/pointcloud_utils.hh"
 
 namespace slam {
 

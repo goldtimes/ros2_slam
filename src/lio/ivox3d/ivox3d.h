@@ -5,9 +5,9 @@
 #include <list>
 #include <thread>
 #include <unordered_map>
-#include "eigen_type.hh"
+#include "common/eigen_type.hh"
+#include "common/math.hh"
 #include "ivox3d_node.hpp"
-#include "math.hh"
 
 namespace slam {
 

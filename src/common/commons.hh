@@ -1,10 +1,10 @@
 #pragma once
 #include <deque>
-#include "eigen_type.hh"
+#include "common/eigen_type.hh"
 #include "logger.hh"
-#include "pointcloud_utils.hh"
 #include "pose_trans.hh"
 #include "sensors.hh"
+#include "utils/pointcloud_utils.hh"
 #define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
 namespace slam {
 enum class SLAM_MODE {

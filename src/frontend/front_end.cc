@@ -1,14 +1,14 @@
 #include "front_end.hh"
-#include "encoder_process.hh"
-#include "ieskf.hh"
+#include "encoder/encoder_process.hh"
 #include "lidar_register/fasterlio_register.hh"
 #include "lidar_register/inc_ndt_register.hh"
 #include "lidar_register/p2plane_register.hh"
 #include "lidar_register/voxelmap_register.hh"
+#include "lio/ieskf.hh"
+#include "lio/propogator.hh"
 #include "localizer/localizer.hh"
-#include "propogator.hh"
-#include "system.hh"
-#include "system_config.hh"
+#include "system/system.hh"
+#include "system/system_config.hh"
 
 namespace slam {
 

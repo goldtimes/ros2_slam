@@ -6,7 +6,7 @@
 #include <numeric>
 #include <string>
 #include <vector>
-#include "logger.hh"
+#include "common/logger.hh"
 
 namespace slam {
 

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "hilbert.hpp"
-#include "math.hh"
+#include "common/math.hh"
 
 namespace slam {
 

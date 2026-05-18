@@ -1,7 +1,7 @@
 #include <ros/ros.h>
-#include "logger.hh"
+#include "common/logger.hh"
 #include "ros/ros1_manager.hh"
-#include "system.hh"
+#include "system/system.hh"
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "openslam_node");

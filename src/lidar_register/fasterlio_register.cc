@@ -1,6 +1,6 @@
 #include "fasterlio_register.hh"
-#include "math.hh"
-#include "system_config.hh"
+#include "common/math.hh"
+#include "system/system_config.hh"
 
 using namespace slam;
 

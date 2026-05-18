@@ -4,12 +4,12 @@
 #include <deque>
 #include <mutex>
 #include <thread>
-#include "commons.hh"
-#include "lidar_process.hh"
+#include "common/commons.hh"
+#include "common/logger.hh"
 #include "lidar_register/voxel_map.hh"
-#include "logger.hh"
-#include "sensors.hh"
-#include "state.hh"
+#include "lio/lidar_process.hh"
+#include "lio/state.hh"
+#include "common/sensors.hh"
 
 namespace slam {
 

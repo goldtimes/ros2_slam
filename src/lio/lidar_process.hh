@@ -5,8 +5,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <string>
-#include "logger.hh"
-#include "pointcloud_utils.hh"
+#include "common/logger.hh"
+#include "utils/pointcloud_utils.hh"
 
 namespace slam {
 enum class LIDAR_MODE {

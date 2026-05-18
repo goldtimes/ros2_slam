@@ -1,7 +1,7 @@
 #pragma once
 
-#include "commons.hh"
-#include "eigen_type.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
 #include "s2.hpp"
 
 namespace slam {

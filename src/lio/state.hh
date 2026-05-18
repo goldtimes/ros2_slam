@@ -1,6 +1,6 @@
 #pragma once
-#include "eigen_type.hh"
-#include "logger.hh"
+#include "common/eigen_type.hh"
+#include "common/logger.hh"
 
 namespace slam {
 // 整个esikf维护的状态量

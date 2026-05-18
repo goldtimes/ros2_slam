@@ -4,8 +4,8 @@
 #pragma once
 
 #include <cmath>
-#include "commons.hh"
-#include "eigen_type.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
 
 namespace slam {
 

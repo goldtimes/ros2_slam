@@ -1,7 +1,7 @@
 #include "system.hh"
-#include "front_end.hh"
+#include "frontend/front_end.hh"
+#include "lio/state.hh"
 #include "localizer/localizer.hh"
-#include "state.hh"
 #include "system_config.hh"
 
 namespace slam {

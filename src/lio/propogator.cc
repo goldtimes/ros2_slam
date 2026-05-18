@@ -1,8 +1,8 @@
 #include "propogator.hh"
+#include "common/pose_trans.hh"
 #include "ieskf.hh"
-#include "pose_trans.hh"
 #include "static_imu_init.hh"
-#include "system_config.hh"
+#include "system/system_config.hh"
 
 namespace slam {
 Propogator::Propogator(std::shared_ptr<SystemConfig> config_, std::shared_ptr<IESKF> kf)

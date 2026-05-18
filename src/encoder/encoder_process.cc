@@ -1,5 +1,5 @@
 #include "encoder_process.hh"
-#include "system_config.hh"
+#include "system/system_config.hh"
 
 namespace slam {
 EncoderProcessor::EncoderProcessor(const std::shared_ptr<SystemConfig>& config_ptr) : config_ptr_(config_ptr) {

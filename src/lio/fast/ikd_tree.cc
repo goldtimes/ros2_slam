@@ -1,5 +1,5 @@
 #include "ikd_tree.hh"
-#include "lidar_point_type.hh"
+#include "common/lidar_point_type.hh"
 
 /*
 Description: ikd-Tree: an incremental k-d tree for robotic applications

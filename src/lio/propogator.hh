@@ -9,8 +9,8 @@
  */
 #pragma once
 #include <memory>
-#include "commons.hh"
-#include "logger.hh"
+#include "common/commons.hh"
+#include "common/logger.hh"
 
 // 状态的前向传播和后向传播
 namespace slam {

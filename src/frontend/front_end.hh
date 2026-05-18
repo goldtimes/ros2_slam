@@ -1,7 +1,7 @@
 #pragma once
 
-#include "commons.hh"
-#include "state.hh"
+#include "common/commons.hh"
+#include "lio/state.hh"
 
 namespace slam {
 

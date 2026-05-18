@@ -1,6 +1,6 @@
 #pragma once
-#include "commons.hh"
-#include "logger.hh"
+#include "common/commons.hh"
+#include "common/logger.hh"
 #include "state.hh"
 
 namespace slam {

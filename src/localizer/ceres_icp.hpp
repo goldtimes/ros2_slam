@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ceres/ceres.h>
-#include "commons.hh"
+#include "common/commons.hh"
 
 namespace slam {
 

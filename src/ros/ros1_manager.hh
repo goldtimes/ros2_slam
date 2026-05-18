@@ -12,9 +12,9 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <thread>
-#include "commons.hh"
-#include "gnss_process.hh"
-#include "logger.hh"
+#include "common/commons.hh"
+#include "common/logger.hh"
+#include "gnss/gnss_process.hh"
 #include "robot_manager/metaset_info.h"
 #include "robot_manager/slam_pose.h"
 #include "sensor_msgs/NavSatStatus.h"

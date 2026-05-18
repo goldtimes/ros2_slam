@@ -1,9 +1,9 @@
 #pragma once
 #include <deque>
-#include "commons.hh"
-#include "eigen_type.hh"
-#include "logger.hh"
-#include "sensors.hh"
+#include "common/commons.hh"
+#include "common/eigen_type.hh"
+#include "common/logger.hh"
+#include "common/sensors.hh"
 
 namespace slam {
 

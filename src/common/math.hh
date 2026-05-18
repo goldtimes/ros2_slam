@@ -1,8 +1,8 @@
 #pragma once
 
-#include "eigen_type.hh"
-#include "lidar_point_type.hh"
-#include "pointcloud_utils.hh"
+#include "common/eigen_type.hh"
+#include "common/lidar_point_type.hh"
+#include "utils/pointcloud_utils.hh"
 
 namespace math {
 template <typename PointT>

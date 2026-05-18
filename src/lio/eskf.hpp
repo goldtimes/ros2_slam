@@ -1,6 +1,6 @@
 #pragma once
 
-#include "eigen_type.hh"
+#include "common/eigen_type.hh"
 #include "nav_state.hh"
 
 namespace slam {

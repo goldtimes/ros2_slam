@@ -8,11 +8,11 @@
  * https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%A
  */
 #pragma once
-#include "eigen_type.hh"
-#include "ikd_tree.hh"
-#include "lidar_point_type.hh"
+#include "common/eigen_type.hh"
+#include "common/lidar_point_type.hh"
 #include "lidar_register.hh"
-#include "pointcloud_utils.hh"
+#include "lio/fast/ikd_tree.hh"
+#include "utils/pointcloud_utils.hh"
 namespace slam {
 struct LocalMap {
     bool initialized = false;
