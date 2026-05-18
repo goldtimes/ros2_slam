@@ -1,6 +1,7 @@
 #include "front_end.hh"
 #include "encoder_process.hh"
 #include "ieskf.hh"
+#include "lidar_register/fasterlio_register.hh"
 #include "lidar_register/inc_ndt_register.hh"
 #include "lidar_register/p2plane_register.hh"
 #include "lidar_register/voxelmap_register.hh"
@@ -54,6 +55,11 @@ FrontEnd::FrontEnd(System* system) : system_(system) {
         lidar_register_ptr_ = std::make_shared<P2PlaneRegister>(system_->GetSystemConfig(), kf_ptr_);
     } else if (system_->GetSystemConfig()->use_ndt_) {
         lidar_register_ptr_ = std::make_shared<IncNdtRegister>(system_->GetSystemConfig(), kf_ptr_);
+    } else if (system_->GetSystemConfig()->use_fasterlio_) {
+        lidar_register_ptr_ = std::make_shared<FasterlioRegister>(system_->GetSystemConfig(), kf_ptr_);
+    } else {
+        LOG_ERROR("No valid lidar register selected!");
+        std::exit(1);
     }
 }
 

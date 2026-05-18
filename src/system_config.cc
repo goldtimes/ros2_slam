@@ -151,7 +151,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string &config_path) {
             frontend_config_.fasterlio_config.ivox_grid_resolution =
                 config["front_end"]["use_fasterlio"]["ivox_grid_resolution"].as<double>();
             frontend_config_.fasterlio_config.planner_threshold =
-                config["front_end"]["use_fasterlio"]["planner_threshold"].as<double>();
+                config["front_end"]["use_fasterlio"]["esti_plane_threshold"].as<double>();
             frontend_config_.fasterlio_config.ivox_nearby_type =
                 config["front_end"]["use_fasterlio"]["ivox_nearby_type"].as<int>();
             frontend_config_.fasterlio_config.print();

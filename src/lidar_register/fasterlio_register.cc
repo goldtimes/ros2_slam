@@ -10,6 +10,12 @@ FasterlioRegister::FasterlioRegister(const std::shared_ptr<SystemConfig> &system
     planner_threshold_ = system_config->frontend_config_.fasterlio_config.planner_threshold;
     ivox_nearby_type_ = system_config->frontend_config_.fasterlio_config.ivox_nearby_type;
 
+    // 关键帧参数
+    keyframe_size_ = system_config->frontend_config_.keyframe_size;
+    keyframe_distance_ = system_config->frontend_config_.keyframe_distance;
+    keyframe_angle_distance_ = system_config->frontend_config_.keyframe_angle_distance;
+    use_angle_keyframe_ = system_config->frontend_config_.use_angle_keyframe;
+
     if (ivox_nearby_type_ == 6) {
         ivox_options_.nearby_type_ = IVoxType::NearbyType::NEARBY6;
     } else if (ivox_nearby_type_ == 18) {
@@ -20,6 +26,7 @@ FasterlioRegister::FasterlioRegister(const std::shared_ptr<SystemConfig> &system
         LOG_ERROR("Invalid ivox nearby type: {}", ivox_nearby_type_);
         ivox_options_.nearby_type_ = IVoxType::NearbyType::NEARBY6;
     }
+    cloud_world.reset(new PointCloudXYZI(10000, 1));
 
     // localmap init (after LoadParams)
     ivox_ = std::make_shared<IVoxType>(ivox_options_);
@@ -62,7 +69,7 @@ bool FasterlioRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IE
     // filter cloud
     current_lidar_ = cloud_lidar;
     is_keyframe_ = false;
-    // TrimCloud();
+
     kf_ptr_->UpdateLidar();
 
     PoseTrans curr_pose(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
@@ -97,6 +104,7 @@ bool FasterlioRegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IE
 
 void FasterlioRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) {
     auto cur_pts = current_lidar_->size();
+    total_res = 0.0;
     residuals_.resize(cur_pts, 0);
     point_selected_surf_.resize(cur_pts, true);
     plane_coef_.resize(cur_pts, Vec4f::Zero());
@@ -141,9 +149,106 @@ void FasterlioRegister::UpdateLidarFunc(State &nav_state, ESKFShareState &shared
             }
         }
     });
+    corr_pts_.resize(cur_pts);
+    corr_norm_.resize(cur_pts);
+    effect_feat_num_ = 0;
+    for (int i = 0; i < cur_pts; i++) {
+        if (point_selected_surf_[i]) {
+            corr_norm_[effect_feat_num_] = plane_coef_[i];
+            corr_pts_[effect_feat_num_] = current_lidar_->points[i].getVector4fMap();
+            corr_pts_[effect_feat_num_][3] = residuals_[i];
+
+            effect_feat_num_++;
+        }
+    }
+    if (effect_feat_num_ < 1) {
+        shared_data.valid = false;
+        updated_failed_num_++;
+        LOG_INFO("NO Effective Points!");
+        return;
+    }
+    shared_data.valid = true;
+    shared_data.H_.setZero();
+    shared_data.b_.setZero();
+    Eigen::Matrix<double, 1, 12> J;
+    for (int i = 0; i < effect_feat_num_; ++i) {
+        J.Zero();
+        const auto pt_lidar = corr_pts_[i].head<3>().cast<double>();
+        const auto norm_vec = corr_norm_[i].head<3>().cast<double>();
+
+        // 残差对旋转的雅可比矩阵
+        Eigen::Matrix<double, 1, 3> dres_dr =
+            -norm_vec.transpose() * current_state.rot *
+            Sophus::SO3d::hat(current_state.rot_ext * pt_lidar + current_state.pos_ext);
+        // 残差对平移的雅可比矩阵
+        V3D dres_dt = norm_vec;
+        if (system_config_->frontend_config_.calib_lidar2imu) {
+        } else {
+            J.block<1, 3>(0, 3) = dres_dr;
+            J.block<1, 3>(0, 0) = dres_dt.transpose();
+        }
+        shared_data.H_ += J.transpose() * 1000 * J;
+        shared_data.b_ += J.transpose() * 1000 * corr_pts_[i][3];
+        total_res += std::fabs(corr_pts_[i][3]);
+        // std::cout << "H:" << shared_data.H_ << std::endl;
+        // std::cout << "b:" << shared_data.b_ << std::endl;
+    }
+    updated_success = true;
+    updated_failed_num_ = 0;
 }
 void FasterlioRegister::UpdateMap() {
+    if (current_lidar_->empty()) {
+        return;
+    }
+    const State &current_state = kf_ptr_->GetState();
+    PoseTrans T_WL = PoseTrans(current_state.rot, current_state.pos) * system_config_->lidar2imu_;
+    int cloud_size = current_lidar_->size();
+    PointVec point_to_add;
+    PointVec point_no_need_downsample;
+    for (int i = 0; i < cloud_size; ++i) {
+        const auto point_lidar = ToV3D(current_lidar_->points[i]);
+        const auto point_world = T_WL * point_lidar;
+        cloud_world->points[i].x = point_world[0];
+        cloud_world->points[i].y = point_world[1];
+        cloud_world->points[i].z = point_world[2];
+        cloud_world->points[i].intensity = current_lidar_->points[i].intensity;
+        if (nearest_points_[i].empty()) {
+            point_to_add.push_back(cloud_world->points[i]);
+            continue;
+        }
+
+        const PointVec &points_near = nearest_points_[i];
+        bool need_add = true;
+        PointXYZI downsample_result, mid_point;
+        mid_point.x = std::floor(cloud_world->points[i].x / 0.5) * 0.5 + 0.5 * 0.5;
+        mid_point.y = std::floor(cloud_world->points[i].y / 0.5) * 0.5 + 0.5 * 0.5;
+        mid_point.z = std::floor(cloud_world->points[i].z / 0.5) * 0.5 + 0.5 * 0.5;
+
+        // 如果该点所在的voxel没有点，则直接加入地图，且不需要降采样
+        if (fabs(points_near[0].x - mid_point.x) > 0.5 * 0.5 && fabs(points_near[0].y - mid_point.y) > 0.5 * 0.5 &&
+            fabs(points_near[0].z - mid_point.z) > 0.5 * 0.5) {
+            point_no_need_downsample.push_back(cloud_world->points[i]);
+            continue;
+        }
+        float dist = sq_dist(cloud_world->points[i], mid_point);
+
+        for (int readd_i = 0; readd_i < 5; readd_i++) {
+            // 如果该点的近邻点较少，则需要加入到地图中
+            if (points_near.size() < static_cast<size_t>(5)) break;
+            // 如果该点的近邻点距离voxel中心点的距离比该点距离voxel中心点更近，则不需要加入该点
+            if (sq_dist(points_near[readd_i], mid_point) < dist) {
+                need_add = false;
+                break;
+            }
+        }
+        if (need_add) point_to_add.push_back(cloud_world->points[i]);
+    }
+    // LOG_INFO("point_to_add size:{}", point_to_add.size());
+    // LOG_INFO("point_no_need_downsample size:{}", point_no_need_downsample.size());
+    ivox_->AddPoints(point_to_add);
+    ivox_->AddPoints(point_no_need_downsample);
 }
 PointCloudXYZIPtr FasterlioRegister::GetSubmap() {
-    return PointCloudXYZIPtr(new PointCloudXYZI);
+    std::lock_guard<std::mutex> lock(local_map_mutex_);
+    return submap_;
 }
