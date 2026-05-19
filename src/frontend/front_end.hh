@@ -2,7 +2,7 @@
 
 #include "common/commons.hh"
 #include "lio/state.hh"
-#include "loop_closure/loop_closure_detector.hh"
+// #include "loop_closure/loop_closure_detector.hh"
 
 namespace slam {
 
@@ -56,9 +56,9 @@ public:
   const M3D GetGnssHeading() const;
 
   /** @brief 获取回环检测器 */
-  std::shared_ptr<LoopClosureDetector> GetLoopClosureDetector() const {
-    return loop_closure_detector_;
-  }
+  //   std::shared_ptr<LoopClosureDetector> GetLoopClosureDetector() const {
+  //     return loop_closure_detector_;
+  //   }
 
 private:
   bool GetMeasureGroup(MeasureGroup &measures);
@@ -66,8 +66,8 @@ private:
 
   void UpdateGnss(const GNSS &gnss, State &state, ESKFShareState &share_state);
 
-  /** @brief 处理回环检测 */
-  void ProcessLoopClosure(int keyframe_id);
+  //   /** @brief 处理回环检测 */
+  //   void ProcessLoopClosure(int keyframe_id);
 
 private:
   System *system_;
@@ -108,7 +108,7 @@ private:
   std::shared_ptr<EncoderProcessor> encoder_processor_ptr_;
 
   // 回环检测
-  std::shared_ptr<LoopClosureDetector> loop_closure_detector_;
+  //   std::shared_ptr<LoopClosureDetector> loop_closure_detector_;
   int keyframe_count_ = 0; // 全局关键帧计数器（用于回环检测）
   bool use_loop_closure_ = false;
 

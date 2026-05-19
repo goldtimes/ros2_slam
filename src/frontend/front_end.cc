@@ -74,15 +74,15 @@ FrontEnd::FrontEnd(System *system) : system_(system) {
     std::exit(1);
   }
 
-  // 初始化回环检测
-  use_loop_closure_ =
-      system_->GetSystemConfig()
-          ->frontend_config_.loop_closure_config.enable_loop_closure;
-  if (use_loop_closure_) {
-    loop_closure_detector_ = std::make_shared<LoopClosureDetector>(
-        system_->GetSystemConfig()->frontend_config_.loop_closure_config);
-    LOG_INFO(GREEN "Loop closure detection enabled!" RESET);
-  }
+  //   // 初始化回环检测
+  //   use_loop_closure_ =
+  //       system_->GetSystemConfig()
+  //           ->frontend_config_.loop_closure_config.enable_loop_closure;
+  //   if (use_loop_closure_) {
+  //     loop_closure_detector_ = std::make_shared<LoopClosureDetector>(
+  //         system_->GetSystemConfig()->frontend_config_.loop_closure_config);
+  //     LOG_INFO(GREEN "Loop closure detection enabled!" RESET);
+  //   }
   keyframe_count_ = 0;
 }
 
@@ -209,21 +209,21 @@ void FrontEnd::Run() {
               system_->GetLocalizer()->SetSubmapCloud(world_cloud, T_WL);
               first_frame_ = false;
 
-              // 回环检测
-              if (use_loop_closure_ && lidar_register_ptr_->IsKeyFrame()) {
-                keyframe_count_++;
-                // 获取当前关键帧的位姿和点云
-                PoseTrans kf_pose =
-                    lidar_register_ptr_->GetCurrentKeyframePose();
-                PointCloudXYZIPtr kf_cloud =
-                    lidar_register_ptr_->GetCurrentKeyframeCloud();
-                if (kf_cloud->size() > 100) {
-                  loop_closure_detector_->AddKeyframe(
-                      keyframe_count_, kf_pose, kf_cloud,
-                      measure_group_.lidar_beg_time);
-                  ProcessLoopClosure(keyframe_count_);
-                }
-              }
+              //   // 回环检测
+              //   if (use_loop_closure_ && lidar_register_ptr_->IsKeyFrame()) {
+              //     keyframe_count_++;
+              //     // 获取当前关键帧的位姿和点云
+              //     PoseTrans kf_pose =
+              //         lidar_register_ptr_->GetCurrentKeyframePose();
+              //     PointCloudXYZIPtr kf_cloud =
+              //         lidar_register_ptr_->GetCurrentKeyframeCloud();
+              //     if (kf_cloud->size() > 100) {
+              //       loop_closure_detector_->AddKeyframe(
+              //           keyframe_count_, kf_pose, kf_cloud,
+              //           measure_group_.lidar_beg_time);
+              //       ProcessLoopClosure(keyframe_count_);
+              //     }
+              //   }
             }
             // 传入robot坐标下的点云和robot在odom下的坐标
             auto T_RtoO = T_WL * T_BL.inverse();
@@ -442,24 +442,24 @@ const PointCloudXYZIPtr FrontEnd::GetSubmap() const {
   return lidar_register_ptr_->GetSubmap();
 }
 
-void FrontEnd::ProcessLoopClosure(int keyframe_id) {
-  if (!use_loop_closure_ || !loop_closure_detector_) {
-    return;
-  }
+// void FrontEnd::ProcessLoopClosure(int keyframe_id) {
+//   if (!use_loop_closure_ || !loop_closure_detector_) {
+//     return;
+//   }
 
-  LoopClosureResult result;
-  if (loop_closure_detector_->DetectLoop(result)) {
-    LOG_INFO(GREEN "==========================================" RESET);
-    LOG_INFO(GREEN "  Loop Closure Detected!" RESET);
-    LOG_INFO(GREEN "  Current KeyFrame ID: {}" RESET,
-             result.current_keyframe_id);
-    LOG_INFO(GREEN "  Match KeyFrame ID: {}" RESET, result.match_keyframe_id);
-    LOG_INFO(GREEN "  ICP Score: {:03.4f}" RESET, result.fitness_score);
-    LOG_INFO(GREEN
-             "  Relative Pose Translation: {:03.3f}, {:03.3f}, {:03.3f}" RESET,
-             result.relative_pose.t.x(), result.relative_pose.t.y(),
-             result.relative_pose.t.z());
-    LOG_INFO(GREEN "==========================================" RESET);
-  }
-}
+//   LoopClosureResult result;
+//   if (loop_closure_detector_->DetectLoop(result)) {
+//     LOG_INFO(GREEN "==========================================" RESET);
+//     LOG_INFO(GREEN "  Loop Closure Detected!" RESET);
+//     LOG_INFO(GREEN "  Current KeyFrame ID: {}" RESET,
+//              result.current_keyframe_id);
+//     LOG_INFO(GREEN "  Match KeyFrame ID: {}" RESET,
+//     result.match_keyframe_id); LOG_INFO(GREEN "  ICP Score: {:03.4f}" RESET,
+//     result.fitness_score); LOG_INFO(GREEN
+//              "  Relative Pose Translation: {:03.3f}, {:03.3f}, {:03.3f}"
+//              RESET, result.relative_pose.t.x(), result.relative_pose.t.y(),
+//              result.relative_pose.t.z());
+//     LOG_INFO(GREEN "==========================================" RESET);
+//   }
+// }
 } // namespace slam
