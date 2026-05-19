@@ -119,6 +119,16 @@ front_end:
     ivox_nearby_type: 18             # 6, 18, 26
     esti_plane_threshold: 0.1        # default=0.1
 
+  # 回环检测配置
+  loop_closure:
+    enable: false                     # 是否启用回环检测
+    search_radius: 10.0              # 候选关键帧搜索半径(m)
+    min_keyframe_interval: 30        # 最小关键帧间隔(跳过最近N帧)
+    min_distance_to_keyframe: 3.0    # 候选帧距离当前帧的最小距离
+    icp_score_threshold: 0.5         # ICP得分阈值(低于此值认为回环有效)
+    voxel_resolution: 0.5            # 点云降采样分辨率
+    max_candidates: 5                # 最大候选关键帧数量
+
 localizer:
   use_meta_maps: true # 使用图元地图
   global_map_filter_size: 0.3 # 对全局地图的降采样
