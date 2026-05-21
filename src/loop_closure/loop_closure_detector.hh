@@ -3,6 +3,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include <pcl/filters/voxel_grid.h>
@@ -127,7 +128,7 @@ private:
 
 private:
   LoopClosureConfig config_;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
 
   // 关键帧数据库
   std::vector<KeyframeInDB> keyframe_db_;

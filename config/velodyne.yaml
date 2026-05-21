@@ -109,5 +109,21 @@ front_end:
     res_outlier_thresh: 5.0
     eps: 0.001
 
+# ==================== 回环检测配置 ====================
+loop_closure:
+  enable: false
+  search_radius: 15.0
+  min_keyframe_interval: 30
+  icp_score_threshold: 0.5
+  voxel_resolution: 0.5
+  max_candidates: 5
 
+# ==================== PGO 位姿图优化 ====================
+pose_graph:
+  enable: false
+  keyframe_distance: 1.0
+  keyframe_angle: 0.2
+  loop_closure_frequency: 3.0
+  graph_update_frequency: 5
+  loop_noise_score: 0.5
 

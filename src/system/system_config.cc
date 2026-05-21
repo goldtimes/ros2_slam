@@ -202,26 +202,54 @@ bool SystemConfig::LoadAndPrintConfig(const std::string &config_path) {
     }
 
     // 加载回环检测配置
-    // if (config["front_end"]["loop_closure"]) {
-    //   frontend_config_.loop_closure_config.enable_loop_closure =
-    //       config["front_end"]["loop_closure"]["enable"].as<bool>();
-    //   frontend_config_.loop_closure_config.search_radius =
-    //       config["front_end"]["loop_closure"]["search_radius"].as<double>();
-    //   frontend_config_.loop_closure_config.min_keyframe_interval =
-    //       config["front_end"]["loop_closure"]["min_keyframe_interval"]
-    //           .as<int>();
-    //   frontend_config_.loop_closure_config.min_distance_to_keyframe =
-    //       config["front_end"]["loop_closure"]["min_distance_to_keyframe"]
-    //           .as<double>();
-    //   frontend_config_.loop_closure_config.icp_score_threshold =
-    //       config["front_end"]["loop_closure"]["icp_score_threshold"]
-    //           .as<double>();
-    //   frontend_config_.loop_closure_config.voxel_resolution =
-    //       config["front_end"]["loop_closure"]["voxel_resolution"].as<double>();
-    //   frontend_config_.loop_closure_config.max_candidates =
-    //       config["front_end"]["loop_closure"]["max_candidates"].as<int>();
-    //   frontend_config_.loop_closure_config.print();
-    // }
+    if (config["loop_closure"]) {
+      frontend_config_.loop_closure_config.enable_loop_closure =
+          config["loop_closure"]["enable"].as<bool>();
+      if (config["loop_closure"]["search_radius"]) {
+        frontend_config_.loop_closure_config.search_radius =
+            config["loop_closure"]["search_radius"].as<double>();
+      }
+      if (config["loop_closure"]["min_keyframe_interval"]) {
+        frontend_config_.loop_closure_config.min_keyframe_interval =
+            config["loop_closure"]["min_keyframe_interval"].as<int>();
+      }
+      if (config["loop_closure"]["icp_score_threshold"]) {
+        frontend_config_.loop_closure_config.icp_score_threshold =
+            config["loop_closure"]["icp_score_threshold"].as<double>();
+      }
+      if (config["loop_closure"]["voxel_resolution"]) {
+        frontend_config_.loop_closure_config.voxel_resolution =
+            config["loop_closure"]["voxel_resolution"].as<double>();
+      }
+      frontend_config_.loop_closure_config.print();
+    }
+
+    // 加载 PGO 位姿图优化配置
+    if (config["pose_graph"]) {
+      frontend_config_.pose_graph_config.enable_pgo =
+          config["pose_graph"]["enable"].as<bool>();
+      if (config["pose_graph"]["keyframe_distance"]) {
+        frontend_config_.pose_graph_config.keyframe_distance =
+            config["pose_graph"]["keyframe_distance"].as<double>();
+      }
+      if (config["pose_graph"]["keyframe_angle"]) {
+        frontend_config_.pose_graph_config.keyframe_angle =
+            config["pose_graph"]["keyframe_angle"].as<double>();
+      }
+      if (config["pose_graph"]["loop_closure_frequency"]) {
+        frontend_config_.pose_graph_config.loop_closure_frequency =
+            config["pose_graph"]["loop_closure_frequency"].as<double>();
+      }
+      if (config["pose_graph"]["graph_update_frequency"]) {
+        frontend_config_.pose_graph_config.graph_update_frequency =
+            config["pose_graph"]["graph_update_frequency"].as<int>();
+      }
+      if (config["pose_graph"]["loop_noise_score"]) {
+        frontend_config_.pose_graph_config.loop_noise_score =
+            config["pose_graph"]["loop_noise_score"].as<double>();
+      }
+      frontend_config_.pose_graph_config.print();
+    }
 
     // 加载定位配置
     localizer_config_.use_meta_maps =

@@ -217,9 +217,10 @@ bool LoopClosureDetector::VerifyCandidate(
   }
 
   // 获取ICP结果
-  Eigen::Affine3f transform = gicp.getFinalTransformation();
-  PoseTrans T_cur_to_cand(transform.linear().cast<double>(),
-                          transform.translation().cast<double>());
+  Eigen::Matrix4f transform_mat = gicp.getFinalTransformation();
+  Eigen::Matrix3f R = transform_mat.block<3, 3>(0, 0);
+  Eigen::Vector3f t = transform_mat.block<3, 1>(0, 3);
+  PoseTrans T_cur_to_cand(R.cast<double>(), t.cast<double>());
 
   // 计算匹配得分（使用fitness score）
   fitness_score = gicp.getFitnessScore();

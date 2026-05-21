@@ -2,7 +2,8 @@
 
 #include "common/commons.hh"
 #include "lio/state.hh"
-// #include "loop_closure/loop_closure_detector.hh"
+#include "loop_closure/loop_closure_detector.hh"
+#include "loop_closure/pose_graph_optimizer.hh"
 
 namespace slam {
 
@@ -56,9 +57,14 @@ public:
   const M3D GetGnssHeading() const;
 
   /** @brief 获取回环检测器 */
-  //   std::shared_ptr<LoopClosureDetector> GetLoopClosureDetector() const {
-  //     return loop_closure_detector_;
-  //   }
+  std::shared_ptr<LoopClosureDetector> GetLoopClosureDetector() const {
+    return loop_closure_detector_;
+  }
+
+  /** @brief 获取 PGO 位姿图优化器 */
+  std::shared_ptr<PoseGraphOptimizer> GetPoseGraphOptimizer() const {
+    return pose_graph_optimizer_;
+  }
 
 private:
   bool GetMeasureGroup(MeasureGroup &measures);
@@ -108,9 +114,12 @@ private:
   std::shared_ptr<EncoderProcessor> encoder_processor_ptr_;
 
   // 回环检测
-  //   std::shared_ptr<LoopClosureDetector> loop_closure_detector_;
+  std::shared_ptr<LoopClosureDetector> loop_closure_detector_;
+  // PGO 位姿图优化器
+  std::shared_ptr<PoseGraphOptimizer> pose_graph_optimizer_;
   int keyframe_count_ = 0; // 全局关键帧计数器（用于回环检测）
   bool use_loop_closure_ = false;
+  bool use_pgo_ = false;
 
   // 初始位姿（用于回环检测初始化时的地图转换）
   PoseTrans T_WI_init_;

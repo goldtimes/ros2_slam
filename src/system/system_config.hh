@@ -2,7 +2,8 @@
 #include "common/commons.hh"
 #include "common/eigen_type.hh"
 #include "common/logger.hh"
-// #include "loop_closure/loop_closure_detector.hh"
+#include "loop_closure/loop_closure_detector.hh"
+#include "loop_closure/pose_graph_optimizer.hh"
 #include <string>
 #include <yaml-cpp/yaml.h>
 namespace slam {
@@ -205,7 +206,9 @@ struct FrontendConfig {
   double keyframe_angle_distance;
   bool use_angle_keyframe;
   // 回环检测参数
-  //   LoopClosureConfig loop_closure_config;
+  LoopClosureConfig loop_closure_config;
+  // PGO 位姿图优化参数
+  PoseGraphConfig pose_graph_config;
   void print() const {
     LOG_INFO(BLUE "FrontendConfig:" RESET);
     LOG_INFO("  calib_lidar2imu: {}", calib_lidar2imu);
@@ -214,7 +217,8 @@ struct FrontendConfig {
     LOG_INFO("  keyframe_distance: {:03.3f}", keyframe_distance);
     LOG_INFO("  keyframe_angle_distance: {:03.3f}", keyframe_angle_distance);
     LOG_INFO("  use_angle_keyframe: {}", use_angle_keyframe);
-    // loop_closure_config.print();
+    loop_closure_config.print();
+    pose_graph_config.print();
   }
   P2PlaneConfig p2plane_config;
   VoxelConfig voxel_config;
