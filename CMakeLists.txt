@@ -135,6 +135,7 @@ add_executable(slam_node
     src/encoder/encoder_process.cc
     src/gnss/gnss_process.cc
     src/localizer/localizer.cc
+    src/PGO/PosegraphOptimization.cc
     # src/loop_closure/loop_closure_detector.cc
 )
 add_dependencies(slam_node robot_manager_generate_messages_cpp)
