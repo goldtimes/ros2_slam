@@ -1,1 +1,84 @@
 #include "PosegraphOptimization.hh"
+
+using namespace slam;
+
+PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
+  // 加载参数
+  nh.param<double>("keyframe_meter_gap", keyframeMeterGap,
+                   2.0); // pose assignment every k m move
+  nh.param<double>("keyframe_deg_gap", keyframeDegGap,
+                   10.0); // pose assignment every k deg rot
+  keyframeRadGap = deg2rad(keyframeDegGap);
+
+  //   nh.param<double>("sc_dist_thres", scDistThres, 0.2);
+  //   nh.param<double>("sc_max_radius", scMaximumRadius,
+  //                    80.0); // 80 is recommended for outdoor, and lower (ex,
+  //                    20,
+  //                           // 40) values are recommended for indoor
+
+  // for loop closure detection
+  nh.param<double>("historyKeyframeSearchRadius", historyKeyframeSearchRadius,
+                   10.0);
+  nh.param<double>("historyKeyframeSearchTimeDiff",
+                   historyKeyframeSearchTimeDiff, 30.0);
+  nh.param<int>("historyKeyframeSearchNum", historyKeyframeSearchNum, 25);
+  nh.param<double>("loopNoise", loopNoise, 0.5);
+  nh.param<int>("graphUpdateTimes", graphUpdateTimes, 2);
+  nh.param<double>("loopFitnessScoreThreshold", loopFitnessScoreThreshold, 0.3);
+
+  nh.param<double>("speedFactor", speedFactor, 1);
+  {
+    nh.param<double>("loopClosureFrequency", loopClosureFrequency, 2);
+    loopClosureFrequency *= speedFactor;
+    nh.param<double>("graphUpdateFrequency", graphUpdateFrequency, 1.0);
+    graphUpdateFrequency *= speedFactor;
+    nh.param<double>("vizmapFrequency", vizmapFrequency, 0.1);
+    vizmapFrequency *= speedFactor;
+    // nh.param<double>("vizPathFrequency", vizPathFrequency, 10);
+    // vizPathFrequency *= speedFactor;
+  }
+  // 初始化gtsam参数
+  gtsam::ISAM2Params parameters;
+  parameters.relinearizeThreshold = 0.01;
+  parameters.relinearizeSkip = 1;
+  isam = new gtsam::ISAM2(parameters);
+
+  // 初始化因子图噪声
+  initNoise();
+}
+
+PosegraphOptimization::~PosegraphOptimization() {}
+
+void PosegraphOptimization::initNoise() {
+  // 先验因子噪声
+  priorNoise = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << 1e-12, 1e-12, 1e-12, 1e-12, 1e-12, 1e-12)
+          .finished()); // x,y,z,roll,pitch,yaw
+  // 里程计因子噪声
+  odometryNoise = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6)
+          .finished()); // x,y,z,roll,pitch,yaw
+  // 闭环因子噪声
+  gtsam::Vector robustNoiseVector6(6);
+  robustNoiseVector6 << loopNoise, loopNoise, loopNoise, loopNoise, loopNoise,
+      loopNoise; // x,y,z,roll,pitch,yaw
+  robustLoopNoise = gtsam::noiseModel::Robust::Create(
+      gtsam::noiseModel::mEstimator::Cauchy::Create(
+          1), // optional: replacing Cauchy by DCS or GemanMcClure is okay but
+              // Cauchy is empirically good.
+      gtsam::noiseModel::Diagonal::Variances(robustNoiseVector6));
+  // gps因子噪声设置的很大
+  double bigNoiseTolerentToXY = 1000000000.0; // 1e9
+  double gpsAltitudeNoiseScore = 250.0; // if height is misaligned after loop
+                                        // clsosing, use this value bigger
+  gtsam::Vector robustNoiseVector3(3);  // gps factor has 3 elements (xyz)
+  robustNoiseVector3 << bigNoiseTolerentToXY, bigNoiseTolerentToXY,
+      gpsAltitudeNoiseScore; // means only caring altitude here. (because
+                             // LOAM-like-methods tends to be asymptotically
+                             // flyging)
+  robustGPSNoise = gtsam::noiseModel::Robust::Create(
+      gtsam::noiseModel::mEstimator::Cauchy::Create(
+          1), // optional: replacing Cauchy by DCS or GemanMcClure is okay but
+              // Cauchy is empirically good.
+      gtsam::noiseModel::Diagonal::Variances(robustNoiseVector3));
+}
