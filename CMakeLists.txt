@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.5)
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # debug模式
 # if("${ENABLE_DEBUG}")
 #     message(STATUS " ***  build with debug mode !!!  ****  ")
@@ -113,8 +114,7 @@ list(APPEND thirdparty_libs
     geo_graphic
 )
 
-add_executable(slam_node 
-    src/app/map_node.cc
+add_library( source_lib SHARED
     src/system/system.cc
     src/system/system_config.cc
     src/lio/lidar_process.cc
@@ -135,12 +135,25 @@ add_executable(slam_node
     src/encoder/encoder_process.cc
     src/gnss/gnss_process.cc
     src/localizer/localizer.cc
-    src/PGO/PosegraphOptimization.cc
+    # src/PGO/PosegraphOptimization.cc
     # src/loop_closure/loop_closure_detector.cc
 )
+add_dependencies(source_lib robot_manager_generate_messages_cpp)
+target_link_libraries(source_lib 
+${thirdparty_libs}
+)
+
+add_executable(slam_node src/app/map_node.cc)
 add_dependencies(slam_node robot_manager_generate_messages_cpp)
 target_link_libraries(slam_node 
-${thirdparty_libs}
+source_lib
+)
+
+add_executable(pgo_node src/app/pgo_node.cc
+    src/PGO/PosegraphOptimization.cc
+)
+target_link_libraries(pgo_node 
+source_lib
 )
 
 

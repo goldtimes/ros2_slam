@@ -9,6 +9,8 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
   nh.param<double>("keyframe_deg_gap", keyframeDegGap,
                    10.0); // pose assignment every k deg rot
   keyframeRadGap = deg2rad(keyframeDegGap);
+  LOG_INFO("keyframeMeterGap: {}, keyframeDegGap: {}, keyframeRadGap: {}",
+           keyframeMeterGap, keyframeDegGap, keyframeRadGap);
 
   //   nh.param<double>("sc_dist_thres", scDistThres, 0.2);
   //   nh.param<double>("sc_max_radius", scMaximumRadius,
@@ -23,9 +25,15 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
                    historyKeyframeSearchTimeDiff, 30.0);
   nh.param<int>("historyKeyframeSearchNum", historyKeyframeSearchNum, 25);
   nh.param<double>("loopNoise", loopNoise, 0.5);
+  LOG_INFO("historyKeyframeSearchRadius: {}, historyKeyframeSearchTimeDiff: "
+           "{}, historyKeyframeSearchNum: {}, loopNoise: {}",
+           historyKeyframeSearchRadius, historyKeyframeSearchTimeDiff,
+           historyKeyframeSearchNum, loopNoise);
   nh.param<int>("graphUpdateTimes", graphUpdateTimes, 2);
   nh.param<double>("loopFitnessScoreThreshold", loopFitnessScoreThreshold, 0.3);
-
+  LOG_INFO("graphUpdateTimes: {}, loopFitnessScoreThreshold: {}",
+           graphUpdateTimes, loopFitnessScoreThreshold);
+  nh.param<bool>("use_gps", use_gps, false);
   nh.param<double>("speedFactor", speedFactor, 1);
   {
     nh.param<double>("loopClosureFrequency", loopClosureFrequency, 2);
@@ -37,6 +45,10 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
     // nh.param<double>("vizPathFrequency", vizPathFrequency, 10);
     // vizPathFrequency *= speedFactor;
   }
+  LOG_INFO(
+      "loopClosureFrequency: {}, graphUpdateFrequency: {}, vizmapFrequency: {}",
+      loopClosureFrequency, graphUpdateFrequency, vizmapFrequency);
+
   // 初始化gtsam参数
   gtsam::ISAM2Params parameters;
   parameters.relinearizeThreshold = 0.01;
@@ -81,4 +93,35 @@ void PosegraphOptimization::initNoise() {
           1), // optional: replacing Cauchy by DCS or GemanMcClure is okay but
               // Cauchy is empirically good.
       gtsam::noiseModel::Diagonal::Variances(robustNoiseVector3));
+}
+
+void PosegraphOptimization::init_subpub() {
+  lidarOdom_sub_ = nh_.subscribe(
+      "lidar_odom", 100, &PosegraphOptimization::laserOdomCallback, this);
+  lidarScan_sub_ = nh_.subscribe("lidar_registered_cloud", 100,
+                                 &PosegraphOptimization::cloudCallback, this);
+  if (use_gps) {
+    gps_sub_ =
+        nh_.subscribe("gps", 100, &PosegraphOptimization::gspCallback, this);
+    LOG_INFO("gps subscribed on topic: {}", "gps");
+  }
+
+  LOG_INFO("lidar odometry subscribed on topic: {}", "lidar_odom");
+  LOG_INFO("lidar scan subscribed on topic: {}", "lidar_registered_cloud");
+}
+
+void PosegraphOptimization::laserOdomCallback(
+    const nav_msgs::Odometry::ConstPtr &msg) {
+  std::lock_guard<std::mutex> lock(mBuf);
+  odomBuf.push_back(msg);
+}
+void PosegraphOptimization::gspCallback(
+    const sensor_msgs::NavSatFix::ConstPtr &msg) {
+  std::lock_guard<std::mutex> lock(mBuf);
+  gpsBuf.push_back(msg);
+}
+void PosegraphOptimization::cloudCallback(
+    const sensor_msgs::PointCloud2::ConstPtr &msg) {
+  std::lock_guard<std::mutex> lock(mBuf);
+  cloudBuf.push_back(msg);
 }

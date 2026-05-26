@@ -1,4 +1,6 @@
 #pragma once
+#include "common/logger.hh"
+#include <deque>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot2.h>
@@ -12,12 +14,12 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
+#include <mutex>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
-
 namespace slam {
 class PosegraphOptimization {
 public:
@@ -97,5 +99,15 @@ private:
   gtsam::noiseModel::Diagonal::shared_ptr odometryNoise; // 里程计因子噪声
   gtsam::noiseModel::Base::shared_ptr robustGPSNoise;    // GPS因子
   gtsam::noiseModel::Base::shared_ptr robustLoopNoise; // 回环因子鲁棒核函数
+
+  // 存储数据
+  std::mutex mBuf;                                  // 互斥锁
+  std::deque<nav_msgs::Odometry::ConstPtr> odomBuf; // 雷达里程计缓冲区
+  std::deque<sensor_msgs::NavSatFix::ConstPtr> gpsBuf;     //
+  std::deque<sensor_msgs::PointCloud2::ConstPtr> cloudBuf; // 雷达点云缓冲区
+  std::deque<double> cloudTimeBuf; // 雷达点云时间戳缓冲区
+
+  bool use_gps;
 };
+
 } // namespace slam
