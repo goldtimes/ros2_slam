@@ -34,6 +34,8 @@ private:
   void gspCallback(const sensor_msgs::NavSatFix::ConstPtr &msg);
   void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
 
+  void run();
+
 private:
   ros::NodeHandle nh_;
 
@@ -79,7 +81,7 @@ private:
 
   // 地图可视化线程
   std::thread map_visualization_thread_;
-  // 位姿图优化线程
+  // 位姿图优化线程——主线程
   std::thread posegraph_thread_;
   // 回环检测线程
   std::thread loopdetection_thread_;
@@ -106,6 +108,9 @@ private:
   std::deque<sensor_msgs::NavSatFix::ConstPtr> gpsBuf;     //
   std::deque<sensor_msgs::PointCloud2::ConstPtr> cloudBuf; // 雷达点云缓冲区
   std::deque<double> cloudTimeBuf; // 雷达点云时间戳缓冲区
+
+  double timeLaserOdometry = 0.0;
+  double timeLaser = 0.0;
 
   bool use_gps;
 };

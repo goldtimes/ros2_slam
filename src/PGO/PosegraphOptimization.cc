@@ -1,4 +1,5 @@
 #include "PosegraphOptimization.hh"
+#include <chrono>
 
 using namespace slam;
 
@@ -54,9 +55,11 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
   parameters.relinearizeThreshold = 0.01;
   parameters.relinearizeSkip = 1;
   isam = new gtsam::ISAM2(parameters);
-
   // 初始化因子图噪声
   initNoise();
+
+  // 主线程启动
+  posegraph_thread_ = std::thread(&PosegraphOptimization::run, this);
 }
 
 PosegraphOptimization::~PosegraphOptimization() {}
@@ -124,4 +127,31 @@ void PosegraphOptimization::cloudCallback(
     const sensor_msgs::PointCloud2::ConstPtr &msg) {
   std::lock_guard<std::mutex> lock(mBuf);
   cloudBuf.push_back(msg);
+}
+
+void PosegraphOptimization::run() {
+  while (ros::ok()) {
+    // 确保里程计和点云数据都有了再处理
+    while (!odomBuf.empty() && !cloudBuf.empty()) {
+      mBuf.lock();
+      // 如果里程计时间戳比点云时间戳小，说明这个里程计数据还没有对应的点云数据，丢弃这个里程计数据
+      while (!odomBuf.empty() && odomBuf.front()->header.stamp.toSec() <
+                                     cloudBuf.front()->header.stamp.toSec()) {
+        odomBuf.pop_front();
+      }
+      // 如果队列空了，说明没有里程计数据了，等待下一轮循环
+      if (odomBuf.empty()) {
+        mBuf.unlock();
+        break;
+      }
+
+      // 开始处理数据
+      timeLaserOdometry = odomBuf.front()->header.stamp.toSec();
+      timeLaser = cloudBuf.front()->header.stamp.toSec();
+      // 判断是否为keyframe
+
+      // 构建里程计因子图
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
 }
