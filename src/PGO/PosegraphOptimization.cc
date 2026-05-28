@@ -1,6 +1,6 @@
 #include "PosegraphOptimization.hh"
 #include <chrono>
-
+#include <pcl_conversions/pcl_conversions.h>
 using namespace slam;
 
 PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
@@ -58,6 +58,8 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
   // 初始化因子图噪声
   initNoise();
 
+  // 初始化点云
+  laserCloud.reset(new PointCloudXYZI());
   // 主线程启动
   posegraph_thread_ = std::thread(&PosegraphOptimization::run, this);
 }
@@ -149,9 +151,46 @@ void PosegraphOptimization::run() {
       timeLaserOdometry = odomBuf.front()->header.stamp.toSec();
       timeLaser = cloudBuf.front()->header.stamp.toSec();
       // 判断是否为keyframe
-
+      laserCloud->clear();
+      PointCloudXYZIPtr thisKeyframe(new PointCloudXYZI());
+      pcl::fromROSMsg(*cloudBuf.front(), *thisKeyframe);
+      cloudBuf.pop_front();
+      PoseTrans thisPose;
+      odomToPoseTrans(odomBuf.front(), thisPose);
+      odomBuf.pop_front();
+      // TODO GPS
+      mBuf.unlock();
+      // 更新上一次的位姿
+      lastKeyframePose = currentPose;
+      currentPose = thisPose;
+      PoseTrans deltaPose = lastKeyframePose.inverse() * currentPose;
+      translationAccumulated += deltaPose.t.norm();
+      rotationAccumulated += deltaPose.RPY().norm();
+      if (translationAccumulated >= keyframeMeterGap ||
+          rotationAccumulated >= keyframeRadGap) {
+        // 满足关键帧条件，构建里程计因子图
+        translationAccumulated = 0.0;
+        rotationAccumulated = 0.0;
+        isKeyframe = true;
+      } else {
+        isKeyframe = false;
+        continue;
+      }
+      // 存储关键点云和位姿
       // 构建里程计因子图
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
+}
+
+void PosegraphOptimization::odomToPoseTrans(
+    const nav_msgs::Odometry::ConstPtr &odom, PoseTrans &pose) {
+  auto tx = odom->pose.pose.position.x;
+  auto ty = odom->pose.pose.position.y;
+  auto tz = odom->pose.pose.position.z;
+  Eigen::Quaterniond quat(
+      odom->pose.pose.orientation.w, odom->pose.pose.orientation.x,
+      odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+  quat.normalize();
+  pose = PoseTrans(quat.toRotationMatrix(), Eigen::Vector3d(tx, ty, tz));
 }

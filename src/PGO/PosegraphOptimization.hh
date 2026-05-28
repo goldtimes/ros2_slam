@@ -1,5 +1,7 @@
 #pragma once
 #include "common/logger.hh"
+#include "common/pose_trans.hh"
+#include "utils/pointcloud_utils.hh"
 #include <deque>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -20,6 +22,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
+#include <unordered_map>
 namespace slam {
 class PosegraphOptimization {
 public:
@@ -35,6 +38,9 @@ private:
   void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
 
   void run();
+
+  void odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &odom,
+                       PoseTrans &pose);
 
 private:
   ros::NodeHandle nh_;
@@ -108,9 +114,16 @@ private:
   std::deque<sensor_msgs::NavSatFix::ConstPtr> gpsBuf;     //
   std::deque<sensor_msgs::PointCloud2::ConstPtr> cloudBuf; // 雷达点云缓冲区
   std::deque<double> cloudTimeBuf; // 雷达点云时间戳缓冲区
-
+  PointCloudXYZIPtr laserCloud;
+  std::unordered_map<size_t, PoseTrans> PoseIds; // 关键帧点云
   double timeLaserOdometry = 0.0;
   double timeLaser = 0.0;
+  int keyframeIndex = 0;
+  PoseTrans lastKeyframePose;
+  PoseTrans currentPose;
+  double translationAccumulated;
+  double rotationAccumulated;
+  bool isKeyframe;
 
   bool use_gps;
 };
