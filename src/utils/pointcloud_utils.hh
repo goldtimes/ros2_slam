@@ -53,4 +53,7 @@ void TransformCloud(const T& cloud, T& out_cloud, const M3D& R, const V3D& t) {
     transform.block<3, 1>(0, 3) = t.cast<float>();
     pcl::transformPointCloud(*cloud, *out_cloud, transform);
 }
+
+PointCloudXYZIPtr VoxelFilter(const PointCloudXYZIPtr& cloud, float leaf_size);
+
 }  // namespace slam

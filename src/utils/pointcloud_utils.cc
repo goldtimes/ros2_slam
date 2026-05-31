@@ -47,4 +47,13 @@ PointCloudXYZIPtr TransformLidar(const PointCloudXYZIPtr& cloud, const M3D& r, c
     return ret;
 }
 
+PointCloudXYZIPtr VoxelFilter(const PointCloudXYZIPtr& cloud, float leaf_size) {
+    PointCloudXYZIPtr ret(new PointCloudXYZI);
+    pcl::VoxelGrid<PointXYZI> voxel_filter;
+    voxel_filter.setInputCloud(cloud);
+    voxel_filter.setLeafSize(leaf_size, leaf_size, leaf_size);
+    voxel_filter.filter(*ret);
+    return ret;
+}
+
 }  // namespace slam
