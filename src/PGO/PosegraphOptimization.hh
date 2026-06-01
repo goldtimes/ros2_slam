@@ -44,7 +44,10 @@ class PosegraphOptimization {
 
     void odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &odom, PoseTrans &pose);
 
+    gtsam::Pose3 poseTransToPose3(const PoseTrans &pose);
+
    private:
+    const std::string PGODir = "/home/kilox/catkin_ws/src/lio_slam/PGO_result/";
     ros::NodeHandle nh_;
 
     // 订阅雷达里程计
@@ -99,7 +102,7 @@ class PosegraphOptimization {
     std::thread isam_update_thread_;
 
     // gtsam
-
+    std::mutex mGraph;
     gtsam::ISAM2 *isam;                      // 优化器
     gtsam::NonlinearFactorGraph gtSAMgraph;  // 因子图
     gtsam::Values initialEstimate;           // 初始值
@@ -135,7 +138,6 @@ class PosegraphOptimization {
     double translationAccumulated;
     double rotationAccumulated;
     bool isKeyframe;
-
     bool use_gps;
 };
 

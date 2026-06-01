@@ -176,8 +176,43 @@ void PosegraphOptimization::run() {
             // TODO ScanContext
             mKF.unlock();
             // 构建里程计因子图
+            // 构建先验的里程计因子图
+            const int prev_node_idx = keyframePoseIds.size() - 2;
+            const int curr_node_idx = keyframePoseIds.size() - 1;
+            if (!gtSAMgraphMade) {
+                // 第一帧
+                const int init_node_idx = 0;
+                auto init_pose = keyframePoseIds.find(init_node_idx)->second;
+                gtsam::Pose3 poseOrigin = poseTransToPose3(init_pose);
+                // 对因子图加锁
+                mGraph.lock();
+                gtSAMgraph.add(gtsam::PriorFactor<gtsam::Pose3>(init_node_idx, poseOrigin, priorNoise));
+                initialEstimate.insert(init_node_idx, poseOrigin);
+                mGraph.unlock();
+                gtSAMgraphMade = true;
+                LOG_INFO("First keyframe added to graph with index: {}", init_node_idx);
+            } else {
+                // 之后的帧 确保 > 2
+                auto prev_pose = keyframePoseIds.find(prev_node_idx)->second;
+                auto curr_pose = keyframePoseIds.find(curr_node_idx)->second;
+                gtsam::Pose3 posePrev = poseTransToPose3(prev_pose);
+                gtsam::Pose3 poseCurr = poseTransToPose3(curr_pose);
+                gtsam::Pose3 relativePose = posePrev.between(poseCurr);
+                // 对因子图加锁
+                mGraph.lock();
+                gtSAMgraph.add(
+                    gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, relativePose, odometryNoise));
+                // TODO GPS factor
+                initialEstimate.insert(curr_node_idx, poseCurr);
+                mGraph.unlock();
+                LOG_INFO("Keyframe added to graph with index: {}", curr_node_idx);
+            }
+            // save 点云
+            std::string current_node_str = std::to_string(curr_node_idx);
+            std::string current_node_cloud_path = PGODir + current_node_str + ".pcd";
+            pcl::io::savePCDFile(current_node_cloud_path, *filteredKeyframe);
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
 
@@ -189,4 +224,9 @@ void PosegraphOptimization::odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &
                             odom->pose.pose.orientation.z);
     quat.normalize();
     pose = PoseTrans(quat.toRotationMatrix(), Eigen::Vector3d(tx, ty, tz));
+}
+
+gtsam::Pose3 PosegraphOptimization::poseTransToPose3(const PoseTrans &pose) {
+    return gtsam::Pose3(gtsam::Rot3::RzRyRx(pose.RPY().x(), pose.RPY().y(), pose.RPY().z()),
+                        gtsam::Point3(pose.t.x(), pose.t.y(), pose.t.z()));
 }
