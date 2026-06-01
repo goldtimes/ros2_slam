@@ -19,12 +19,21 @@
 #include <deque>
 #include <iostream>
 #include <mutex>
+#include <queue>
 #include <thread>
 #include <unordered_map>
 #include "common/logger.hh"
 #include "common/pose_trans.hh"
 #include "utils/pointcloud_utils.hh"
 namespace slam {
+
+struct KFPose {
+    size_t index;
+    PoseTrans pose;
+    KFPose(size_t index, const PoseTrans &pose) : index(index), pose(pose) {
+    }
+};
+
 class PosegraphOptimization {
    public:
     PosegraphOptimization(ros::NodeHandle &nh);
@@ -41,9 +50,18 @@ class PosegraphOptimization {
     void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
 
     void run();
+    void runLoopDetection();
+    void runLoopConstraint();
+    void runISAMUpdate();
+    void runMapVisualization();
+
+    void performRSLoopClosure();
+    void visualizeLoopClosure();
+    bool detectLoopClosureDistance(int &loopKeyCur, int &loopKeyPre);
+    void isamUpdate();
 
     void odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &odom, PoseTrans &pose);
-
+    void addKFPoseToCloud(const PoseTrans &pose);
     gtsam::Pose3 poseTransToPose3(const PoseTrans &pose);
 
    private:
@@ -69,6 +87,13 @@ class PosegraphOptimization {
     int historyKeyframeSearchNum;
     double loopNoise;
     double loopFitnessScoreThreshold;
+
+    // 半径搜索的keyframe索引
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keyframePoseCloud;
+    pcl::KdTreeFLANN<pcl::PointXYZ> keyframePoseKdTree;
+    // 回环检测到的配对关系
+    std::queue<std::pair<int, int>> loopClosureQueue;
+    std::map<int, int> loopIndexContainer;  // key是当前帧索引，value是闭环帧索引,这里用map,方便重复的帧不检测回环
 
     // 图优化线程的频率
     double speedFactor;
@@ -98,6 +123,8 @@ class PosegraphOptimization {
     std::thread posegraph_thread_;
     // 回环检测线程
     std::thread loopdetection_thread_;
+    // 回环约束线程
+    std::thread loopconstraint_thread_;
     // isam优化线程
     std::thread isam_update_thread_;
 
@@ -125,12 +152,12 @@ class PosegraphOptimization {
 
     std::mutex mKF;
     std::deque<PointCloudXYZIPtr> keyframeCloudBuf;  // 关键帧点云缓冲区
-    std::unordered_map<size_t, PoseTrans> keyframePoseIds;  // 关键帧位姿缓冲区，key是关键帧索引，value是位姿
-    size_t keyframeIndex = 0;                               // 关键帧索引
+    std::vector<KFPose> keyframePoseIds;  // 关键帧位姿缓冲区，key是关键帧索引，value是位姿
+    size_t keyframeIndex = 0;             // 关键帧索引
 
     // 优化后的位姿
-    std::unordered_map<size_t, PoseTrans> keyframePoseOptimized;  // 关键帧优化后的位姿缓冲区
-    std::deque<double> keyframeTimeBuf;                           // 关键帧时间戳缓冲区
+    std::vector<KFPose> keyframePoseOptimized;  // 关键帧优化后的位姿缓冲区
+    std::deque<double> keyframeTimeBuf;         // 关键帧时间戳缓冲区
     double timeLaserOdometry = 0.0;
     double timeLaser = 0.0;
     PoseTrans lastKeyframePose;

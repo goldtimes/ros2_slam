@@ -1,5 +1,6 @@
 #include "PosegraphOptimization.hh"
 #include <pcl_conversions/pcl_conversions.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <chrono>
 using namespace slam;
 
@@ -46,6 +47,8 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
     LOG_INFO("loopClosureFrequency: {}, graphUpdateFrequency: {}, vizmapFrequency: {}", loopClosureFrequency,
              graphUpdateFrequency, vizmapFrequency);
 
+    keyframePoseCloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
+
     // 初始化gtsam参数
     gtsam::ISAM2Params parameters;
     parameters.relinearizeThreshold = 0.01;
@@ -58,6 +61,14 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
     laserCloud.reset(new PointCloudXYZI());
     // 主线程启动
     posegraph_thread_ = std::thread(&PosegraphOptimization::run, this);
+    // 回环检测线程启动
+    loopdetection_thread_ = std::thread(&PosegraphOptimization::runLoopDetection, this);
+    // 回环约束线程启动
+    loopconstraint_thread_ = std::thread(&PosegraphOptimization::runLoopConstraint, this);
+    // isam优化线程启动
+    isam_update_thread_ = std::thread(&PosegraphOptimization::runISAMUpdate, this);
+    // 地图可视化线程启动
+    map_visualization_thread_ = std::thread(&PosegraphOptimization::runMapVisualization, this);
 }
 
 PosegraphOptimization::~PosegraphOptimization() {
@@ -100,6 +111,8 @@ void PosegraphOptimization::init_subpub() {
         gps_sub_ = nh_.subscribe("gps", 100, &PosegraphOptimization::gspCallback, this);
         LOG_INFO("gps subscribed on topic: {}", "gps");
     }
+
+    pubLoopConstraintEdge = nh_.advertise<visualization_msgs::MarkerArray>("loop_closure_edges", 100);
 
     LOG_INFO("lidar odometry subscribed on topic: {}", "lidar_odom");
     LOG_INFO("lidar scan subscribed on topic: {}", "lidar_registered_cloud");
@@ -167,11 +180,12 @@ void PosegraphOptimization::run() {
             // 加锁
             mKF.lock();
             keyframeCloudBuf.push_back(filteredKeyframe);
-            keyframePoseIds.insert({keyframeIndex, thisPose});
+            keyframePoseIds.push_back(KFPose(keyframeIndex, thisPose));
             // TODO发布关键帧点云
             keyframeTimeBuf.push_back(timeLaserOdometry);
-            keyframePoseOptimized.insert({keyframeIndex, thisPose});
-
+            keyframePoseOptimized.push_back(KFPose(keyframeIndex, thisPose));
+            // 添加到关键帧位姿点云
+            addKFPoseToCloud(thisPose);
             keyframeIndex++;
             // TODO ScanContext
             mKF.unlock();
@@ -182,7 +196,7 @@ void PosegraphOptimization::run() {
             if (!gtSAMgraphMade) {
                 // 第一帧
                 const int init_node_idx = 0;
-                auto init_pose = keyframePoseIds.find(init_node_idx)->second;
+                auto init_pose = keyframePoseIds.at(init_node_idx).pose;
                 gtsam::Pose3 poseOrigin = poseTransToPose3(init_pose);
                 // 对因子图加锁
                 mGraph.lock();
@@ -193,8 +207,8 @@ void PosegraphOptimization::run() {
                 LOG_INFO("First keyframe added to graph with index: {}", init_node_idx);
             } else {
                 // 之后的帧 确保 > 2
-                auto prev_pose = keyframePoseIds.find(prev_node_idx)->second;
-                auto curr_pose = keyframePoseIds.find(curr_node_idx)->second;
+                auto prev_pose = keyframePoseIds.at(prev_node_idx).pose;
+                auto curr_pose = keyframePoseIds.at(curr_node_idx).pose;
                 gtsam::Pose3 posePrev = poseTransToPose3(prev_pose);
                 gtsam::Pose3 poseCurr = poseTransToPose3(curr_pose);
                 gtsam::Pose3 relativePose = posePrev.between(poseCurr);
@@ -216,6 +230,170 @@ void PosegraphOptimization::run() {
     }
 }
 
+void PosegraphOptimization::runLoopDetection() {
+    ros::Rate rate(loopClosureFrequency);
+    while (ros::ok()) {
+        rate.sleep();
+        // 基于距离的回环检测
+        performRSLoopClosure();
+        visualizeLoopClosure();
+    }
+}
+
+void PosegraphOptimization::runLoopConstraint() {
+    while (ros::ok()) {
+        // ICP确认,确保回环候选队列不为空
+        while (!loopClosureQueue.empty()) {
+            if (loopClosureQueue.size() > 30) {
+                LOG_WARN(
+                    "Too many loop clousre candidates to be ICPed is waiting ... Do process_lcd less frequently "
+                    "(adjust loopClosureFrequency)");
+            }
+            // 取出队列中的回环候选对
+            mBuf.lock();
+            auto loopPair = loopClosureQueue.front();
+            loopClosureQueue.pop();
+            mBuf.unlock();
+            auto prev_node_idx = loopPair.first;
+            auto curr_node_idx = loopPair.second;
+            // TODO ICP确认
+
+            // TODO 添加约束
+            gtSAMgraph.add(
+                gtsam::BetweenFactor<gtsam::Pose3>(prev_node_idx, curr_node_idx, gtsam::Pose3(), robustLoopNoise));
+            std::chrono::milliseconds dura(2);
+            std::this_thread::sleep_for(dura);
+        }
+    }
+}
+
+void PosegraphOptimization::runISAMUpdate() {
+    ros::Rate rate(graphUpdateFrequency);
+    while (ros::ok()) {
+        rate.sleep();
+
+        if (gtSAMgraphMade) {
+            mGraph.lock();
+            // 优化
+            mGraph.unlock();
+            // save pose
+        }
+    }
+}
+
+void PosegraphOptimization::isamUpdate() {
+    // TODO 优化
+
+    // pub path
+}
+
+void PosegraphOptimization::performRSLoopClosure() {
+    if (keyframePoseIds.size() < 10) {
+        return;  // 关键帧太少，无法进行回环检测
+    }
+    int loopKeyCur = keyframePoseIds.size() - 1;
+    int loopKeyPre = -1;
+    // 回环检测成功
+    if (detectLoopClosureDistance(loopKeyCur, loopKeyPre)) {
+        LOG_INFO("Loop closure detected between keyframes {} and {}", loopKeyCur, loopKeyPre);
+        mBuf.lock();
+        loopClosureQueue.push({loopKeyPre, loopKeyCur});
+        loopIndexContainer[loopKeyCur] = loopKeyPre;
+        mBuf.unlock();
+    } else {
+        return;
+    }
+}
+
+bool PosegraphOptimization::detectLoopClosureDistance(int &loopKeyCur, int &loopKeyPre) {
+    auto it = loopIndexContainer.find(loopKeyCur);
+    if (it != loopIndexContainer.end()) {
+        // 说明该关键帧找到过回环，然后假设你一直停留在这个地方，就不需要一直消耗资源检测回环了
+        return false;
+    }
+    std::vector<int> pointSearchIdxLoop;
+    std::vector<float> pointSearchSqDisLoop;
+    keyframePoseKdTree.setInputCloud(keyframePoseCloud);
+    keyframePoseKdTree.radiusSearch(keyframePoseCloud->back(), historyKeyframeSearchRadius, pointSearchIdxLoop,
+                                    pointSearchSqDisLoop, 0);
+    // 遍历被搜索到的点，判断是否有回环
+    for (int i = 0; i < pointSearchIdxLoop.size(); i++) {
+        int id = pointSearchIdxLoop[i];
+        // 时间差满足条件，说明找到时间上比较老的关键帧了，认为是回环
+        if (std::abs(keyframeTimeBuf[id] - keyframeTimeBuf[loopKeyCur]) > historyKeyframeSearchTimeDiff) {
+            loopKeyPre = id;
+            break;
+        }
+    }
+    // -1 说明没有找到回环
+    if (loopKeyPre == -1 || loopKeyPre == loopKeyCur) {
+        return false;
+    }
+    return true;
+}
+
+void PosegraphOptimization::addKFPoseToCloud(const PoseTrans &pose) {
+    keyframePoseCloud->points.push_back(pcl::PointXYZ(pose.t.x(), pose.t.y(), pose.t.z()));
+}
+
+void PosegraphOptimization::visualizeLoopClosure() {
+    if (loopIndexContainer.empty()) {
+        return;
+    }
+    visualization_msgs::MarkerArray markerArray;
+    // 闭环顶点
+    visualization_msgs::Marker markerNode;
+    markerNode.header.frame_id = "map";  // camera_init
+    markerNode.header.stamp = ros::Time().fromSec(keyframeTimeBuf[keyframePoseIds.size() - 1]);
+    markerNode.action = visualization_msgs::Marker::ADD;
+    markerNode.type = visualization_msgs::Marker::SPHERE_LIST;
+    markerNode.ns = "loop_nodes";
+    markerNode.id = 0;
+    markerNode.pose.orientation.w = 1;
+    markerNode.scale.x = 0.3;
+    markerNode.scale.y = 0.3;
+    markerNode.scale.z = 0.3;
+    markerNode.color.r = 0;
+    markerNode.color.g = 0.8;
+    markerNode.color.b = 1;
+    markerNode.color.a = 1;
+    // 闭环边
+    visualization_msgs::Marker markerEdge;
+    markerEdge.header.frame_id = "map";
+    markerEdge.header.stamp = ros::Time().fromSec(keyframeTimeBuf[keyframePoseIds.size() - 1]);
+    markerEdge.action = visualization_msgs::Marker::ADD;
+    markerEdge.type = visualization_msgs::Marker::LINE_LIST;
+    markerEdge.ns = "loop_edges";
+    markerEdge.id = 1;
+    markerEdge.pose.orientation.w = 1;
+    markerEdge.scale.x = 0.1;
+    markerEdge.color.r = 0.9;
+    markerEdge.color.g = 0.9;
+    markerEdge.color.b = 0;
+    markerEdge.color.a = 1;
+
+    // 遍历闭环
+    for (auto it = loopIndexContainer.begin(); it != loopIndexContainer.end(); ++it) {
+        int key_cur = it->first;
+        int key_pre = it->second;
+        geometry_msgs::Point p;
+        p.x = keyframePoseOptimized[key_cur].pose.t.x();
+        p.y = keyframePoseOptimized[key_cur].pose.t.y();
+        p.z = keyframePoseOptimized[key_cur].pose.t.z();
+        markerNode.points.push_back(p);
+        markerEdge.points.push_back(p);
+        p.x = keyframePoseOptimized[key_pre].pose.t.x();
+        p.y = keyframePoseOptimized[key_pre].pose.t.y();
+        p.z = keyframePoseOptimized[key_pre].pose.t.z();
+        markerNode.points.push_back(p);
+        markerEdge.points.push_back(p);
+    }
+
+    markerArray.markers.push_back(markerNode);
+    markerArray.markers.push_back(markerEdge);
+    pubLoopConstraintEdge.publish(markerArray);
+}
+
 void PosegraphOptimization::odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &odom, PoseTrans &pose) {
     auto tx = odom->pose.pose.position.x;
     auto ty = odom->pose.pose.position.y;
@@ -229,4 +407,12 @@ void PosegraphOptimization::odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &
 gtsam::Pose3 PosegraphOptimization::poseTransToPose3(const PoseTrans &pose) {
     return gtsam::Pose3(gtsam::Rot3::RzRyRx(pose.RPY().x(), pose.RPY().y(), pose.RPY().z()),
                         gtsam::Point3(pose.t.x(), pose.t.y(), pose.t.z()));
+}
+
+void PosegraphOptimization::runMapVisualization() {
+    ros::Rate rate(vizmapFrequency);
+    while (ros::ok()) {
+        rate.sleep();
+        // TODO 发布全局地图
+    }
 }
