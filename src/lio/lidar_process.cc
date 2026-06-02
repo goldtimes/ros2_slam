@@ -247,49 +247,90 @@ bool LidarProcess::vanjee_process(const sensor_msgs::PointCloud2::ConstPtr& clou
     return false;
 }
 bool LidarProcess::velodyne16_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {
-    // LOG_INFO("velodyne16_process");
+    LOG_INFO("velodyne16_process");
     // 创建点云
     pcl::PointCloud<slam::VelodynePointXYZIRT>::Ptr cloud(new pcl::PointCloud<slam::VelodynePointXYZIRT>);
     // 转换点云
     pcl::fromROSMsg(*cloud_msg, *cloud);
-    int points_num = cloud->points.size();
+    // int points_num = cloud->points.size();
     double cloud_start_time = cloud_msg->header.stamp.toSec();
-    // LOG_INFO("cloud_start_time:{}", cloud_start_time);
-    // 角度过滤点云，距离过滤点云，以及降采样
-    PointCloudPtr filtered_cloud(new PointCloudType);
-    filtered_cloud->reserve(points_num);
-    int valid_num = 0;
-    for (int i = 0; i < points_num; ++i) {
-        valid_num++;
-        if (valid_num % point_filter_num_ != 0) {
-            continue;
-        }
-        auto pt = cloud->points[i];
-        // 过滤nan点
-        if (std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z)) {
-            continue;
-        }
+    LOG_INFO("cloud_start_time:{}", cloud_start_time);
 
-        double dist = std::sqrt(pt.x * pt.x + pt.y * pt.y + pt.z * pt.z);
-        // 范围过滤
-        if (dist < min_range_ * min_range_ || dist > max_range_ * max_range_) {
-            continue;
+    int plsize = cloud->points.size();
+    const int MAX_LINE_NUM = 16;
+    bool is_first[MAX_LINE_NUM];
+    double yaw_fp[MAX_LINE_NUM] = {0};      // yaw of first scan point
+    double omega_l = 3.61;                  // scan angular velocity
+    float yaw_last[MAX_LINE_NUM] = {0.0};   // yaw of last scan point
+    float time_last[MAX_LINE_NUM] = {0.0};  // last offset time
+    bool given_offset_time = false;
+    if (cloud->points[plsize - 1].time > 0) {
+        given_offset_time = true;
+    } else {
+        given_offset_time = false;
+        memset(is_first, true, sizeof(is_first));
+        double yaw_first = atan2(cloud->points[0].y, cloud->points[0].x) * 57.29578;
+        double yaw_end = yaw_first;
+        int layer_first = cloud->points[0].ring;
+        for (uint i = plsize - 1; i > 0; i--) {
+            if (cloud->points[i].ring == layer_first) {
+                yaw_end = atan2(cloud->points[i].y, cloud->points[i].x) * 57.29578;
+                break;
+            }
         }
+    }
 
-        PointType p;
-        p.x = pt.x;
-        p.y = pt.y;
-        p.z = pt.z;
-        p.intensity = pt.intensity;
-        // std::cout << std::fixed << "point time:" << cloud->points[i].time << std::endl;
+    for (int i = 0; i < plsize; i++) {
+        PointType added_pt;
+        // cout<<"!!!!!!"<<i<<" "<<plsize<<endl;
 
-        p.time = cloud_start_time + cloud->points[i].time / 1e6;
-        // std::cout << std::fixed << "pt time:" << p.time << std::endl;
-        filtered_cloud->push_back(p);
-        // }
-        // }
-    };
-    out_cloud = filtered_cloud;
+        // added_pt.normal_x = 0;
+        // added_pt.normal_y = 0;
+        // added_pt.normal_z = 0;
+        added_pt.x = cloud->points[i].x;
+        added_pt.y = cloud->points[i].y;
+        added_pt.z = cloud->points[i].z;
+        added_pt.intensity = cloud->points[i].intensity;
+        added_pt.time = cloud->points[i].time / 1000.0;
+
+        if (!given_offset_time) {
+            int layer = cloud->points[i].ring;
+            double yaw_angle = atan2(added_pt.y, added_pt.x) * 57.2957;
+
+            if (is_first[layer]) {
+                // printf("layer: %d; is first: %d", layer, is_first[layer]);
+                yaw_fp[layer] = yaw_angle;
+                is_first[layer] = false;
+                added_pt.time = 0.0;
+                yaw_last[layer] = yaw_angle;
+                time_last[layer] = added_pt.time;
+                continue;
+            }
+
+            // compute offset time
+            if (yaw_angle <= yaw_fp[layer]) {
+                added_pt.time = (yaw_fp[layer] - yaw_angle) / omega_l;
+            } else {
+                added_pt.time = (yaw_fp[layer] - yaw_angle + 360.0) / omega_l;
+            }
+
+            if (added_pt.time < time_last[layer]) added_pt.time += 360.0 / omega_l;
+
+            // added_pt.curvature = pl_orig.points[i].t;
+
+            yaw_last[layer] = yaw_angle;
+            time_last[layer] = added_pt.time;
+        }
+        added_pt.time += cloud_start_time;
+
+        // if(i==(plsize-1))  printf("index: %d layer: %d, yaw: %lf, offset-time: %lf, condition: %d\n", i, layer,
+        // yaw_angle, added_pt.curvature, prints);
+        if (i % point_filter_num_ == 0) {
+            if (added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z > min_range_ * min_range_) {
+                out_cloud->push_back(added_pt);
+            }
+        }
+    }
     return true;
 }
 bool LidarProcess::velodyne32_process(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg, PointCloudPtr& out_cloud) {

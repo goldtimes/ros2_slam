@@ -108,7 +108,6 @@ list(APPEND thirdparty_libs
     ${PCL_LIBRARIES}
     ${Sophus_LIBRARIES}
     ${CERES_LIBRARIES}
-    glog::glog
     gtsam
     yaml-cpp
     spdlog::spdlog

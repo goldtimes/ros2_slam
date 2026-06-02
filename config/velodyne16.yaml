@@ -2,7 +2,7 @@
 lidar: 
   lidar_type: velodyne16 # rs16, ls16, tw, vanjee, airy
   use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
-  lidar_topic: /points_raw
+  lidar_topic: /velodyne_points
   point_filter_num: 6 # 点云滤波次数
   lidar_min_range: 1.0 # 雷达最小范围
   lidar_max_range: 100 # 雷达最大范围
@@ -15,7 +15,7 @@ lidar:
   lidar_right_topic: ""
   
 imu:
-  imu_topic: /imu_raw
+  imu_topic: /imu/data
   imu_scale: 1 # livoximu的输出需要缩放
   acc_noise_std: 3.9939570888238808e-03 # 加速度噪声标准差
   gyro_noise_std: 1.5636343949698187e-03 # 陀螺仪噪声标准差
@@ -26,6 +26,9 @@ encoder:
   encoder_topic: /odom
   encoder_position_noise_std: 1e-3 # 编码器平移噪声标准差
   encoder_rotation_noise_std: 1e-3 # 编码器旋转噪声标准差
+  wheel_cov: 1e-2 # 编码器平移噪声标准差
+  nhc_y: 1e-2 # 编码器旋转噪声标准差
+  nhc_z: 1e-3 # 编码器旋转噪声标准差
 
 gnss:
   gnss_topic: /gps/fix
@@ -40,9 +43,9 @@ T_lidar2robot: [1.0000000,  0.0000000,  0.0000000, 0.0000000,
                 0.0000000,  0.0000000,  1.0000000, 0.0000000,
                 0.0000000,  0.0000000,  0.0000000, 1.0000000]
 # lidar->imu的外参
-T_lidar2imu: [-1.000000,  0.0000000, 0.0000000, 0.0000000,
+T_lidar2imu: [1.000000,  0.0000000, 0.0000000, 0.0000000,
               0.0000000, 1.0000000,  0.0000000, 0.0000000,
-              0.0000000, 0.0000000, -1.0000000, 0.0000000, 
+              0.0000000, 0.0000000, 1.0000000, 0.2800000, 
               0.0000000, 0.0000000, 0.0000000, 1.0000000]
 # imu->encoder的外参，实际在代码中完成计算
 T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
@@ -57,12 +60,13 @@ T_gnss2imu: [1.0000000, 0.0000000, 0.0000000, 0.0000000,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: true
+use_p2plane: false
 use_voxel: false
 use_ndt: false # 不要用，这算法有点问题
+use_fasterlio: true
 
 has_encoder: false
-has_gnss: true
+has_gnss: false
 has_camera: false
 
 front_end:
@@ -71,13 +75,13 @@ front_end:
   keep_angle_ranges: [-180, 180] # 保留的角度范围
   remove_ranges: [0.05, -0.15, 0.2, -0.2] # [x, -x, y, -y] 前左右的正方向上
   max_iteration: 3 # 最大迭代次数
+  keyframe_size: 15
+  keyframe_distance: 0.5 # 关键帧距离
+  keyframe_angle_distance: 0.5 # 关键帧角度 rads
+  use_angle_keyframe: true  # 是否使用角度关键帧
 
   use_p2plane: 
-    keyframe_size: 15
     p2plane_thresh: 0.01 # 平面阈值
-    keyframe_distance: 0.5 # 关键帧距离
-    keyframe_angle_distance: 0.2 # 关键帧角度 rads
-    use_angle_keyframe: false  # 是否使用角度关键帧
     downsample: 0.2 # 降采样
     map_resolution: 0.3 # 地图分辨率
     cube_len: 300 # 立方体长度
@@ -85,8 +89,8 @@ front_end:
     move_thresh: 1.5 # 移动阈值
 
   use_voxel_map: 
-    voxle_size: 1.0
-    max_layer: 4 #  # 4 layer, 0, 1, 2, 3
+    voxle_size: 0.5
+    max_layer: 2 #  # 4 layer, 0, 1, 2, 3
     layer_point_size: [5, 5, 5, 5, 5] # 每层开始估计平面的阈值
     plannar_threshold: 0.01 # 平面阈值
     max_points_size: 1000 # 每个voxel最大的点云数量
@@ -114,4 +118,24 @@ front_end:
     res_outlier_thresh: 10
     eps: 0.001
 
+  use_fasterlio:
+    ivox_grid_resolution: 0.5        # default=0.2
+    ivox_nearby_type: 18             # 6, 18, 26
+    esti_plane_threshold: 0.1        # default=0.1
 
+localizer:
+    use_meta_maps: true # 使用图元地图
+    global_map_filter_size: 0.3 # 对全局地图的降采样
+    local_map_dir: "/home/kilox/maps/6_office" # 地图的目录
+    register_method: "gicp" # "ceres", "LM" 
+    point_to_plane: 0.01 # 点到平面的距离
+    dist_to_robot: 50  # 图元中心到机器人的距离
+    num_trans: 1
+    num_rot: 1
+    delta_trans: 1  # [-1, 0，1]
+    delta_rot: 0.3  # [-0.3, 0, 0.3]
+    init_icp_score: 0.10
+    icp_dist_thresh: 1.0 # 最邻近搜索的阈值，小于1m的点都计算进来
+    update_search_dist_thresh: 1.0 # 搜索的阈值，小于1m的点都计算进来
+    match_score_thresh: 1.0 # 匹配的阈值，小于0.1的点都计算进来
+    use_ceres: true  

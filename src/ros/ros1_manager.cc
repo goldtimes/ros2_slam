@@ -167,6 +167,7 @@ void ROS1Manager::LivoxCloudCallback(const livox_ros_driver::CustomMsg::ConstPtr
     system_ptr_->AddLidar(cloud_ptr, curr_lidar_time);
 }
 void ROS1Manager::ImuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
+    // LOG_INFO("ImuCallback");
     static double last_record_imu_time = imu_msg->header.stamp.toSec();
     double curr_imu_time = imu_msg->header.stamp.toSec();
     if (curr_imu_time - last_record_imu_time >= 5.0) {
