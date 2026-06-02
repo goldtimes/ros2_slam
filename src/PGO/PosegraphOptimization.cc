@@ -58,7 +58,7 @@ PosegraphOptimization::PosegraphOptimization(ros::NodeHandle &nh) : nh_(nh) {
     // 初始化点云
     laserCloud.reset(new PointCloudXYZI());
     // 存储位姿的点云，半径搜索用
-    keyframePoseCloud.reset(new PointCloudXYZI());
+    keyframePoseCloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
     // 存储地图的点云，发布用
     mapCloud.reset(new PointCloudXYZI());
 

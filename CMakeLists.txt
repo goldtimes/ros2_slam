@@ -5,6 +5,8 @@ set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+add_compile_options(-fPIC)
+
 # debug模式
 # if("${ENABLE_DEBUG}")
 #     message(STATUS " ***  build with debug mode !!!  ****  ")
@@ -67,7 +69,6 @@ if(OpenMP_CXX_FOUND)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
-
 add_definitions(-DMP_EN)
 add_definitions(-DMP_PROC_NUM=6)
 
@@ -114,7 +115,7 @@ list(APPEND thirdparty_libs
     geo_graphic
 )
 
-add_library( source_lib SHARED
+add_library( source_lib STATIC
     src/system/system.cc
     src/system/system_config.cc
     src/lio/lidar_process.cc
@@ -139,7 +140,7 @@ add_library( source_lib SHARED
     # src/loop_closure/loop_closure_detector.cc
 )
 add_dependencies(source_lib robot_manager_generate_messages_cpp)
-target_link_libraries(source_lib 
+target_link_libraries(source_lib PRIVATE
 ${thirdparty_libs}
 )
 

@@ -89,6 +89,16 @@ class PosegraphOptimization {
     ros::Publisher pubLoopScanLocal;
     ros::Publisher pubLoopSubmapLocal;
     ros::Publisher pubLoopScanLocalRegisted;
+    ros::Publisher pubLoopConstraintEdge;
+
+    // keyframe发布
+    ros::Publisher keyframe_pub_;
+    // 优化后的路径
+    ros::Publisher pubPathAftPGO;
+    // 优化后的里程计
+    ros::Publisher pubOdomAftPGO;
+    // 优化后的地图
+    ros::Publisher pubMapAftPGO;
 
     // 关键帧的距离
     double keyframeMeterGap;
@@ -118,20 +128,6 @@ class PosegraphOptimization {
     double graphUpdateFrequency;
     double loopClosureFrequency;
     double vizmapFrequency;
-
-    // keyframe发布
-    ros::Publisher keyframe_pub_;
-
-    // 闭环检测的边
-    ros::Publisher pubLoopConstraintEdge;
-    ros::Publisher pubLoopScanLocalRegisted;
-
-    // 优化后的路径
-    ros::Publisher pubPathAftPGO;
-    // 优化后的里程计
-    ros::Publisher pubOdomAftPGO;
-    // 优化后的地图
-    ros::Publisher pubMapAftPGO;
 
     // 地图可视化线程
     std::thread map_visualization_thread_;
