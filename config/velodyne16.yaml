@@ -8,7 +8,7 @@ lidar:
   lidar_max_range: 100 # 雷达最大范围
   lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
   lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
-  is_tms_head: true # 雷达的时间戳是否为帧首
+  is_tms_head: false # 雷达的时间戳是否为帧首
   lidar_noise_std: 0.01 # 雷达点云噪声标准差
   use_multi_lidar: 1
   lidar_left_topic: ""
@@ -60,10 +60,10 @@ T_gnss2imu: [1.0000000, 0.0000000, 0.0000000, 0.0000000,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false
+use_p2plane: true
 use_voxel: false
 use_ndt: false # 不要用，这算法有点问题
-use_fasterlio: true
+use_fasterlio: false
 
 has_encoder: false
 has_gnss: false
