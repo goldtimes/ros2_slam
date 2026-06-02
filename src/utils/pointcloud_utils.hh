@@ -4,6 +4,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
+#include <pcl/registration/icp.h>
 #include <pcl/search/kdtree.h>
 #include "common/eigen_type.hh"
 #include "common/lidar_point_type.hh"
