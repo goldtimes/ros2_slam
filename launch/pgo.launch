@@ -1,0 +1,8 @@
+<launch>
+    <remap from="/lidar_odom" to="/lie_slam/lio_odom"/>
+    <remap from="/lidar_registered_body" to="/lie_slam/body"/>
+    <node pkg="lio_slam" type="pgo_node" name="pgo_node" output="screen" launch-prefix="gdb -ex run --args">
+    </node>
+launch-prefix="gdb -ex run --args"
+
+</launch>    

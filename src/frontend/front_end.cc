@@ -81,6 +81,7 @@ void FrontEnd::AllocateMemory() {
     undistort_cloud_lidar_.reset(new PointCloudXYZI);
     undistort_cloud_robot_.reset(new PointCloudXYZI);
     undistort_cloud_odom_.reset(new PointCloudXYZI);
+    undistort_cloud_body_.reset(new PointCloudXYZI);
 }
 
 FrontEnd::~FrontEnd() {
@@ -149,7 +150,10 @@ void FrontEnd::Run() {
                 propogator_ptr_->UndistortLidar(measure_group_, undistort_cloud_lidar_);
                 // transform to robot_link
                 undistort_cloud_robot_->clear();
+                undistort_cloud_body_->clear();
+
                 undistort_cloud_robot_ = TransformLidarOMP(undistort_cloud_lidar_, T_BL.R, T_BL.t);
+                undistort_cloud_body_ = TransformLidarOMP(undistort_cloud_lidar_, T_IL.R, T_IL.t);
                 // transform to world
                 undistort_cloud_odom_->clear();
                 auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
@@ -405,6 +409,11 @@ const PointCloudXYZIPtr FrontEnd::GetCloudInRobotLink() const {
 // odom坐标系点云
 const PointCloudXYZIPtr FrontEnd::GetCloudInOdomLink() const {
     return undistort_cloud_odom_;
+}
+
+// body坐标系点云
+const PointCloudXYZIPtr FrontEnd::GetCloudInBodyLink() const {
+    return undistort_cloud_body_;
 }
 
 const M33D FrontEnd::GetCov() const {

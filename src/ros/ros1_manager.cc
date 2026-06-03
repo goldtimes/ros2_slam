@@ -55,6 +55,7 @@ void ROS1Manager::InitPub() {
     cloud_lidar_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/lidar", 10);
     cloud_robot_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/robot_lidar", 10);
     cloud_odom_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/world_lidar", 10);
+    cloud_body_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lie_slam/body", 10);
 
     lio_path_pub_ = nh_.advertise<nav_msgs::Path>("/lie_slam/lio_path", 10);
     lio_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lie_slam/lio_odom", 10);
@@ -386,6 +387,8 @@ void ROS1Manager::PublishLidar(const double &sensor_time) {
     cloud_robot_pub_.publish(cloud_robot);
     auto cloud_odom = ToPointCloud2(system_ptr_->GetCloudInOdomLink(), "odom", sensor_time);
     cloud_odom_pub_.publish(cloud_odom);
+    auto cloud_body = ToPointCloud2(system_ptr_->GetCloudInBodyLink(), "robot_link", sensor_time);
+    cloud_body_pub_.publish(cloud_body);
 }
 
 void ROS1Manager::PoseTransToPoseStampedMsg(const PoseTrans &pose_trans, geometry_msgs::PoseStamped &pose_msg) {

@@ -76,6 +76,10 @@ class System {
     // odom坐标系点云
     const PointCloudXYZIPtr GetCloudInOdomLink() const;
 
+    // body坐标系点云
+    const PointCloudXYZIPtr GetCloudInBodyLink() const;
+
+    // 获取submap
     const PointCloudXYZIPtr GetSubmap() const;
 
     // std::shared_ptr<VoxelMap> GetVoxelMap() const {

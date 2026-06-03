@@ -14,11 +14,13 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <ros/package.h>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <deque>
+#include <filesystem>  // C++17 自带，无需安装库
 #include <iostream>
 #include <mutex>
 #include <queue>
@@ -42,7 +44,7 @@ class PosegraphOptimization {
     ~PosegraphOptimization();
 
    private:
-    int deg2rad(double deg) {
+    double deg2rad(double deg) {
         return deg * M_PI / 180.0;
     }
     void initNoise();
@@ -74,7 +76,7 @@ class PosegraphOptimization {
     gtsam::Pose3 poseTransToPose3(const PoseTrans &pose);
 
    private:
-    const std::string PGODir = "/home/kilox/catkin_ws/src/lio_slam/PGO_result/";
+    const std::string PGODir = ros::package::getPath("lio_slam") + "/PGO_result/";
     ros::NodeHandle nh_;
 
     // tf
@@ -127,7 +129,7 @@ class PosegraphOptimization {
     int graphUpdateTimes;  // 图优化迭代的次数
     double graphUpdateFrequency;
     double loopClosureFrequency;
-    double vizmapFrequency;
+    double vizmapFrequency = 1.0;
 
     // 地图可视化线程
     std::thread map_visualization_thread_;

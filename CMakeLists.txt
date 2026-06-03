@@ -8,12 +8,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-fPIC)
 
 # debug模式
-# if("${ENABLE_DEBUG}")
-#     message(STATUS " ***  build with debug mode !!!  ****  ")
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
-# else ()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-# endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS " ***  build with debug mode !!!  ****  ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+else ()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
 
 set(
     ROS_PACKAGE 
