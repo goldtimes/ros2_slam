@@ -2,6 +2,7 @@
 
 #include <array>
 #include "common/eigen_type.hh"
+#include "tsl/robin_map.h"
 
 namespace slam {
 // kNN算法，查找点的最近k个点
@@ -111,8 +112,62 @@ class OctVox {
     std::array<Point, 8> points_;   // array 栈内存，固定大小，就是一个数组
 };
 
-// 体素构成的八叉树地图
+/** @brief 体素构成的八叉树地图
+ * 存储所有体素
+ * 体素的下标
+ */
 template <typename Point, typename Scalar>
-class OctVoxMap {};
+class OctVoxMap {
+   public:
+    using Ptr = std::shared_ptr<OctVoxMap>;                              // 指针
+    using OctVoxType = OctVox<Point>;                                    // 体素类型
+    using KEY = Eigen::Vector3i;                                         // 体素的下标
+    using Points = std::vector<Point, Eigen::aligned_allocator<Point>>;  // 点的集合
+    using KNNHeaptType = KNNHeap<5, Points>;                             // KNN堆类型
+
+    // 配置结构体
+    struct Options {
+        // 分辨率
+        float resolution = 0.5;
+        // 容量
+        std::size_t capacity = 1e6;
+        Options(float _resolution, std::size_t _capacity) {
+            resolution = _resolution;
+            capacity = _capacity;
+        }
+    };
+
+    // 构造函数
+    OctVoxMap() = default;
+    // 构造函数
+    OctVoxMap(const Point& point, uint8_t idx) {
+    }
+    ~OctVoxMap() = default;
+    struct HASH_VEC {
+        std::size_t operator()(const KEY& v) const {
+            size_t h = static_cast<size_t>(v[0]);
+            h ^= v[1] * 0x9e3779b9 + (h << 6) + (h >> 2);
+            h ^= v[2] * 0x85ebca6b + (h << 6) + (h >> 2);
+            return h;
+        }
+    };
+    // TODO hash 方式
+   private:
+    float resolution_ = 0.5;
+    float inv_resolution_ = 1.0;
+    float sub_resolution_ = 0.25;
+    float inv_sub_resolution_ = 4.0;
+    std::size_t capacity_ = 1e6;
+
+    bool reset_map_ = false;
+    int reset_map_count_ = 0;
+
+    using DATA_LIST = std::list<std::pair<KEY, OctVoxType>>;
+    using DATE_ITER = DATA_LIST::iterator;
+    // TODO 所有体素的存储 map类型，存储的是下标索引和迭代器的位置，这里将迭代器的位置进行hash散列
+    tsl::robin_map<KEY, DATE_ITER, HASH_VEC> grids_;
+    // 存储voxel的list,list的每个元素是<下标，体素>
+    DATA_LIST data_;
+};
 
 }  // namespace slam
