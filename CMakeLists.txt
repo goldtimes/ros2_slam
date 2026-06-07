@@ -132,6 +132,7 @@ add_library( source_lib STATIC
     src/lidar_register/inc_ndt_register.cc
     src/lidar_register/inc_ndt.cc
     src/lidar_register/fasterlio_register.cc
+    src/lidar_register/superlio_register.cc
     src/encoder/encoder_process.cc
     src/gnss/gnss_process.cc
     src/localizer/localizer.cc

@@ -284,6 +284,7 @@ public:
   bool use_voxel_;
   bool use_ndt_;
   bool use_fasterlio_;
+  bool use_superlio_;
 
   bool has_encoder_;
   bool has_gnss_;

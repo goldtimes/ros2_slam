@@ -14,6 +14,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string &config_path) {
     use_voxel_ = config["use_voxel"].as<bool>();
     use_ndt_ = config["use_ndt"].as<bool>();
     use_fasterlio_ = config["use_fasterlio"].as<bool>();
+    use_superlio_ = config["use_superlio"].as<bool>();
     GRAVIRT_ = config["gravity"].as<double>();
     // 打印通用配置
     LOG_INFO("has_encoder: {}", has_encoder_);
@@ -23,6 +24,7 @@ bool SystemConfig::LoadAndPrintConfig(const std::string &config_path) {
     LOG_INFO("use_voxel: {}", use_voxel_);
     LOG_INFO("use_ndt: {}", use_ndt_);
     LOG_INFO("use_fasterlio: {}", use_fasterlio_);
+    LOG_INFO("use_superlio: {}", use_superlio_);
     LOG_INFO("GRAVIRT: {}", GRAVIRT_);
 
     // 加载雷达相关的配置

@@ -63,7 +63,8 @@ gravity: 9.81 # 重力加速度
 use_p2plane: false
 use_voxel: false
 use_ndt: false # 不要用，这算法有点问题
-use_fasterlio: true
+use_fasterlio: false
+use_superlio: true # 是否使用SuperLIO算法
 
 has_encoder: false
 has_gnss: false
@@ -121,6 +122,10 @@ front_end:
   use_fasterlio:
     ivox_grid_resolution: 0.2        # default=0.2
     ivox_nearby_type: 6             # 6, 18, 26
+    esti_plane_threshold: 0.01        # default=0.1
+  
+  use_superlio: # SuperLIO算法的参数
+    ivox_resolution: 0.5        # default=0.2
     esti_plane_threshold: 0.01        # default=0.1
 
 localizer:
