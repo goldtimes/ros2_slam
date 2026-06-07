@@ -62,9 +62,9 @@ gravity: 9.81 # 重力加速度
 
 use_p2plane: false
 use_voxel: false
-use_ndt: false # 不要用，这算法有点问题
+use_ndt: true # 不要用，这算法有点问题
 use_fasterlio: false
-use_superlio: true # 是否使用SuperLIO算法
+use_superlio: false # 是否使用SuperLIO算法
 
 has_encoder: false
 has_gnss: false
@@ -80,6 +80,8 @@ front_end:
   keyframe_distance: 0.5 # 关键帧距离
   keyframe_angle_distance: 0.5 # 关键帧角度 rads
   use_angle_keyframe: true  # 是否使用角度关键帧
+  save_map: true # 是否保存地图
+  pcd_save_interval: 10 # 保存地图的间隔
 
   use_p2plane: 
     p2plane_thresh: 0.01 # 平面阈值

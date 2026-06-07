@@ -329,4 +329,7 @@ bool SuperLIORegister::compute_error(const std::array<double, 4> &abcd,
       abcd[0] * point[0] + abcd[1] * point[1] + abcd[2] * point[2] + abcd[3];
   return length > 81 * error * error;
 }
+
+void SuperLIORegister::CacheData() {}
+void SuperLIORegister::SaveMap() {}
 } // namespace slam

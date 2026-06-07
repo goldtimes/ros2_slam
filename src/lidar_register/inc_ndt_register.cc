@@ -69,9 +69,13 @@ bool IncNdtRegister::Align(PointCloudXYZIPtr &cloud_lidar,
   kf_ptr_->UpdateLidar();
   return true;
 }
-void IncNdtRegister::UpdateLidarFunc(State &nav_state,
+void IncNdtRegister::UpdateLidarFunc(State & /*nav_state*/,
                                      ESKFShareState &shared_data) {
-  ndt_ptr_->ComputeResidualAndJacobians(nav_state, shared_data);
+  // 注意: 使用 kf_ptr_->GetState() (最新迭代状态 x_) 而非固定的 nav_state
+  // (predict_x),
+  //       实现每次 IEKF 迭代时重新线性化 (与其他 Register 实现一致)
+  State current_state = kf_ptr_->GetState();
+  ndt_ptr_->ComputeResidualAndJacobians(current_state, shared_data);
 }
 
 void IncNdtRegister::UpdateMap() {
@@ -94,4 +98,7 @@ PointCloudXYZIPtr IncNdtRegister::GetSubmap() {
   ndt_ptr_->GetVoxelCenters(cloud);
   return cloud;
 }
+
+void IncNdtRegister::CacheData() {}
+void IncNdtRegister::SaveMap() {}
 } // namespace slam

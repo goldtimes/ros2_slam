@@ -37,6 +37,8 @@ public:
                                ESKFShareState &shared_data) override;
   virtual void UpdateMap() override;
   virtual PointCloudXYZIPtr GetSubmap() override;
+  virtual void CacheData() override;
+  virtual void SaveMap() override;
 
 private:
   bool calc_plane_coeff(const int N, const std::array<V3D, 5> &points,

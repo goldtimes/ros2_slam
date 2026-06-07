@@ -41,6 +41,9 @@ public:
 
   virtual PointCloudXYZIPtr GetSubmap() = 0;
 
+  virtual void CacheData() = 0;
+  virtual void SaveMap() = 0;
+
   bool IsKeyFrame() { return is_keyframe_; }
 
   /** @brief 获取当前关键帧在world坐标系下的位姿 (T_WL) */
@@ -82,6 +85,8 @@ protected:
   double keyframe_angle_distance_ = 0.0;
   bool use_angle_keyframe_ = false;
   int updated_failed_num_ = 0;
+
+  int pcd_index_ = 0;
 };
 
 } // namespace slam
