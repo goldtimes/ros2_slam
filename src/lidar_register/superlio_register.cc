@@ -18,6 +18,9 @@ SuperLIORegister::SuperLIORegister(const std::shared_ptr<SystemConfig> &system_c
     keyframe_angle_distance_ = system_config->frontend_config_.keyframe_angle_distance;
     use_angle_keyframe_ = system_config->frontend_config_.use_angle_keyframe;
 
+    save_map_ = system_config->frontend_config_.save_map;
+    pcd_save_interval_ = system_config->frontend_config_.pcd_save_interval;
+    map_dir_ = system_config->frontend_config_.map_dir;
     // 协方差
     lidar_noise_std_ = system_config->lidar_config_.lidar_noise_std;
     // 信息矩阵
@@ -27,7 +30,7 @@ SuperLIORegister::SuperLIORegister(const std::shared_ptr<SystemConfig> &system_c
     cloud_world.reset(new PointCloudXYZI);
     submap_.reset(new PointCloudXYZI);
 
-    if (save_map) {
+    if (save_map_) {
         mapCloud.reset(new PointCloudXYZI);
     }
 
@@ -303,7 +306,79 @@ bool SuperLIORegister::compute_error(const std::array<double, 4> &abcd, const V3
 }
 
 void SuperLIORegister::CacheData() {
+    if (!save_map_) return;
+    auto state = kf_ptr_->GetState();
+    auto current_pose = PoseTrans(kf_ptr_->GetState().rot, kf_ptr_->GetState().pos);
+    auto T_WL = current_pose * system_config_->lidar2imu_;
+    auto cloud_world_tmp = TransformLidarOMP(current_lidar_, T_WL.R, T_WL.t);
+
+    static int scan_wait_num = 0;
+    if (!cloud_world_tmp->empty()) {
+        *mapCloud += *cloud_world_tmp;
+        scan_wait_num++;
+    }
+    // 如果pcd_save_interval_，不保存单个的pcd关键帧
+    if (pcd_save_interval_ < 0) {
+        scan_wait_num = 0;
+        return;
+    }
+
+    static bool rm_PCD_dir = false;
+    if (!rm_PCD_dir) {
+        rm_PCD_dir = true;
+        std::string cmd = "rm -rf " + map_dir_ + "/PCD";
+        [[maybe_unused]] int res;
+        res = system(cmd.c_str());
+        cmd = "mkdir -p " + map_dir_ + "/PCD";
+        res = system(cmd.c_str());
+    }
+
+    if (mapCloud->size() > 0 && scan_wait_num >= pcd_save_interval_) {
+        pcd_index_++;
+        std::string map_name(std::string(map_dir_) + "/PCD/scans_" + std::to_string(pcd_index_) + std::string(".pcd"));
+        LOG(INFO) << GREEN << " ---> current scan saved to /PCD/scans_" << pcd_index_ << "  size:  " << mapCloud->size()
+                  << RESET;
+        pcl::io::savePCDFileBinary(map_name, *mapCloud);
+        mapCloud->clear();
+        scan_wait_num = 0;
+    }
 }
 void SuperLIORegister::SaveMap() {
+    if (!save_map_) return;
+    if (pcd_save_interval_ > 0) {
+        LOG_INFO(YELLOW " ---> Saving last cace ... " RESET);
+        if (mapCloud->size() > 0) {
+            pcd_index_++;
+            std::string map_name(std::string(map_dir_) + "/PCD/scans_" + std::to_string(pcd_index_) +
+                                 std::string(".pcd"));
+            LOG_INFO(GREEN " ---> current scan saved to /PCD/scans_:{}  size:  {}", pcd_index_, mapCloud->size());
+            pcl::io::savePCDFileBinary(map_name, *mapCloud);
+            mapCloud->clear();
+        }
+        LOG_INFO(GREEN " ---> Save last cace success. " RESET);
+        LOG_INFO(YELLOW " ---> Process cace map ... " RESET);
+        // ProcessCaceMap();
+        LOG_INFO(GREEN " ---> Process cace map success. " RESET);
+        return;
+    }
+
+    LOG_INFO(YELLOW " ---> Saving map..... " RESET);
+    if (!mapCloud->empty()) {
+        std::string map_name = map_dir_ + "/superlio_globalmap.pcd";
+        LOG_INFO(YELLOW " ---> Save map to: {}", map_name, RESET);
+        pcl::VoxelGrid<PointXYZI> voxel_fliter;
+        PointCloudXYZI latst_map;
+        voxel_fliter.setInputCloud(mapCloud);
+        voxel_fliter.setLeafSize(0.5, 0.5, 0.5);
+        voxel_fliter.filter(latst_map);
+        if (latst_map.size() > 0) {
+            latst_map.width = latst_map.size();
+            latst_map.height = 1;
+            latst_map.is_dense = false;
+        }
+        pcl::io::savePCDFileBinary(map_name, latst_map);
+        LOG_INFO(GREEN " ---> Save map success. File: {}", map_name, RESET);
+        LOG_INFO(GREEN " ---> Map size: {}", latst_map.size(), RESET);
+    }
 }
 }  // namespace slam

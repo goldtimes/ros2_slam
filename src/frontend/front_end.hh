@@ -26,6 +26,8 @@ class FrontEnd {
 
     void Run();
 
+    void SaveMap();
+
     FrontEndStatus getFrontEndStatus() {
         return front_end_status_;
     }

@@ -66,6 +66,9 @@ front_end:
   keep_angle_ranges: [-180, 180] # 保留的角度范围
   remove_ranges: [-0.15, 0.15, -0.2, 0.2] # [-x, x, -y, y] 前左右的正方向上
   max_iteration: 4 # 最大迭代次数
+  save_map: true # 是否保存地图
+  pcd_save_interval: 10 # 保存地图的间隔 设置成 -1, 不保存单个的pcd关键帧
+  map_dir: "/home/kilox/slam_ws" # 地图的目录
 
   use_p2plane: 
     keyframe_size: 15

@@ -10,83 +10,87 @@
  */
 #pragma once
 
+#include <memory>
 #include "common/commons.hh"
 #include "common/logger.hh"
 #include "lio/ieskf.hh"
 #include "lio/state.hh"
 #include "system/system_config.hh"
 #include "utils/pointcloud_utils.hh"
-#include <memory>
 
 namespace slam {
 
 // 抽象的类
 class LidarRegister {
-public:
-  LidarRegister(const std::shared_ptr<SystemConfig> &system_config,
-                std::shared_ptr<IESKF> kf_ptr)
-      : system_config_(system_config), kf_ptr_(kf_ptr) {}
-  virtual ~LidarRegister() = default;
-  // 初始化地图
-  virtual bool InitMap(PointCloudXYZIPtr &cloud_lidar,
-                       std::shared_ptr<IESKF> kf_ptr_) = 0;
-  // 配准并更新地图
-  virtual bool Align(PointCloudXYZIPtr &cloud_lidar,
-                     std::shared_ptr<IESKF> kf_ptr_) = 0;
-
-  virtual void UpdateLidarFunc(State &nav_state,
-                               ESKFShareState &shared_data) = 0;
-
-  virtual void UpdateMap() = 0;
-
-  virtual PointCloudXYZIPtr GetSubmap() = 0;
-
-  virtual void CacheData() = 0;
-  virtual void SaveMap() = 0;
-
-  bool IsKeyFrame() { return is_keyframe_; }
-
-  /** @brief 获取当前关键帧在world坐标系下的位姿 (T_WL) */
-  PoseTrans GetCurrentKeyframePose() const {
-    std::lock_guard<std::mutex> lock(local_map_mutex_);
-    if (!keyframes_.empty()) {
-      return keyframes_.back().first;
+   public:
+    LidarRegister(const std::shared_ptr<SystemConfig> &system_config, std::shared_ptr<IESKF> kf_ptr)
+        : system_config_(system_config), kf_ptr_(kf_ptr) {
     }
-    return PoseTrans();
-  }
+    virtual ~LidarRegister() = default;
+    // 初始化地图
+    virtual bool InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) = 0;
+    // 配准并更新地图
+    virtual bool Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IESKF> kf_ptr_) = 0;
 
-  /** @brief 获取当前关键帧的点云（world坐标系下） */
-  PointCloudXYZIPtr GetCurrentKeyframeCloud() const {
-    std::lock_guard<std::mutex> lock(local_map_mutex_);
-    if (!keyframes_.empty()) {
-      return keyframes_.back().second;
+    virtual void UpdateLidarFunc(State &nav_state, ESKFShareState &shared_data) = 0;
+
+    virtual void UpdateMap() = 0;
+
+    virtual PointCloudXYZIPtr GetSubmap() = 0;
+
+    virtual void CacheData() = 0;
+    virtual void SaveMap() = 0;
+
+    bool IsKeyFrame() {
+        return is_keyframe_;
     }
-    return PointCloudXYZIPtr(new PointCloudXYZI());
-  }
 
-  /** @brief 获取最近的关键帧位姿列表 */
-  PoseTrans GetLastKeyPose() const { return last_keypose_; }
+    /** @brief 获取当前关键帧在world坐标系下的位姿 (T_WL) */
+    PoseTrans GetCurrentKeyframePose() const {
+        std::lock_guard<std::mutex> lock(local_map_mutex_);
+        if (!keyframes_.empty()) {
+            return keyframes_.back().first;
+        }
+        return PoseTrans();
+    }
 
-protected:
-  bool first_frame_ = true;
-  std::shared_ptr<IESKF> kf_ptr_;
-  std::shared_ptr<SystemConfig> system_config_;
-  PointCloudXYZIPtr current_lidar_; // 原始的雷达点云
-  bool is_keyframe_ = false;
-  PoseTrans last_keypose_;
-  mutable std::mutex local_map_mutex_;
-  PointCloudXYZIPtr submap_;
-  std::deque<std::pair<PoseTrans, PointCloudXYZIPtr>> keyframes_;
+    /** @brief 获取当前关键帧的点云（world坐标系下） */
+    PointCloudXYZIPtr GetCurrentKeyframeCloud() const {
+        std::lock_guard<std::mutex> lock(local_map_mutex_);
+        if (!keyframes_.empty()) {
+            return keyframes_.back().second;
+        }
+        return PointCloudXYZIPtr(new PointCloudXYZI());
+    }
 
-  pcl::VoxelGrid<PointXYZI> voxel_grid_;
+    /** @brief 获取最近的关键帧位姿列表 */
+    PoseTrans GetLastKeyPose() const {
+        return last_keypose_;
+    }
 
-  int keyframe_size_ = 0;
-  double keyframe_distance_ = 0.0;
-  double keyframe_angle_distance_ = 0.0;
-  bool use_angle_keyframe_ = false;
-  int updated_failed_num_ = 0;
+   protected:
+    bool first_frame_ = true;
+    std::shared_ptr<IESKF> kf_ptr_;
+    std::shared_ptr<SystemConfig> system_config_;
+    PointCloudXYZIPtr current_lidar_;  // 原始的雷达点云
+    bool is_keyframe_ = false;
+    PoseTrans last_keypose_;
+    mutable std::mutex local_map_mutex_;
+    PointCloudXYZIPtr submap_;
+    std::deque<std::pair<PoseTrans, PointCloudXYZIPtr>> keyframes_;
 
-  int pcd_index_ = 0;
+    pcl::VoxelGrid<PointXYZI> voxel_grid_;
+
+    int keyframe_size_ = 0;
+    double keyframe_distance_ = 0.0;
+    double keyframe_angle_distance_ = 0.0;
+    bool use_angle_keyframe_ = false;
+    int updated_failed_num_ = 0;
+
+    bool save_map_ = false;
+    int pcd_save_interval_ = 0;
+    int pcd_index_ = 0;
+    std::string map_dir_ = "";
 };
 
-} // namespace slam
+}  // namespace slam
