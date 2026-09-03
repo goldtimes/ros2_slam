@@ -93,13 +93,13 @@ Matrix2x3d State::getNx() const {
 
 void State::Print() const {
   LOG_INFO("State: ");
-  LOG_INFO("r_wi:{}", rot.eulerAngles(2, 1, 0).transpose());
-  LOG_INFO("t_wi:{}", pos.transpose());
-  LOG_INFO("r_il:{}", rot_ext.eulerAngles(2, 1, 0).transpose());
-  LOG_INFO("t_il:{}", pos_ext.transpose());
-  LOG_INFO("v:{}", vel.transpose());
-  LOG_INFO("bg:{}", bg.transpose());
-  LOG_INFO("ba:{}", ba.transpose());
-  LOG_INFO("g:{}", g.transpose());
+  // LOG_INFO("r_wi:{}", rot.eulerAngles(2, 1, 0).transpose());
+  // LOG_INFO("t_wi:{}", pos.transpose());
+  // LOG_INFO("r_il:{}", rot_ext.eulerAngles(2, 1, 0).transpose());
+  // LOG_INFO("t_il:{}", pos_ext.transpose());
+  // LOG_INFO("v:{}", vel.transpose());
+  // LOG_INFO("bg:{}", bg.transpose());
+  // LOG_INFO("ba:{}", ba.transpose());
+  // LOG_INFO("g:{}", g.transpose());
 }
 } // namespace slam

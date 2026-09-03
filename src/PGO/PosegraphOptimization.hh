@@ -1,4 +1,8 @@
 #pragma once
+// ============================================================
+//  PosegraphOptimization —— ROS1/ROS2 双版本
+//  算法核心(gtsam / PCL)与 ROS 版本无关,仅接口层按 ROS_AVAILABLE 分支
+// ============================================================
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot2.h>
@@ -12,13 +16,6 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
-#include <ros/package.h>
-#include <ros/ros.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <tf2_ros/transform_broadcaster.h>
 #include <deque>
 #include <filesystem>  // C++17 自带，无需安装库
 #include <iostream>
@@ -28,8 +25,66 @@
 #include <unordered_map>
 #include "common/logger.hh"
 #include "common/pose_trans.hh"
+#include "ros/ros_common.hh"
 #include "utils/pointcloud_utils.hh"
+
+#if ROS_AVAILABLE == 1
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
+#include <ros/package.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#else
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#endif
+
 namespace slam {
+
+// ==================== 消息类型别名 ====================
+#if ROS_AVAILABLE == 1
+using OdomMsg        = nav_msgs::Odometry;
+using PathMsg        = nav_msgs::Path;
+using NavSatMsg      = sensor_msgs::NavSatFix;
+using CloudMsg       = sensor_msgs::PointCloud2;
+using MarkerArrayMsg = visualization_msgs::MarkerArray;
+using MarkerMsg      = visualization_msgs::Marker;
+using PointMsg       = geometry_msgs::Point;
+using PoseStampedMsg = geometry_msgs::PoseStamped;
+using TransformMsg   = geometry_msgs::TransformStamped;
+using OdomPtr        = nav_msgs::Odometry::ConstPtr;
+using CloudPtr       = sensor_msgs::PointCloud2::ConstPtr;
+using NavSatPtr      = sensor_msgs::NavSatFix::ConstPtr;
+#else
+using OdomMsg        = nav_msgs::msg::Odometry;
+using PathMsg        = nav_msgs::msg::Path;
+using NavSatMsg      = sensor_msgs::msg::NavSatFix;
+using CloudMsg       = sensor_msgs::msg::PointCloud2;
+using MarkerArrayMsg = visualization_msgs::msg::MarkerArray;
+using MarkerMsg      = visualization_msgs::msg::Marker;
+using PointMsg       = geometry_msgs::msg::Point;
+using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
+using TransformMsg   = geometry_msgs::msg::TransformStamped;
+using OdomPtr        = nav_msgs::msg::Odometry::ConstSharedPtr;
+using CloudPtr       = sensor_msgs::msg::PointCloud2::ConstSharedPtr;
+using NavSatPtr      = sensor_msgs::msg::NavSatFix::ConstSharedPtr;
+#endif
 
 struct KFPose {
     size_t index;
@@ -40,18 +95,47 @@ struct KFPose {
 
 class PosegraphOptimization {
    public:
-    PosegraphOptimization(ros::NodeHandle &nh);
+#if ROS_AVAILABLE == 1
+    explicit PosegraphOptimization(ros::NodeHandle &nh);
+#else
+    explicit PosegraphOptimization(const rclcpp::Node::SharedPtr &node);
+#endif
     ~PosegraphOptimization();
 
    private:
     double deg2rad(double deg) {
         return deg * M_PI / 180.0;
     }
+    // 参数读取(ROS1: nh.param / ROS2: get_parameter_or)
+#if ROS_AVAILABLE == 1
+    template <typename T>
+    void GetParam(const std::string &name, T &out, const T &def) {
+        nh_.param<T>(name, out, def);
+    }
+#else
+    template <typename T>
+    void GetParam(const std::string &name, T &out, const T &def) {
+        nh_->get_parameter_or<T>(name, out, def);
+    }
+#endif
+
     void initNoise();
     void init_subpub();
-    void laserOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
-    void gspCallback(const sensor_msgs::NavSatFix::ConstPtr &msg);
-    void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
+
+#if ROS_AVAILABLE == 1
+    void laserOdomCallback(const OdomPtr &msg);
+    void gspCallback(const NavSatPtr &msg);
+    void cloudCallback(const CloudPtr &msg);
+    void odomToPoseTrans(const OdomPtr &odom, PoseTrans &pose);
+    void publishCloud(ros::Publisher &pub, const PointCloudXYZIPtr cloud, std::string frame_id = "map");
+#else
+    void laserOdomCallback(const OdomMsg::SharedPtr msg);
+    void gspCallback(const NavSatMsg::SharedPtr msg);
+    void cloudCallback(const CloudMsg::SharedPtr msg);
+    void odomToPoseTrans(const OdomPtr odom, PoseTrans &pose);
+    void publishCloud(const rclcpp::Publisher<CloudMsg>::SharedPtr &pub, const PointCloudXYZIPtr cloud,
+                      std::string frame_id = "map");
+#endif
 
     void run();
     void runLoopDetection();
@@ -68,39 +152,48 @@ class PosegraphOptimization {
     void updatePose();
     void publishState();
     void publishMap();
-
-    void publishCloud(ros::Publisher &pub, const PointCloudXYZIPtr cloud, std::string frame_id = "map");
-
-    void odomToPoseTrans(const nav_msgs::Odometry::ConstPtr &odom, PoseTrans &pose);
     void addKFPoseToCloud(const PoseTrans &pose);
     gtsam::Pose3 poseTransToPose3(const PoseTrans &pose);
 
    private:
-    const std::string PGODir = ros::package::getPath("lio_slam") + "/PGO_result/";
-    ros::NodeHandle nh_;
+    // PGO 结果目录(ROS1: 包路径;ROS2: 可配置参数 pgo_result_dir)
+    std::string PGODir;
 
+#if ROS_AVAILABLE == 1
+    ros::NodeHandle nh_;
     // tf
     tf2_ros::TransformBroadcaster tfBroadcaster;
-
-    // 订阅雷达里程计
+    // 订阅
     ros::Subscriber lidarOdom_sub_;
-    // 订阅里程计给的雷达数据
     ros::Subscriber lidarScan_sub_;
     ros::Subscriber gps_sub_;
-
+    // 发布
     ros::Publisher pubLoopScanLocal;
     ros::Publisher pubLoopSubmapLocal;
     ros::Publisher pubLoopScanLocalRegisted;
     ros::Publisher pubLoopConstraintEdge;
-
-    // keyframe发布
     ros::Publisher keyframe_pub_;
-    // 优化后的路径
     ros::Publisher pubPathAftPGO;
-    // 优化后的里程计
     ros::Publisher pubOdomAftPGO;
-    // 优化后的地图
     ros::Publisher pubMapAftPGO;
+#else
+    rclcpp::Node::SharedPtr nh_;
+    // tf
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tfBroadcaster;
+    // 订阅
+    rclcpp::Subscription<OdomMsg>::SharedPtr lidarOdom_sub_;
+    rclcpp::Subscription<CloudMsg>::SharedPtr lidarScan_sub_;
+    rclcpp::Subscription<NavSatMsg>::SharedPtr gps_sub_;
+    // 发布
+    rclcpp::Publisher<CloudMsg>::SharedPtr pubLoopScanLocal;
+    rclcpp::Publisher<CloudMsg>::SharedPtr pubLoopSubmapLocal;
+    rclcpp::Publisher<CloudMsg>::SharedPtr pubLoopScanLocalRegisted;
+    rclcpp::Publisher<MarkerArrayMsg>::SharedPtr pubLoopConstraintEdge;
+    rclcpp::Publisher<CloudMsg>::SharedPtr keyframe_pub_;
+    rclcpp::Publisher<PathMsg>::SharedPtr pubPathAftPGO;
+    rclcpp::Publisher<OdomMsg>::SharedPtr pubOdomAftPGO;
+    rclcpp::Publisher<CloudMsg>::SharedPtr pubMapAftPGO;
+#endif
 
     // 关键帧的距离
     double keyframeMeterGap;
@@ -109,7 +202,6 @@ class PosegraphOptimization {
 
     double keyframe_downsample = 0.2;
     // 闭环检测的参数
-    // 闭环检测的距离
     double historyKeyframeSearchRadius;
     double historyKeyframeSearchTimeDiff;
     int historyKeyframeSearchNum;
@@ -121,7 +213,7 @@ class PosegraphOptimization {
     pcl::KdTreeFLANN<pcl::PointXYZ> keyframePoseKdTree;
     // 回环检测到的配对关系
     std::queue<std::pair<int, int>> loopClosureQueue;
-    std::map<int, int> loopIndexContainer;  // key是当前帧索引，value是闭环帧索引,这里用map,方便重复的帧不检测回环
+    std::map<int, int> loopIndexContainer;  // key是当前帧索引，value是闭环帧索引
 
     // 图优化线程的频率
     double speedFactor;
@@ -162,11 +254,11 @@ class PosegraphOptimization {
     gtsam::noiseModel::Base::shared_ptr robustLoopNoise;    // 回环因子鲁棒核函数
 
     // 存储数据
-    std::mutex mBuf;                                          // 互斥锁
-    std::deque<nav_msgs::Odometry::ConstPtr> odomBuf;         // 雷达里程计缓冲区
-    std::deque<sensor_msgs::NavSatFix::ConstPtr> gpsBuf;      //
-    std::deque<sensor_msgs::PointCloud2::ConstPtr> cloudBuf;  // 雷达点云缓冲区
-    std::deque<double> cloudTimeBuf;                          // 雷达点云时间戳缓冲区
+    std::mutex mBuf;                            // 互斥锁
+    std::deque<OdomPtr> odomBuf;                // 雷达里程计缓冲区
+    std::deque<NavSatPtr> gpsBuf;               // gps 缓冲区
+    std::deque<CloudPtr> cloudBuf;              // 雷达点云缓冲区
+    std::deque<double> cloudTimeBuf;            // 雷达点云时间戳缓冲区
     PointCloudXYZIPtr laserCloud;
     PointCloudXYZIPtr mapCloud;
     double globalMapDownSize = 0.3;
@@ -188,5 +280,4 @@ class PosegraphOptimization {
     bool isKeyframe;
     bool use_gps;
 };
-
 }  // namespace slam

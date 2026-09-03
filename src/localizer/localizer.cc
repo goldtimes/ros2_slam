@@ -3,6 +3,8 @@
 #include <boost/filesystem.hpp>
 #include <chrono>
 #include "localizer/map_align.hpp"
+#include <pcl/common/common.h>
+#include "ros/ros_common.hh"
 #include "system/system_config.hh"
 
 namespace slam {
@@ -55,7 +57,7 @@ void Localizer::SetMetaMaps(const std::map<std::string, std::vector<std::shared_
     ids_metamap_map_ = maps;
     std::lock_guard<std::mutex> lock(state_mutex_);
     local_state_ = LOCAL_STATE::NOT_INIT;
-    LOG_INFO("local_state_:{}", local_state_);
+    LOG_INFO("local_state_:{}", static_cast<int>(local_state_));
 }
 
 void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_RtoO) {
@@ -91,8 +93,8 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
     curr_meta_info_.level = level;
     curr_map_ = std::make_pair(map_id, curr_meta_info_);
     LOG_INFO("map_identity:{}", map_id);
-    LOG_INFO("init posisition:{}", init_T_RtoM_.t.transpose());
-    LOG_INFO("init orientation:{}", init_T_RtoM_.RPY().transpose());
+    // LOG_INFO("init posisition:{}", init_T_RtoM_.t.transpose());
+    // LOG_INFO("init orientation:{}", init_T_RtoM_.RPY().transpose());
     // 修改初始值的高度
     if (traj_cloud_loaded_) {
         PointXYZI init_pt;
@@ -112,7 +114,7 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
         if (init_T_RtoM_.t(2) > 2.0) {
             init_T_RtoM_.t(2) /= 2;
         }
-        LOG_INFO("change predict height to {}", init_T_RtoM_.t.transpose());
+        // LOG_INFO("change predict height to {}", init_T_RtoM_.t.transpose());
     }
 }
 
@@ -141,8 +143,8 @@ void Localizer::SetTrajCloud(const PointCloudXYZIPtr& traj_cloud) {
 
 void Localizer::MapUpdate() noexcept {
     LOG_INFO("[LOC] MapUpdate Run");
-    ros::Rate rate(20);
-    while (ros::ok()) {
+    slam::Rate rate(20);
+    while (slam::RosOk()) {
         if (update_map_) {
             update_map_ = false;
             LoadMapByPose(Pose_RtoM_);
@@ -154,8 +156,8 @@ void Localizer::MapUpdate() noexcept {
 void Localizer::MapRegister() noexcept {
     LOG_INFO("MapRegister Run");
     // 等待局部地图更新了
-    ros::Rate rate(50);
-    while (ros::ok()) {
+    slam::Rate rate(50);
+    while (slam::RosOk()) {
         // 1. 先获取当前状态（仅在获取状态时加锁）
         LOCAL_STATE current_state;
         bool has_init_pose;
@@ -296,8 +298,8 @@ bool Localizer::InitSearch() {
         }
     }
     LOG_INFO("After Search, min_score:{}", min_score);
-    LOG_INFO("best_guess_pose Position:{}, Rotation:{}", best_guess_pose.t.transpose(),
-             best_guess_pose.RPY().transpose());
+    // LOG_INFO("best_guess_pose Position:{}, Rotation:{}", best_guess_pose.t.transpose(),
+    //          best_guess_pose.RPY().transpose());
 
     // 更新num_trans以及其他参数
     delta_rot = 0.1;
@@ -356,7 +358,7 @@ bool Localizer::InitSearch() {
     } else {
         success = true;
         T_OtoM_ = result_T_RtoM * T_RtoO_.inverse();
-        LOG_INFO("choose best score: {}, T_OtoM:{}", best_score, T_OtoM_);
+        // LOG_INFO("choose best score: {}, T_OtoM:{}", best_score, T_OtoM_);
     }
     return success;
 }

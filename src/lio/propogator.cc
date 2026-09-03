@@ -88,14 +88,14 @@ bool Propogator::Initialize(MeasureGroup& meas) {
     Eigen::Quaterniond q_inG = Eigen::Quaterniond(kf_->GetState().rot);
     Eigen::Quaterniond q_il = Eigen::Quaterniond(kf_->GetState().rot_ext);
     LOG_INFO(REDPURPLE "System init success time:{}" RESET, last_imu_.timestamp_);
-    LOG_INFO(REDPURPLE "r_il:{}" RESET, q_il.coeffs().transpose());
-    LOG_INFO(REDPURPLE "t_il:{}" RESET, kf_->GetState().pos_ext.transpose());
-    LOG_INFO(REDPURPLE "orientation:{}" RESET, q_inG.coeffs().transpose());
-    LOG_INFO(REDPURPLE "position:{}" RESET, kf_->GetState().pos.transpose());
-    LOG_INFO(REDPURPLE "vel:{}" RESET, kf_->GetState().vel.transpose());
-    LOG_INFO(REDPURPLE "bg:{}" RESET, kf_->GetState().bg.transpose());
-    LOG_INFO(REDPURPLE "ba:{}" RESET, kf_->GetState().ba.transpose());
-    LOG_INFO(REDPURPLE "g:{}" RESET, kf_->GetState().g.transpose());
+    // LOG_INFO(REDPURPLE "r_il:{}" RESET, q_il.coeffs().transpose());
+    // LOG_INFO(REDPURPLE "t_il:{}" RESET, kf_->GetState().pos_ext.transpose());
+    // LOG_INFO(REDPURPLE "orientation:{}" RESET, q_inG.coeffs().transpose());
+    // LOG_INFO(REDPURPLE "position:{}" RESET, kf_->GetState().pos.transpose());
+    // LOG_INFO(REDPURPLE "vel:{}" RESET, kf_->GetState().vel.transpose());
+    // LOG_INFO(REDPURPLE "bg:{}" RESET, kf_->GetState().bg.transpose());
+    // LOG_INFO(REDPURPLE "ba:{}" RESET, kf_->GetState().ba.transpose());
+    // LOG_INFO(REDPURPLE "g:{}" RESET, kf_->GetState().g.transpose());
     return true;
     // }
     // return false;
@@ -216,7 +216,7 @@ void Propogator::PropogateState(MeasureGroup& meas) {
                 // SO3 so3(Gnss_heading_);
                 // V3D euler = SO3ToEuler(so3);
                 // ROS_WARN_STREAM("INITIAL GNSS HEADING " << euler.transpose());
-                LOG_INFO("GNSS HEADING:{}", Gnss_heading_.eulerAngles(2, 1, 0).transpose());
+                // LOG_INFO("GNSS HEADING:{}", Gnss_heading_.eulerAngles(2, 1, 0).transpose());
                 current_state.rot_R_IG = Gnss_heading_;
                 gnss_heading_init = true;
             }

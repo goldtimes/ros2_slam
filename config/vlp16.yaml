@@ -2,25 +2,25 @@
 lidar: 
   lidar_type: velodyne16 # rs16, ls16, tw, vanjee, airy
   use_livox_driver: 0 # 使用的livox2驱动的版本, 1 使用livox1驱动, 其他雷达设置为0使用标准的ros消息
-  lidar_topic: /velodyne_points
-  point_filter_num: 6 # 点云滤波次数
+  lidar_topic: /velody_points
+  point_filter_num: 3 # 点云滤波次数
   lidar_min_range: 1.0 # 雷达最小范围
   lidar_max_range: 100 # 雷达最大范围
-  lidar_position_noise_std: 0.01 # 雷达位置噪声标准差
-  lidar_rotation_noise_std: 0.01 # 雷达方向噪声标准差
+  lidar_position_noise_std: 0.001 # 雷达位置噪声标准差
+  lidar_rotation_noise_std: 0.001 # 雷达方向噪声标准差
   is_tms_head: false # 雷达的时间戳是否为帧首
-  lidar_noise_std: 0.01 # 雷达点云噪声标准差
+  lidar_noise_std: 0.001 # 雷达点云噪声标准差
   use_multi_lidar: 1
   lidar_left_topic: ""
   lidar_right_topic: ""
   
 imu:
-  imu_topic: /imu/data
+  imu_topic: /imu
   imu_scale: 1 # livoximu的输出需要缩放
-  acc_noise_std: 3.9939570888238808e-03 # 加速度噪声标准差
-  gyro_noise_std: 1.5636343949698187e-03 # 陀螺仪噪声标准差
-  acc_bias_noise_std: 6.4356659353532566e-05 # 加速度 bias 噪声标准差
-  gyro_bias_noise_std: 3.5640318696367613e-05 # 陀螺仪 bias 噪声标准差
+  acc_noise_std: 0.01 # 加速度噪声标准差
+  gyro_noise_std: 0.01 # 陀螺仪噪声标准差
+  acc_bias_noise_std: 0.0001 # 加速度 bias 噪声标准差
+  gyro_bias_noise_std: 0.0001 # 陀螺仪 bias 噪声标准差
 
 encoder:
   encoder_topic: /odom
@@ -43,10 +43,10 @@ T_lidar2robot: [1.0000000,  0.0000000,  0.0000000, 0.0000000,
                 0.0000000,  0.0000000,  1.0000000, 0.0000000,
                 0.0000000,  0.0000000,  0.0000000, 1.0000000]
 # lidar->imu的外参
-T_lidar2imu: [1.000000,  0.0000000, 0.0000000, 0.0000000,
-              0.0000000, 1.0000000,  0.0000000, 0.0000000,
-              0.0000000, 0.0000000, 1.0000000, 0.2800000, 
-              0.0000000, 0.0000000, 0.0000000, 1.0000000]
+T_lidar2imu: [1.0000000,  0.0000000,  0.0000000, 0.0000000, 
+                0.0000000,  1.0000000,  0.0000000, 0.0000000, 
+                0.0000000,  0.0000000,  1.0000000, 0.0000000,
+                0.0000000,  0.0000000,  0.0000000, 1.0000000]
 # imu->encoder的外参，实际在代码中完成计算
 T_imu2encoder: [0.9082976,  0.0000000,  0.4183246, 0.1810,
                 0.0000000,  1.0000000,  0.0000000, 0.0230,
@@ -60,11 +60,11 @@ T_gnss2imu: [1.0000000, 0.0000000, 0.0000000, 0.0000000,
 
 gravity: 9.81 # 重力加速度
 
-use_p2plane: false
+use_p2plane: false # 在多楼层的退化下，使用p2plane会失败，所以这里不使用
 use_voxel: false
-use_ndt: true # 不要用，这算法有点问题
-use_fasterlio: false
-use_superlio: false # 是否使用SuperLIO算法
+use_ndt: false # 不要用，这算法有点问题
+use_fasterlio: false  # 在多楼层的退化下，使用p2plane会失败，所以这里不使用
+use_superlio: true # 是否使用SuperLIO算法
 
 has_encoder: false
 has_gnss: false
@@ -81,7 +81,7 @@ front_end:
   keyframe_angle_distance: 0.5 # 关键帧角度 rads
   use_angle_keyframe: true  # 是否使用角度关键帧
   save_map: true # 是否保存地图
-  pcd_save_interval: 10 # 保存地图的间隔 设置成 -1, 不保存单个的pcd关键帧
+  pcd_save_interval: -1 # 保存地图的间隔 设置成 -1, 不保存单个的pcd关键帧
   map_dir: "/home/kilox/slam_ws" # 地图的目录
 
   use_p2plane: 
@@ -126,11 +126,10 @@ front_end:
     ivox_grid_resolution: 0.2        # default=0.2
     ivox_nearby_type: 6             # 6, 18, 26
     esti_plane_threshold: 0.01        # default=0.1
-  
-  use_superlio: # SuperLIO算法的参数
+
+  use_superlio:
     ivox_resolution: 0.5        # default=0.2
     esti_plane_threshold: 0.01        # default=0.1
-
 localizer:
     use_meta_maps: true # 使用图元地图
     global_map_filter_size: 0.3 # 对全局地图的降采样

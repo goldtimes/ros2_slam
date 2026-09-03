@@ -10,6 +10,7 @@
 #include "localizer/localizer.hh"
 #include "system/system.hh"
 #include "system/system_config.hh"
+#include "ros/ros_common.hh"
 
 #include <pcl/filters/voxel_grid.h>
 
@@ -92,7 +93,7 @@ FrontEnd::~FrontEnd() {
 
 void FrontEnd::Run() {
     LOG_INFO("FrontEndThread Run!");
-    while (ros::ok()) {
+    while (slam::RosOk()) {
         // 获取锁
         std::unique_lock<std::mutex> lock(system_->m_buf_mutex_);
         // 因为需要在阻塞时释放锁，唤醒时重新获取锁。
@@ -354,7 +355,7 @@ void FrontEnd::UpdateGnss(const GNSS &gnss, State &state, ESKFShareState &share_
     V3D gnss_pos_in_imu(gnss.enu_[0], gnss.enu_[1], gnss.enu_[2]);
     // 计算残差
     V3D res = state.rot_R_IG * gnss_pos_in_imu - state.pos;
-    LOG_INFO("gnss res:{}", res.transpose());
+    // LOG_INFO("gnss res:{}", res.transpose());
     // 计算雅可比矩阵
     Eigen::Matrix<double, 3, 33> J;
     J.setZero();
@@ -389,7 +390,7 @@ void FrontEnd::UpdateGnss(const GNSS &gnss, State &state, ESKFShareState &share_
     share_state.b33_.setZero();
     share_state.H33_ = J.transpose() * 10 * J;
     share_state.b33_ = J.transpose() * 10 * res;
-    LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
+    // LOG_INFO("iter:{},res:{}", share_state.iter_num, res.transpose());
 }
 
 State FrontEnd::GetCurentNavState() {

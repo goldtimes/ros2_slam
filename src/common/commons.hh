@@ -4,6 +4,7 @@
 #include "pose_trans.hh"
 #include "sensors.hh"
 #include "utils/pointcloud_utils.hh"
+#include <boost/math/tools/precision.hpp>
 #include <deque>
 #define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
 namespace slam {

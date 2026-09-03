@@ -7,6 +7,7 @@
 #include "utils/pointcloud_utils.hh"
 #include <array>
 #include <filesystem>
+#include <list>
 
 namespace slam {
 template <int K, typename Point> class KNNHeap {

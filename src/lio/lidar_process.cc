@@ -57,7 +57,7 @@ LidarProcess::LidarProcess(const std::string &lidar_type, int use_livox_driver,
 }
 
 // 处理ros标准的雷达消息
-bool LidarProcess::Process(const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+bool LidarProcess::Process(const PointCloud2MsgConstPtr &cloud_msg,
                            PointCloudPtr &out_cloud) {
   switch (lidar_mode_) {
   case LIDAR_MODE::MID360:
@@ -85,9 +85,10 @@ bool LidarProcess::Process(const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
   return false;
 }
 
-// 处理livox driver1雷达消息
+#if ROS_AVAILABLE == 1
+// 处理livox driver1雷达消息(仅 ROS1)
 bool LidarProcess::Process(
-    const livox_ros_driver::CustomMsg::ConstPtr &cloud_msg,
+    const LivoxMsg1ConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   if (lidar_mode_ == LIDAR_MODE::MID360) {
     return mid360_process(cloud_msg, out_cloud);
@@ -98,24 +99,25 @@ bool LidarProcess::Process(
     return false;
   }
 }
+#endif
 
 // 处理livox driver2雷达消息
 bool LidarProcess::Process(
-    const livox_ros_driver2::CustomMsg::ConstPtr &cloud_msg,
+    const LivoxMsg2ConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   if (lidar_mode_ == LIDAR_MODE::MID360) {
     return mid360_process(cloud_msg, out_cloud);
   } else if (lidar_mode_ == LIDAR_MODE::AVIA) {
     return avia_process(cloud_msg, out_cloud);
   } else {
-    LOG_ERROR("unsupport lidar mode {} for livox driver2", lidar_mode_);
+    LOG_ERROR("unsupport lidar mode {} for livox driver2", static_cast<int>(lidar_mode_));
     return false;
   }
   return true;
 }
 
 bool LidarProcess::mid360_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   // LOG_INFO("mid360_process");
   // 创建点云
@@ -185,17 +187,17 @@ bool LidarProcess::mid360_process(
   return true;
 }
 bool LidarProcess::avia_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
 bool LidarProcess::ls16_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
 bool LidarProcess::rs16_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   // LOG_INFO("rs16_process");
   // 创建点云
@@ -265,17 +267,17 @@ bool LidarProcess::rs16_process(
   return false;
 }
 bool LidarProcess::airy_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
 bool LidarProcess::vanjee_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
 bool LidarProcess::velodyne16_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   LOG_INFO("velodyne16_process");
   // 创建点云
@@ -284,7 +286,7 @@ bool LidarProcess::velodyne16_process(
   // 转换点云
   pcl::fromROSMsg(*cloud_msg, *cloud);
   // int points_num = cloud->points.size();
-  double cloud_start_time = cloud_msg->header.stamp.toSec();
+  double cloud_start_time = slam::StampToSec(cloud_msg->header.stamp);
   LOG_INFO("cloud_start_time:{}", cloud_start_time);
 
   int plsize = cloud->points.size();
@@ -371,34 +373,39 @@ bool LidarProcess::velodyne16_process(
   return true;
 }
 bool LidarProcess::velodyne32_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
 bool LidarProcess::ouster64_process(
-    const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+    const PointCloud2MsgConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
-// mid360的livox消息处理
+#if ROS_AVAILABLE == 1
+// mid360的livox driver1消息处理(仅 ROS1)
 bool LidarProcess::mid360_process(
-    const livox_ros_driver::CustomMsg::ConstPtr &cloud_msg,
+    const LivoxMsg1ConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
+#endif
+// mid360的livox driver2消息处理
 bool LidarProcess::mid360_process(
-    const livox_ros_driver2::CustomMsg::ConstPtr &cloud_msg,
+    const LivoxMsg2ConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
-// avia的livox消息处理
+#if ROS_AVAILABLE == 1
+// avia的livox driver1消息处理(仅 ROS1)
 bool LidarProcess::avia_process(
-    const livox_ros_driver::CustomMsg::ConstPtr &cloud_msg,
+    const LivoxMsg1ConstPtr &cloud_msg,
     PointCloudPtr &out_cloud) {
   return false;
 }
+#endif
 bool LidarProcess::avia_process(
-    const livox_ros_driver2::CustomMsg::ConstPtr &msg,
+    const LivoxMsg2ConstPtr &msg,
     PointCloudPtr &out_cloud) {
   // LOG_INFO("avia_process");
 
@@ -406,7 +413,7 @@ bool LidarProcess::avia_process(
   out_cloud->clear();
   out_cloud->reserve(point_num / point_filter_num_ + 1);
   uint valid_num = 0;
-  double time_start = msg->header.stamp.toSec();
+  double time_start = slam::StampToSec(msg->header.stamp);
 
   for (uint i = 0; i < point_num; i++) {
     if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 ||

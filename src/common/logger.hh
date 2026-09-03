@@ -3,7 +3,6 @@
 #include <chrono>
 #include <ctime>
 #include <glog/logging.h>
-#include <ros/ros.h>
 #include <spdlog/async.h>
 #include <spdlog/common.h>
 #include <spdlog/fmt/ostr.h>
