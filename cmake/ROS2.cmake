@@ -80,6 +80,14 @@ if(GTSAM_FOUND)
     target_link_libraries(pgo_node source_lib)
 endif()
 
+# 离线全局地图切块工具(无 ROS 依赖)
+add_executable(map_split src/app/map_split.cc)
+target_link_libraries(map_split
+    ${Boost_LIBRARIES}
+    ${PCL_LIBRARIES}
+    yaml-cpp
+)
+
 install(TARGETS
     slam_node
     DESTINATION lib/${PROJECT_NAME}
@@ -87,6 +95,7 @@ install(TARGETS
 if(GTSAM_FOUND)
     install(TARGETS pgo_node DESTINATION lib/${PROJECT_NAME})
 endif()
+install(TARGETS map_split DESTINATION lib/${PROJECT_NAME})
 install(PROGRAMS
     scripts/pub_map.py
     scripts/pub_slam_pose.py

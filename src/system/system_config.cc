@@ -192,6 +192,12 @@ bool SystemConfig::LoadAndPrintConfig(const std::string &config_path) {
         localizer_config_.use_meta_maps = config["localizer"]["use_meta_maps"].as<bool>();
         localizer_config_.global_map_filter_size = config["localizer"]["global_map_filter_size"].as<double>();
         localizer_config_.local_map_dir = config["localizer"]["local_map_dir"].as<std::string>();
+        // map_identity 为可选字段, 兼容旧配置
+        if (config["localizer"]["map_identity"].IsDefined()) {
+            localizer_config_.map_identity = config["localizer"]["map_identity"].as<std::string>();
+        } else {
+            localizer_config_.map_identity = "";
+        }
         localizer_config_.register_method = config["localizer"]["register_method"].as<std::string>();
         localizer_config_.point_to_plane = config["localizer"]["point_to_plane"].as<double>();
         localizer_config_.dist_to_robot = config["localizer"]["dist_to_robot"].as<double>();

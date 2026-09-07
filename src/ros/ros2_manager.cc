@@ -58,6 +58,14 @@ ROS2Manager::ROS2Manager(const rclcpp::Node::SharedPtr &node, std::shared_ptr<Sy
     if (!system_ptr_->GetSystemConfig()->frontend_config_.voxel_config.pub_voxel_map) {
         voxel_map_timer_->cancel();
     }
+
+    // 定位模式: 使用图元地图时, 启动即从 local_map_dir 目录扫描加载。
+    // 替代 ROS1 的 robot_manager::metaset_info 消息(ROS2 无该话题)。
+    if (slam_mode_ == SLAM_MODE::LOCALIZATION && system_ptr_->GetLocalizer() != nullptr &&
+        system_ptr_->GetSystemConfig()->localizer_config_.use_meta_maps) {
+        const std::string map_dir = system_ptr_->GetSystemConfig()->localizer_config_.local_map_dir;
+        system_ptr_->GetLocalizer()->LoadMetaMapsFromDir(map_dir);
+    }
 }
 
 ROS2Manager::~ROS2Manager() {

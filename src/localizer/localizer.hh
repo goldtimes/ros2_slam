@@ -88,6 +88,8 @@ class Localizer {
     }
     // 设置地图信息
     void SetMetaMaps(const std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>>& maps);
+    // 从目录扫描并加载图元地图(参考 ROS1 的 MetamapsCallback, 无消息依赖, ROS2 定位用)
+    bool LoadMetaMapsFromDir(const std::string& map_dir);
     // 设置单张的全局地图
     void SetMaps(const std::string& pcd_path);
     void SetInitPose(const PoseTrans& init_pose, int level = 0, const std::string& map_id = "");
@@ -219,6 +221,8 @@ class Localizer {
     bool use_ceres_ = false;
 
     std::string map_dir_;
+    // 默认的叶子地图 identity(图元分组); 为空时自动退化为 ids 中唯一的一个
+    std::string map_identity_;
     GICP::Ptr gicp_matcher_;
 
     std::mutex lidar_mutex_;

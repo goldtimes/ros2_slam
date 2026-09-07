@@ -1,6 +1,7 @@
 #include "localizer/localizer.hh"
 #include <pcl/range_image/range_image.h>
 #include <boost/filesystem.hpp>
+#include <yaml-cpp/yaml.h>
 #include <chrono>
 #include "localizer/map_align.hpp"
 #include <pcl/common/common.h>
@@ -20,6 +21,7 @@ Localizer::Localizer(const std::shared_ptr<SystemConfig>& system_config_ptr) : s
                                    system_config_ptr->localizer_config_.global_map_filter_size,
                                    system_config_ptr->localizer_config_.global_map_filter_size);
 
+    map_identity_ = system_config_ptr_->localizer_config_.map_identity;
     local_state_ = LOCAL_STATE::MAP_NOT_LOAD;
     loaded_map_ = false;
     use_ceres_ = system_config_ptr_->localizer_config_.use_ceres;
@@ -60,6 +62,87 @@ void Localizer::SetMetaMaps(const std::map<std::string, std::vector<std::shared_
     LOG_INFO("local_state_:{}", static_cast<int>(local_state_));
 }
 
+// 从目录扫描并加载图元地图(目录结构: <map_dir>/<leaf>/META*/data.yaml + data.pcd)
+// 与 ROS1 的 MetamapsCallback 等价, 但不依赖 robot_manager::metaset_info 消息。
+bool Localizer::LoadMetaMapsFromDir(const std::string& map_dir) {
+    LOG_INFO("LoadMetaMapsFromDir, map_dir: {}", map_dir);
+    if (!boost::filesystem::exists(boost::filesystem::path(map_dir))) {
+        LOG_ERROR("map dir {} not exists", map_dir);
+        return false;
+    }
+
+    std::map<std::string, std::vector<std::shared_ptr<MetaInfo>>> ids_metamap_map;
+    // 遍历 map_dir 下的每个叶子地图目录
+    for (const auto& leaf_entry : boost::filesystem::directory_iterator(boost::filesystem::path(map_dir))) {
+        if (!boost::filesystem::is_directory(leaf_entry)) {
+            continue;
+        }
+        const std::string leaf_dir = leaf_entry.path().string();
+        std::vector<std::string> meta_names;
+        for (const auto& sub : boost::filesystem::directory_iterator(boost::filesystem::path(leaf_dir))) {
+            if (!boost::filesystem::is_directory(sub)) {
+                continue;
+            }
+            const std::string meta_name = sub.path().filename().string();
+            // 只收集 META 开头的图元目录
+            if (meta_name.rfind("META", 0) == 0) {
+                meta_names.push_back(meta_name);
+            }
+        }
+        if (meta_names.empty()) {
+            continue;
+        }
+        for (const auto& meta_name : meta_names) {
+            const std::string yaml_path = leaf_dir + "/" + meta_name + "/data.yaml";
+            if (!boost::filesystem::exists(yaml_path)) {
+                LOG_INFO("config {} not exist, SKIP", yaml_path);
+                continue;
+            }
+            try {
+                YAML::Node config = YAML::LoadFile(yaml_path);
+                int level = config["floor"].as<int>();
+                std::string identity = config["identity"].as<std::string>();
+                // T: [x, y, z, qx, qy, qz, qw]
+                std::vector<double> data = config["T"].as<std::vector<double>>();
+                if (data.size() < 7) {
+                    LOG_ERROR("T format error in {}", yaml_path);
+                    continue;
+                }
+                PoseTrans T(Eigen::Quaterniond(data[6], data[3], data[4], data[5]).toRotationMatrix(),
+                            Eigen::Vector3d(data[0], data[1], data[2]));
+                if (ids_metamap_map.find(identity) == ids_metamap_map.end()) {
+                    ids_metamap_map[identity] = std::vector<std::shared_ptr<MetaInfo>>();
+                }
+                auto& meta_info = ids_metamap_map[identity].emplace_back(std::make_shared<MetaInfo>());
+                meta_info->level = level;
+                meta_info->x = T.t[0];  // 图元中心, 供距离判定使用
+                meta_info->y = T.t[1];
+                meta_info->name = meta_name;
+                meta_info->identity = identity;
+                meta_info->T = T;
+                meta_info->map_pcd.reset(new PointCloudXYZI);
+                LOG_INFO("load meta identity {} name {} floor {} center({:.2f},{:.2f})", identity, meta_name, level,
+                         meta_info->x, meta_info->y);
+            } catch (const std::exception& e) {
+                LOG_ERROR("parse {} fail: {}", yaml_path, e.what());
+                continue;
+            }
+        }
+    }
+
+    if (ids_metamap_map.empty()) {
+        LOG_ERROR("no meta map found under {}", map_dir);
+        return false;
+    }
+    SetMetaMaps(ids_metamap_map);
+    // 未配置 map_identity 时, 若只有一个叶子地图, 记为默认 identity
+    if (map_identity_.empty() && ids_metamap_map.size() == 1) {
+        map_identity_ = ids_metamap_map.begin()->first;
+    }
+    LOG_INFO("LoadMetaMapsFromDir finish, leaf maps: {}", ids_metamap_map.size());
+    return true;
+}
+
 void Localizer::SetLidarCloud(const PointCloudXYZIPtr& lidar_cloud, const PoseTrans& T_RtoO) {
     std::lock_guard<std::mutex> lock(lidar_mutex_);
     curr_lidar_cloud_ = lidar_cloud;
@@ -83,6 +166,17 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
         LOG_ERROR(YELLOW "The map has not been loaded yet");
         return;
     }
+    // 解析实际使用的叶子地图 identity:
+    // 优先用传入 map_id(必须是 ids 中的 key); 为空/无效时退化到
+    // 配置的 map_identity_ 或唯一叶子地图。
+    std::string identity = map_id;
+    if (identity.empty() || ids_metamap_map_.find(identity) == ids_metamap_map_.end()) {
+        if (!map_identity_.empty() && ids_metamap_map_.find(map_identity_) != ids_metamap_map_.end()) {
+            identity = map_identity_;
+        } else if (ids_metamap_map_.size() == 1) {
+            identity = ids_metamap_map_.begin()->first;
+        }
+    }
     get_init_pose_ = true;
     // 设置机器人的初始位置
     init_T_RtoM_ = init_RtoM;
@@ -91,8 +185,8 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
     update_map_ = true;
     // 记录当前的地图信息
     curr_meta_info_.level = level;
-    curr_map_ = std::make_pair(map_id, curr_meta_info_);
-    LOG_INFO("map_identity:{}", map_id);
+    curr_map_ = std::make_pair(identity, curr_meta_info_);
+    LOG_INFO("map_identity:{}", identity);
     // LOG_INFO("init posisition:{}", init_T_RtoM_.t.transpose());
     // LOG_INFO("init orientation:{}", init_T_RtoM_.RPY().transpose());
     // 修改初始值的高度
@@ -383,8 +477,7 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
         if (dis_to_robot <= min_dis && dis_to_robot <= 25 * sqrt(2)) {
             min_dis = dis_to_robot;
             curr_meta_info_.name = meta_info->name;
-            // last_map_identity = meta_info->identity;
-            // cur_map_identity = meta_info->identity;
+            curr_meta_info_.identity = curr_map_.first;
         }
 
         // 如果已经加载了

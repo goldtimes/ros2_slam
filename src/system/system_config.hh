@@ -230,6 +230,7 @@ struct LocalizerConfig {
     bool use_meta_maps;
     double global_map_filter_size;
     std::string local_map_dir;
+    std::string map_identity;  // 默认叶子地图 identity(图元分组), 可空
     std::string register_method;
     double point_to_plane;
     double dist_to_robot;
@@ -248,6 +249,7 @@ struct LocalizerConfig {
         LOG_INFO("  use_meta_maps: {}", use_meta_maps);
         LOG_INFO("  global_map_filter_size: {:03.3f}", global_map_filter_size);
         LOG_INFO("  local_map_dir: {}", local_map_dir);
+        LOG_INFO("  map_identity: {}", map_identity);
         LOG_INFO("  register_method: {}", register_method);
         LOG_INFO("  point_to_plane: {:03.3f}", point_to_plane);
         LOG_INFO("  dist_to_robot: {:03.3f}", dist_to_robot);
