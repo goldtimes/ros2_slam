@@ -111,9 +111,11 @@ void ROS2Manager::InitSub() {
         LOG_ERROR("ROS2 only supports use_livox_driver 0(standard) or 2(livox_ros_driver2)!");
         std::exit(1);
     }
+    if (has_encoder_) { 
     encoder_sub_ = nh_->create_subscription<nav_msgs::msg::Odometry>(
         system_ptr_->GetSystemConfig()->encoder_config_.encoder_topic, rclcpp::SensorDataQoS(),
         std::bind(&ROS2Manager::EncoderCallback, this, std::placeholders::_1));
+    }
     if (has_gnss_) {
         gnss_sub_ = nh_->create_subscription<sensor_msgs::msg::NavSatFix>(
             system_ptr_->GetSystemConfig()->gnss_config_.gnss_topic, rclcpp::SensorDataQoS(),

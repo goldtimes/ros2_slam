@@ -20,7 +20,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     pkg_share = get_package_share_directory('lio_slam')
 
-    default_config = os.path.join(pkg_share, 'config', 'velodyne.yaml')
+    default_config = os.path.join(pkg_share, 'config', 'livox.yaml')
 
     config_arg = DeclareLaunchArgument(
         'config_path',

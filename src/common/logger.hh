@@ -38,7 +38,7 @@ public:
     spdlog::level::level_enum file_level;
 
     Config()
-        : name("slam"), dir("/home/kilox/rcs/logs/"), queue_size(8192),
+        : name("slam"), dir("/home/li/rcs/logs/"), queue_size(8192),
           pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%s:%#] %v"),
           flush_interval(3.0), console_level(spdlog::level::info),
           file_level(spdlog::level::info) {}
