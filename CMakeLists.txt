@@ -67,6 +67,7 @@ set(ALGORITHM_SOURCES
     src/lio/ieskf.cc
     src/lio/propogator.cc
     src/utils/pointcloud_utils.cc
+    src/utils/global_map_split.cc
     src/lidar_register/voxelmap_register.cc
     src/lidar_register/voxel_map.cc
     src/lio/fast/ikd_tree.cc

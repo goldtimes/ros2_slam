@@ -53,6 +53,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <lio_slam/srv/save_map.hpp>
 #endif
 
 namespace slam {
@@ -152,6 +153,9 @@ class PosegraphOptimization {
     void updatePose();
     void publishState();
     void publishMap();
+    // 保存优化后的地图(按名称): 保存到 map_save_dir_/<map_name>/
+    // 产出 整图pcd + keyframes/ + tiles/ ; 成功返回 true
+    bool SaveMapByName(const std::string &map_name);
     void addKFPoseToCloud(const PoseTrans &pose);
     gtsam::Pose3 poseTransToPose3(const PoseTrans &pose);
 
@@ -193,6 +197,8 @@ class PosegraphOptimization {
     rclcpp::Publisher<PathMsg>::SharedPtr pubPathAftPGO;
     rclcpp::Publisher<OdomMsg>::SharedPtr pubOdomAftPGO;
     rclcpp::Publisher<CloudMsg>::SharedPtr pubMapAftPGO;
+    // 保存地图服务(ROS2 only): 请求带地图名称
+    rclcpp::Service<lio_slam::srv::SaveMap>::SharedPtr save_map_srv_;
 #endif
 
     // 关键帧的距离
@@ -222,6 +228,18 @@ class PosegraphOptimization {
     double graphUpdateFrequency;
     double loopClosureFrequency;
     double vizmapFrequency = 1.0;
+
+    // 地图保存
+    bool map_save_enable_ = false;       // 空闲自动保存开关(默认关, 用 srv 手动保存)
+    double map_save_idle_sec_ = 10.0;    // 输入停止多久后(秒)自动保存一次
+    double map_save_voxel_ = 0.1;        // 保存时体素降采样(<=0 表示不降采样)
+    std::string map_save_dir_ = "/home/li/ros2_ws/maps";   // 保存根目录
+    std::string map_save_name_ = "pgo_optimized_map";      // 自动保存使用的默认名称
+    bool map_save_tile_enable_ = true;   // 是否把地图切成图元(META)
+    double map_save_tile_size_ = 50.0;   // 图元边长(米)
+    std::string map_save_leaf_ = "MAP_GLOBAL";  // 图元叶子地图 identity
+    bool map_save_keyframes_ = true;     // 是否保存关键帧点云(地图系)与位姿 txt
+    bool auto_map_saved_ = false;        // 已自动保存过(避免重复写盘)
 
     // 地图可视化线程
     std::thread map_visualization_thread_;

@@ -80,7 +80,7 @@ front_end:
   keyframe_distance: 0.5 # 关键帧距离
   keyframe_angle_distance: 0.5 # 关键帧角度 rads
   use_angle_keyframe: true  # 是否使用角度关键帧
-  save_map: true # 是否保存地图
+  save_map: false # 是否保存地图
   pcd_save_interval: -1 # 保存地图的间隔 设置成 -1, 不保存单个的pcd关键帧
   map_dir: "/home/li/ros2_ws" # 地图的目录
 

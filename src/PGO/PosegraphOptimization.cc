@@ -1,8 +1,14 @@
 #include "PosegraphOptimization.hh"
+#include "utils/global_map_split.hh"
+#include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <chrono>
+#include <cctype>
 #include <cmath>
+#include <cstdint>
+#include <fstream>
 #include <functional>
+#include <iomanip>
 using namespace slam;
 
 namespace {
@@ -96,6 +102,21 @@ PosegraphOptimization::PosegraphOptimization(const rclcpp::Node::SharedPtr &node
     LOG_INFO("loopClosureFrequency: {}, graphUpdateFrequency: {}, vizmapFrequency: {}", loopClosureFrequency,
              graphUpdateFrequency, vizmapFrequency);
 
+    // 保存地图参数
+    GetParam<bool>("map_save_enable", map_save_enable_, false);
+    GetParam<double>("map_save_idle_sec", map_save_idle_sec_, 10.0);
+    GetParam<double>("map_save_voxel", map_save_voxel_, 0.1);
+    GetParam<std::string>("map_save_dir", map_save_dir_, std::string("/home/li/ros2_ws/maps"));
+    GetParam<std::string>("map_save_name", map_save_name_, std::string("pgo_optimized_map"));
+    GetParam<bool>("map_save_tile_enable", map_save_tile_enable_, true);
+    GetParam<double>("map_save_tile_size", map_save_tile_size_, 50.0);
+    GetParam<std::string>("map_save_leaf", map_save_leaf_, std::string("MAP_GLOBAL"));
+    GetParam<bool>("map_save_keyframes", map_save_keyframes_, true);
+    LOG_INFO("map_save_enable: {}, map_save_idle_sec: {}, map_save_voxel: {}, map_save_dir: {}, map_save_name: {}",
+             map_save_enable_, map_save_idle_sec_, map_save_voxel_, map_save_dir_, map_save_name_);
+    LOG_INFO("map_save_tile_enable: {}, map_save_tile_size: {}, map_save_leaf: {}, map_save_keyframes: {}",
+             map_save_tile_enable_, map_save_tile_size_, map_save_leaf_, map_save_keyframes_);
+
     // 初始化gtsam参数
     gtsam::ISAM2Params parameters;
     parameters.relinearizeThreshold = 0.01;
@@ -104,6 +125,30 @@ PosegraphOptimization::PosegraphOptimization(const rclcpp::Node::SharedPtr &node
     // 初始化因子图噪声
     initNoise();
     init_subpub();
+
+#if ROS_AVAILABLE == 2
+    // 保存地图服务: ros2 service call /pgo_node/save_map lio_slam/srv/SaveMap "{map_name: 'xxx'}"
+    save_map_srv_ = nh_->create_service<lio_slam::srv::SaveMap>(
+        "~/save_map", [this](const std::shared_ptr<lio_slam::srv::SaveMap::Request> req,
+                              std::shared_ptr<lio_slam::srv::SaveMap::Response> res) {
+            std::string name = req->map_name;
+            // 过滤不安全字符, 防止路径逃逸
+            for (auto &ch : name) {
+                if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_' && ch != '-' && ch != '.') {
+                    ch = '_';
+                }
+            }
+            if (name.empty()) {
+                res->success = false;
+                res->message = "invalid/empty map name";
+                return;
+            }
+            const bool ok = SaveMapByName(name);
+            res->success = ok;
+            res->message = (ok ? (map_save_dir_ + "/" + name) : std::string("save failed"));
+        });
+    LOG_INFO("save_map service ready: /pgo_node/save_map (map_save_dir={})", map_save_dir_);
+#endif
 
     // 初始化点云
     laserCloud.reset(new PointCloudXYZI());
@@ -364,11 +409,19 @@ void PosegraphOptimization::runLoopConstraint() {
             auto curr_node_idx = loopPair.second;
             auto relativePose = doICPVirtualRelative(prev_node_idx, curr_node_idx);
             gtsam::Pose3 relativePose3 = poseTransToPose3(relativePose);
-            if (relativePose3.equals(gtsam::Pose3::Identity())) {
+            // 注意: doICPVirtualRelative 在 ICP 失败时返回 PoseTrans()(恒等位姿)作为失败哨兵。
+            // 只有 ICP 成功(相对位姿非恒等)才添加回环约束; 旧逻辑"恒等才加"是反的,
+            // 会把失败的 ICP 当作恒等回环硬塞进图, 与里程计链严重冲突, 导致 ISAM2
+            // 线性系统奇异而抛 IndeterminantLinearSystemException。
+            if (!relativePose3.equals(gtsam::Pose3::Identity())) {
                 mGraph.lock();
                 gtSAMgraph.add(
                     gtsam::BetweenFactor<gtsam::Pose3>(curr_node_idx, prev_node_idx, relativePose3, robustLoopNoise));
                 mGraph.unlock();
+                LOG_INFO("Add loop edge between keyframes {} and {}", curr_node_idx, prev_node_idx);
+            } else {
+                LOG_WARN("Skip loop edge: ICP failed (relative pose == identity) between {} and {}", curr_node_idx,
+                         prev_node_idx);
             }
             std::chrono::milliseconds dura(2);
             std::this_thread::sleep_for(dura);
@@ -447,6 +500,8 @@ void PosegraphOptimization::loopFindNearKeyframe(PointCloudXYZIPtr &nearKeyframe
 
 void PosegraphOptimization::runISAMUpdate() {
     slam::Rate rate(graphUpdateFrequency);
+    size_t last_kf_count = 0;
+    int idle_cycles = 0;
     while (slam::RosOk()) {
         rate.sleep();
 
@@ -455,6 +510,33 @@ void PosegraphOptimization::runISAMUpdate() {
             isamUpdate();
             mGraph.unlock();
             // TODO save pose
+        }
+
+        // 自动保存优化后地图: 输入(关键帧)停止增长一段时间后保存一次;
+        // 若之后又有新关键帧(比如重新播放 bag), 则允许再次保存。
+        if (map_save_enable_) {
+            size_t kf_count = 0;
+            {
+                std::lock_guard<std::mutex> lock(mKF);
+                kf_count = keyframePoseIds.size();
+            }
+            if (kf_count > 1) {
+                if (kf_count == last_kf_count) {
+                    idle_cycles++;
+                } else {
+                    idle_cycles = 0;
+                    auto_map_saved_ = false;  // 有新的关键帧进来, 重新武装
+                }
+                last_kf_count = kf_count;
+                if (!auto_map_saved_ && idle_cycles >= static_cast<int>(map_save_idle_sec_ * graphUpdateFrequency)) {
+                    auto_map_saved_ = true;
+                    LOG_INFO("PGO input idle {}s, saving optimized map '{}' ...", idle_cycles / graphUpdateFrequency,
+                             map_save_name_);
+                    SaveMapByName(map_save_name_);
+                }
+            } else {
+                last_kf_count = kf_count;
+            }
         }
     }
 }
@@ -717,6 +799,108 @@ void PosegraphOptimization::publishMap() {
 #else
     pubMapAftPGO->publish(mapCloudMsg);
 #endif
+}
+
+// 保存优化后的结果(按地图名称): 保存到 <map_save_dir_>/<map_name>/
+//   整图pcd + keyframes/(点云+位姿txt) + tiles/(50x50 图元)
+bool PosegraphOptimization::SaveMapByName(const std::string &map_name) {
+    // 地图名称净化, 防止路径逃逸
+    std::string name = map_name;
+    for (auto &ch : name) {
+        if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_' && ch != '-' && ch != '.') {
+            ch = '_';
+        }
+    }
+    if (name.empty()) {
+        LOG_WARN("PGO map save skipped: empty map name");
+        return false;
+    }
+
+    const std::filesystem::path root = std::filesystem::path(map_save_dir_) / name;
+    const std::string save_path = (root / (name + ".pcd")).string();
+    const std::string kf_dir = (root / "keyframes").string();
+    const std::string tiles_root = (root / "tiles").string();
+    try {
+        std::filesystem::create_directories(kf_dir);
+    } catch (const std::filesystem::filesystem_error &e) {
+        LOG_WARN("create dir {} failed: {}", kf_dir, e.what());
+    }
+
+    // 1) 锁内快照: 复制关键帧点云(shared_ptr)与优化位姿, 之后在锁外做重计算
+    size_t n = 0;
+    std::vector<PoseTrans> kf_poses;
+    std::vector<PointCloudXYZIPtr> kf_clouds;
+    {
+        std::lock_guard<std::mutex> lock(mKF);
+        n = std::min(keyframeCloudBuf.size(), keyframePoseOptimized.size());
+        if (n < 2) {
+            LOG_WARN("PGO map save '{}' skipped: not enough keyframes ({})", name, n);
+            return false;
+        }
+        kf_poses.reserve(n);
+        kf_clouds.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            kf_clouds.push_back(keyframeCloudBuf.at(i));
+            kf_poses.push_back(keyframePoseOptimized.at(i).pose);
+        }
+    }
+
+    // 2) 拼装全局地图; 同时保存每个关键帧点云(地图系)与位姿 txt
+    PointCloudXYZIPtr map_out(new PointCloudXYZI());
+    std::string poses_path = kf_dir + "/keyframe_poses.txt";
+    std::ofstream ofs(poses_path);
+    ofs << "# keyframe poses (optimized, map frame)\n"
+        << "# index tx ty tz qx qy qz qw\n";
+    ofs << std::fixed << std::setprecision(6);
+    for (size_t i = 0; i < n; ++i) {
+        PointCloudXYZIPtr tmp(new PointCloudXYZI());
+        TransformCloud(kf_clouds[i], tmp, kf_poses[i].R, kf_poses[i].t);
+        if (map_save_keyframes_) {
+            tmp->width = static_cast<std::uint32_t>(tmp->size());
+            tmp->height = 1;
+            tmp->is_dense = false;
+            std::string kf_pcd = kf_dir + "/keyframe_" + std::to_string(i) + ".pcd";
+            pcl::io::savePCDFileBinary(kf_pcd, *tmp);
+        }
+        *map_out += *tmp;
+        // 位姿行
+        Eigen::Quaterniond q(kf_poses[i].R);
+        q.normalize();
+        ofs << i << " " << kf_poses[i].t.x() << " " << kf_poses[i].t.y() << " " << kf_poses[i].t.z() << " " << q.x()
+            << " " << q.y() << " " << q.z() << " " << q.w() << "\n";
+    }
+    ofs.close();
+    LOG_INFO("PGO keyframes saved: {} clouds -> {}, poses -> {}", n, kf_dir, poses_path);
+
+    if (map_out->empty()) {
+        LOG_WARN("PGO map save '{}' skipped: empty map", name);
+        return false;
+    }
+
+    // 3) 全局地图体素降采样后保存
+    PointCloudXYZIPtr filtered =
+        (map_save_voxel_ > 0.0) ? VoxelFilter(map_out, static_cast<float>(map_save_voxel_)) : map_out;
+    filtered->width = static_cast<std::uint32_t>(filtered->size());
+    filtered->height = 1;
+    filtered->is_dense = false;
+    try {
+        std::filesystem::create_directories(root);
+    } catch (const std::filesystem::filesystem_error &e) {
+        LOG_WARN("create dir for {} failed: {}", save_path, e.what());
+    }
+    if (pcl::io::savePCDFileBinary(save_path, *filtered) < 0) {
+        LOG_ERROR("PGO map save failed: {}", save_path);
+        return false;
+    }
+    LOG_INFO(GREEN "PGO optimized map saved: {} (points {})" RESET, save_path, filtered->size());
+
+    // 4) 切图元(默认 50x50), 目录结构兼容 Localizer::LoadMetaMapsFromDir
+    if (map_save_tile_enable_ && map_save_tile_size_ > 0.0) {
+        int tile_cnt = slam::SplitGlobalMapToTiles(filtered, tiles_root, map_save_leaf_, map_save_tile_size_, 10);
+        LOG_INFO(GREEN "PGO optimized map tiles: {} tiles ({}x{} m) -> {}, leaf {}" RESET, tile_cnt, map_save_tile_size_,
+                 map_save_tile_size_, tiles_root, map_save_leaf_);
+    }
+    return true;
 }
 
 #if ROS_AVAILABLE == 1

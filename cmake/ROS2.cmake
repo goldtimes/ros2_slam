@@ -18,6 +18,11 @@ find_package(ament_index_cpp REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 # livox ROS2 驱动(位于 thirdparty/livox_ros_driver,包名 livox_ros_driver2)
 find_package(livox_ros_driver2 REQUIRED)
+# 自定义 srv 生成(SaveMap, 供 pgo_node 保存地图)
+find_package(rosidl_default_generators REQUIRED)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/SaveMap.srv"
+)
 
 include_directories(
  src
@@ -78,6 +83,8 @@ if(GTSAM_FOUND)
     )
     ament_target_dependencies(pgo_node ${ament_libraries})
     target_link_libraries(pgo_node source_lib)
+    rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+    target_link_libraries(pgo_node "${cpp_typesupport_target}")
 endif()
 
 # 离线全局地图切块工具(无 ROS 依赖)

@@ -1,0 +1,6 @@
+# 保存 PGO 优化后的建图结果(整图 pcd + 关键帧 + 位姿 txt + 切图元)
+# 保存位置: 参数 map_save_dir/<map_name>/ 目录下
+string map_name  # 地图名称(不含扩展名/路径分隔符), 如 "scene_20260908"
+---
+bool success     # 是否保存成功
+string message   # 保存目录或错误信息
