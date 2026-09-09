@@ -133,7 +133,7 @@ front_end:
 localizer:
     use_meta_maps: true # 使用图元地图
     global_map_filter_size: 0.3 # 对全局地图的降采样
-    local_map_dir: "/home/li/ros2_ws/maps/superlio_tiles" # 图元地图根目录(map_split 输出)
+    local_map_dir: "/home/li/ros2_ws/maps/shizishan_park/tiles" # 图元地图根目录(map_split 输出)
     map_identity: "MAP_GLOBAL" # 默认叶子地图 identity(可空, 空时自动用唯一一个)
     register_method: "gicp" # "ceres", "LM" 
     point_to_plane: 0.01 # 点到平面的距离
@@ -146,4 +146,4 @@ localizer:
     icp_dist_thresh: 1.0 # 最邻近搜索的阈值，小于1m的点都计算进来
     update_search_dist_thresh: 1.0 # 搜索的阈值，小于1m的点都计算进来
     match_score_thresh: 1.0 # 匹配的阈值，小于0.1的点都计算进来
-    use_ceres: true  
+    use_ceres: false # ceres: 2次迭代+0.2降采样, 比 GICP(100次) 快很多且更稳

@@ -36,7 +36,7 @@ void Localizer::AllocateMemory() {
     global_map_tree_.reset(new PointTree());
 
     gicp_matcher_.reset(new GICP());
-    gicp_matcher_->setMaximumIterations(100);
+    gicp_matcher_->setMaximumIterations(30);
     gicp_matcher_->setTransformationEpsilon(1e-6);
     gicp_matcher_->setEuclideanFitnessEpsilon(1e-6);
     gicp_matcher_->setRANSACIterations(1);
@@ -215,15 +215,35 @@ void Localizer::SetInitPose(const PoseTrans& init_RtoM, int level, const std::st
 // 设置单张的全局地图
 void Localizer::SetMaps(const std::string& pcd_path) {
     // 加载全局地图
+    PointCloudXYZIPtr loaded(new PointCloudXYZI());
     if (boost::filesystem::exists(pcd_path)) {
-        pcl::io::loadPCDFile(pcd_path, *global_map_);
+        pcl::io::loadPCDFile(pcd_path, *loaded);
     }
-    // 构建kd树
-    global_map_tree_->setInputCloud(global_map_);
-    loaded_map_ = true;
+    // 整体换新(不可变点云 + 新KD树), 检索线程持有的旧快照不受影响
+    {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        global_map_ = loaded;
+        PointTree::Ptr new_tree(new PointTree());
+        new_tree->setInputCloud(loaded);
+        global_map_tree_ = new_tree;
+        loaded_map_ = true;
+        global_map_update_ = true;
+    }
 
     std::lock_guard<std::mutex> lock(state_mutex_);
     local_state_ = LOCAL_STATE::NOT_INIT;
+}
+
+// 线程安全地取最新全局地图快照(共享指针, 无深拷贝; 地图整体换新后不可变)。
+// 有更新且非空时返回 true 并清更新标志。
+bool Localizer::GetGlobalMapSnapshot(PointCloudXYZIPtr& out_cloud) {
+    std::lock_guard<std::mutex> lock(global_map_mutex_);
+    if (!global_map_update_ || !global_map_ || global_map_->empty()) {
+        return false;
+    }
+    out_cloud = global_map_;
+    global_map_update_ = false;
+    return true;
 }
 
 void Localizer::SetTrajCloud(const PointCloudXYZIPtr& traj_cloud) {
@@ -287,8 +307,16 @@ void Localizer::MapRegister() noexcept {
             case LOCAL_STATE::INITING:  // cast 不会创建作用域
                 CheckInitializationStatus();
                 break;
-            case LOCAL_STATE::INITED:
-                if (get_new_submap_) {
+            case LOCAL_STATE::INITED: {
+                // 只在新 submap 到来时做一次配准; 用后即清标志, 避免反复
+                // 处理同一份 submap 造成 GICP 空转、拖垮里程计/地图加载线程。
+                bool has_new_submap = false;
+                {
+                    std::lock_guard<std::mutex> lock(state_mutex_);
+                    has_new_submap = get_new_submap_;
+                    get_new_submap_ = false;
+                }
+                if (has_new_submap) {
                     auto start = std::chrono::high_resolution_clock::now();
                     UpdateSearch();
                     auto end = std::chrono::high_resolution_clock::now();
@@ -296,6 +324,7 @@ void Localizer::MapRegister() noexcept {
                     LOG_INFO("UpdateSearch cost time: {} ms", duration.count());
                 }
                 break;
+            }
             case LOCAL_STATE::INIT_FAILED:
                 break;
             case LOCAL_STATE::LOST:
@@ -380,11 +409,32 @@ bool Localizer::InitSearch() {
         std::lock_guard<std::mutex> lock(lidar_mutex_);
         curr_lidar_cloud.reset(new PointCloudXYZI(*curr_lidar_cloud_));
     }
+    // 初始化前对当前帧降采样, 大幅降低粗搜/细配准的 CPU 占用,
+    // 避免初始化时把 ROS 回调/前端饿着而出现 imu/lidar data lost。
+    if (curr_lidar_cloud && curr_lidar_cloud->size() > 5000) {
+        curr_lidar_cloud = VoxelFilter(curr_lidar_cloud, 0.5f);
+    }
+    if (!curr_lidar_cloud || curr_lidar_cloud->size() < 100) {
+        LOG_WARN("init lidar too small, abort init");
+        return false;
+    }
+    // 取地图指针快照(整体换新、不可变), 检索期间不持锁
+    PointCloudXYZIPtr gmap;
+    PointTree::Ptr gtree;
+    {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        if (!global_map_ || global_map_->empty()) {
+            LOG_WARN("init abort: global map empty");
+            return false;
+        }
+        gmap = global_map_;
+        gtree = global_map_tree_;
+    }
     for (size_t i = 0; i < search_poses.size(); i++) {
         if (cancel_init_) {
             break;
         }
-        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud, global_map_tree_,
+        double score = CalculateP2PScore(search_poses[i], curr_lidar_cloud, gtree,
                                          system_config_ptr_->localizer_config_.icp_dist_thresh);
         if (score < min_score) {
             min_score = score;
@@ -412,7 +462,7 @@ bool Localizer::InitSearch() {
 
         PoseTrans incre_pose;
         double score;
-        score = GicpAlign(trans_source_cloud, global_map_, global_map_tree_, incre_pose,
+        score = GicpAlign(trans_source_cloud, gmap, gtree, incre_pose,
                           system_config_ptr_->localizer_config_.update_search_dist_thresh,
                           system_config_ptr_->localizer_config_.match_score_thresh);
 
@@ -528,6 +578,8 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
 
     // 如果发生了更新, 则从新更新地图
     if (update) {
+        // 先在锁外把当前激活图元全部合并/降采样,
+        // 再一次性更新 global_map_ 与 KD 树, 缩短持锁时间。
         PointCloudXYZIPtr trans_map(new PointCloudXYZI);
         for (auto& meta_info : ids_metamap_map_[curr_map_.first]) {
             if (!meta_info->is_active) continue;
@@ -535,17 +587,30 @@ bool Localizer::LoadMapByPose(const PoseTrans& T_BtoM) {
 
             LOG_INFO(YELLOW "insert [{}] of point size {} \n", meta_info->name.c_str(), meta_info->map_pcd->size());
             *trans_map += *TransformLidar(meta_info->map_pcd, meta_info->T.R, meta_info->T.t);
-            global_map_filter_.setInputCloud(trans_map);
-            global_map_filter_.filter(*global_map_);
-            global_map_update_ = true;
-            global_map_tree_->setInputCloud(global_map_);
         }
-        if (global_map_->empty()) {
+        if (trans_map->empty()) {
             return false;
         }
-        LOG_INFO(YELLOW "global map point size {} \n" RESET, global_map_->size());
-        loaded_map_ = true;
+        PointCloudXYZIPtr filtered(new PointCloudXYZI);
+        global_map_filter_.setInputCloud(trans_map);
+        global_map_filter_.filter(*filtered);
+        if (filtered->empty()) {
+            return false;
+        }
+        {
+            // 整体换新: 不可变点云 + 新KD树, 只短暂持锁做指针交换;
+            // 检索线程持有的旧快照仍可安全使用, 避免长锁阻塞与并发崩溃。
+            std::lock_guard<std::mutex> lock(global_map_mutex_);
+            global_map_ = filtered;
+            PointTree::Ptr new_tree(new PointTree());
+            new_tree->setInputCloud(filtered);
+            global_map_tree_ = new_tree;
+            global_map_update_ = true;
+            loaded_map_ = true;
+        }
+        LOG_INFO(YELLOW "global map point size {} \n" RESET, filtered->size());
     } else {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
         global_map_update_ = false;
     }
 
@@ -608,21 +673,46 @@ double Localizer::CalculateP2PScore(const PoseTrans& pose, const PointCloudXYZIP
 }
 
 void Localizer::UpdateSearch() {
-    PointCloudXYZIPtr cloud_in_map = TransformLidar(curr_submap_cloud_, T_OtoM_.R, T_OtoM_.t);
+    // 先对 submap 降采样, 把配准耗时从秒级降到几十~百毫秒
+    PointCloudXYZIPtr submap = curr_submap_cloud_;
+    if (submap && submap->size() > 5000) {
+        submap = VoxelFilter(submap, 0.5f);
+    }
+    if (!submap || submap->size() < 100) {
+        LOG_WARN("submap too small, skip update");
+        return;
+    }
+    // 只取地图指针快照(整体换新、不可变), 检索期间不持锁
+    PointCloudXYZIPtr gmap;
+    PointTree::Ptr gtree;
+    {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        if (!global_map_ || global_map_->empty()) {
+            return;
+        }
+        gmap = global_map_;
+        gtree = global_map_tree_;
+    }
+    PointCloudXYZIPtr cloud_in_map = TransformLidar(submap, T_OtoM_.R, T_OtoM_.t);
     PoseTrans incre_pose;
     double score;
     if (!use_ceres_) {
-        score = GicpAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
+        score = GicpAlign(cloud_in_map, gmap, gtree, incre_pose,
                           system_config_ptr_->localizer_config_.update_search_dist_thresh,
                           system_config_ptr_->localizer_config_.match_score_thresh);
     } else {
-        score = CeresAlign(cloud_in_map, global_map_, global_map_tree_, incre_pose,
+        score = CeresAlign(cloud_in_map, gmap, gtree, incre_pose,
                            system_config_ptr_->localizer_config_.update_search_dist_thresh);
     }
     LOG_INFO(BLUE
              "=======> update source {} icp score {:03.3f} current in match icp "
              "init, incre_trans {:03.3f} " RESET,
              cloud_in_map->size(), score, incre_pose.norm());
+    // 拒绝异常大跳变, 防止错误匹配把位姿带飞
+    if (incre_pose.t.norm() > 5.0 || incre_pose.RPY().norm() > 0.5) {
+        LOG_WARN("Reject too large update: trans {:.2f}, rot {:.2f}", incre_pose.t.norm(), incre_pose.RPY().norm());
+        return;
+    }
     PoseTrans best_OtoM = incre_pose * T_OtoM_;
     T_OtoM_ = best_OtoM;
     if (score > system_config_ptr_->localizer_config_.match_score_thresh) {

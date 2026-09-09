@@ -284,8 +284,9 @@ void ROS2Manager::GNSSCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss
 }
 
 void ROS2Manager::Visualize() {
-    if (system_ptr_->GetLocalizer() != nullptr && system_ptr_->GetLocalizer()->GetGlobalMapUpdate()) {
-        auto global_map = ToPointCloud2(system_ptr_->GetLocalizer()->GetGlobalMap(), "map", last_visualize_time_);
+    PointCloudXYZIPtr gmap_snapshot;
+    if (system_ptr_->GetLocalizer() != nullptr && system_ptr_->GetLocalizer()->GetGlobalMapSnapshot(gmap_snapshot)) {
+        auto global_map = ToPointCloud2(gmap_snapshot, "map", last_visualize_time_);
         global_map_pub_->publish(global_map);
     }
     auto submap = ToPointCloud2(system_ptr_->GetSubmap(), "odom", last_visualize_time_);

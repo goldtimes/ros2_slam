@@ -76,6 +76,8 @@ bool SuperLIORegister::InitMap(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<I
                           });
         ivox_->insert(points_world);
         first_frame_ = false;
+        // 首帧关键帧也降采样, 保持 submap 体量一致
+        cloud_world_tmp = VoxelFilter(cloud_world_tmp, 0.3f);
         keyframes_.emplace_back(T_WL, cloud_world_tmp);
         {
             std::lock_guard<std::mutex> lock(local_map_mutex_);
@@ -110,13 +112,19 @@ bool SuperLIORegister::Align(PointCloudXYZIPtr &cloud_lidar, std::shared_ptr<IES
         (use_angle_keyframe_ && delta_pose.RPY().norm() > keyframe_angle_distance_)) {
         is_keyframe_ = true;
         last_keypose_ = curr_pose;
-        PointCloudXYZIPtr tmp_submap(new PointCloudXYZI);
         auto cloud_world_tmp = TransformLidarOMP(cloud_lidar, T_WL.R, T_WL.t);
+        // 关键帧点云降采样后再入队列, 避免 submap 中大量重叠帧叠加导致点膨胀
+        cloud_world_tmp = VoxelFilter(cloud_world_tmp, 0.3f);
         keyframes_.push_back({T_WL, cloud_world_tmp});
 
+        PointCloudXYZIPtr tmp_submap(new PointCloudXYZI);
         std::lock_guard<std::mutex> lock(local_map_mutex_);
         for (auto &keyframe : keyframes_) {
             *tmp_submap += *keyframe.second;
+        }
+        // 合并后跨帧去重, 控制 submap 点量
+        if (tmp_submap->size() > 8000) {
+            tmp_submap = VoxelFilter(tmp_submap, 0.3f);
         }
         submap_ = tmp_submap;
 

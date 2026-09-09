@@ -116,6 +116,9 @@ class Localizer {
         return global_map_update_;
     }
 
+    // 线程安全地获取最新全局地图快照(拷贝)。地图有更新且非空时返回 true 并清更新标志。
+    bool GetGlobalMapSnapshot(PointCloudXYZIPtr& out_cloud);
+
    private:
     // 根据当前的位置加载地图
     bool LoadMapByPose(const PoseTrans& init_pose = PoseTrans());
@@ -174,6 +177,9 @@ class Localizer {
     PointCloudXYZIPtr global_map_;
     // 全局地图的kd树
     PointXYZITree::Ptr global_map_tree_;
+    // 保护 global_map_ / global_map_tree_ / global_map_update_ 的并发读写
+    // (MapUpdate/加载线程写, InitSearch/UpdateSearch 检索, Visualize 快照读)
+    std::mutex global_map_mutex_;
 
     // 轨迹点云
     PointCloudXYZIPtr traj_cloud_;
